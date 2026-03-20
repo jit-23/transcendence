@@ -2,28 +2,31 @@
 import {PrismaClient} from "@prisma/client";
 
 import { Request, Response } from "express";
+
+import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 export const createUser = async (req: Request ,res: Response) =>{
     try{
-        const {name , password} = req.body;
-        console.log("name:", name);
-        console.log("pass:", password);
-        if (!name){
-
-            return res.status(422).json({error: "Name required"}); //422   -> error for invalid data
+        const {username , email,password} = req.body;
+		
+        if (!username){
+			return res.status(422).json({error: "username required"}); //422   -> error for invalid data
         }
+		if(!email){
+			return res.status(422).json({error: "Email required"});
+		}
         if (!password){
-            return res.status(422).json({error: "password required"}); //422   -> error for invalid data
+			return res.status(422).json({error: "password required"}); //422   -> error for invalid data
         }
-
-        if (await prisma.my_users.findUnique({where : {name: req.body.name}}))
+		const hash = await bcrypt.hash(password, 10);
+		
+        if (await prisma.my_users.findUnique({where : {email: req.body.email}}))
         {
-            return res.status(409).json({error: `${req.body.name} already exist!`});
+            return res.status(409).json({error: `${req.body.email} already has a account with this same email!`});
         }
-
         const user  = await prisma.my_users.create({
-        data: {name, password},
+        data: {name:username, email, password: hash},	
     });
 
     return res.status(201).json(user); // 201 created ;
@@ -52,14 +55,16 @@ export const updateUser = async (req : Request, res: Response)=>{
     try {
             if (!await prisma.my_users.findUnique({where: {id : parseInt(req.body.id)}}))
                 return res.status(404).json({error: `User Not Found!`}); 
-            if (!req.body.name)
-                return res.status(422).json({error: "Name or password required"}); //422   -> error for invalid data
-            if (await prisma.my_users.findUnique({where : {name: req.body.name}}))
-                    return res.status(409).json({error: `${req.body.name} already exist!`});
+            if (!req.body.username)
+                return res.status(422).json({error: "username or password required"}); //422   -> error for invalid data
+            if (await prisma.my_users.findUnique({where : {name: req.body.username}}))
+                    return res.status(409).json({error: `${req.body.username} already exist!`});
             
             const updatedUser = await prisma.my_users.update({
                 data: {
-                    name: req.body.name
+                    name: req.body.username,
+                    email: req.body.email,
+                    password: req.body.password
                 },
                 where: {
                     id : parseInt(req.body.id) // req.params.id?
