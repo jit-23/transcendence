@@ -1,30 +1,64 @@
-import { useState } from 'react';
-//import  bcrypt   from 'bcrypt';
-
-import jwt from 'jsonwebtoken';
+import { useContext, useState } from 'react';
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "./AuthContext";
 
 export function LoginForm() { 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
+	const [email, setEmail] = useState("");
+	const [isLogin, setIsLogin] = useState(true);
+  const { login } = useContext(AuthContext);
 	
-
-  const [isLogin, setIsLogin] = useState(true);
-
-  const handleSubmit = async(event:any) => {
+    const navigate = useNavigate();
+	
+  	const handleSubmit = async (event: any) => {
     event.preventDefault();
 
-	const payload = isLogin	? { username, password }: { username, email, password };
-	//console.log("payload: ", payload);
-	await fetch("http://localhost:8081/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }
-  )
-  };
+
+
+	const endpoint = isLogin ? "http://localhost:8081/users/login" : "http://localhost:8081/users/signup";
+    const payload = isLogin ? { email, password } : { username, email, password }; // Using all three for signup
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json"},
+        body: JSON.stringify(payload),
+      });
+
+	  const contentType = response.headers.get("content-type");
+     
+	  if (!contentType || !contentType.includes("application/json")) {
+      	const rawText = await response.text();
+      	throw new Error(`Server sent non-JSON response: ${rawText}`);
+    	}
+
+		const data = await response.json();
+
+	  if (response.ok) {
+        if (isLogin && data.token) {
+			login(data.token); // this stores the token and updates user state in AuthContext
+			const meResponse = await fetch("http://localhost:8081/users/me",{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${data.token}` 
+				},
+			});
+			if (!meResponse.ok) {
+				throw new Error("Failed to fetch user data after login");
+			}
+			const meData = await meResponse.json();
+			console.log("Fetched user data after login:", meData); 
+			navigate("/dashboard");
+		} else {	
+		console.log("Signup successful, user data:", data); 
+          //alert("Account created! Now please log in.");
+          setIsLogin(true); // Switch them to the login screen
+        }
+      } else {
+        alert(data.error || "Something went wrong");
+      }
+    } catch (error: any) {console.error("Network error:", error);}
+}
 
  return ( 
     <div style={{ maxWidth: '300px', margin: '50px auto', fontFamily: 'sans-serif' }}>

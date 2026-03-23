@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import cors from "cors";
 import pg from "pg";
-
+import 'dotenv/config';
 import userRoute from "./Routes/userRoute.js"
 
 import {PrismaClient} from "@prisma/client";
