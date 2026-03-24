@@ -1,25 +1,52 @@
 import React from "react"; // Add this line
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LoginForm } from "./userLog";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { LoginForm } from "./userLogin.tsx";
 import { Dashboard } from "./dashboard";
+import { SignupForm } from './userSignup.tsx'
 import PrivateRoute from "./PrivateRoute";
 
+import '../css/App.css'
+
+//will move to another file soon//
+function NotFound() {
+    return (
+        <div>
+            <h1>404</h1>
+            <p>Page not found</p>
+            <Link to="/">Go home</Link>
+        </div>
+    )
+}
+function Home() {
+    return (
+        <div>
+            <h1>Home</h1>
+            <nav>
+                <Link to="/login">Login</Link>
+                <br />
+                <Link to="/signup">Register</Link>
+            </nav>
+        </div>
+    )
+}
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Define which component shows for which URL */}
-        <Route path="/" element={<LoginForm />} />
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/dashboard" element={
-    		<PrivateRoute>
-      			<Dashboard />
-    		</PrivateRoute>
-  }/>     
-        {/* Optional: Catch-all redirect */} // maybe insert a 404 page here instead
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+      <div id="center">
+        <BrowserRouter>
+          <Routes>
+            {/* Define which component shows for which URL */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<LoginForm />} />
+             <Route path="/signup" element={<SignupForm />} />
+            <Route path="/dashboard" element={
+                <PrivateRoute>
+                    <Dashboard />
+                </PrivateRoute>
+      }/>
+              <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </div>
   );
 }
 
