@@ -15,8 +15,11 @@ export function Dashboard() {
         Logout
       </button>
 		<b/>
-	  <button onClick={() => alert("Add friends functionality coming soon!")}>
+	  <button onClick={() => alert("Add friends functionality coming soon\n AND ADD HTTPS INSTEAD OF HTTP XXXXXXXXX")}>
         Add Friends
+      </button>
+      <button onClick={() => alert("talk to someone")}>
+        talk to someone
       </button>
     </div>
   );

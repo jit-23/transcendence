@@ -150,3 +150,9 @@ export const updateUser = async (req : Request, res: Response)=>{
        return res.status(500).json({error: error.message});
     }
 }
+//!
+//export const chat_with_friends = async (req: Request ,res: Response)=>{
+//    const socket = }
+//!
+
+export default {createUser, getMe, login, getUser, updateUser/* , chat_with_friends */};

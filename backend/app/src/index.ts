@@ -1,23 +1,26 @@
-import express from "express";
-import http from "http";
-import bodyParser from "body-parser";
-import cookieParser from "cookie-parser";
-import compression from "compression";
-import cors from "cors";
-import pg from "pg";
-import 'dotenv/config';
+import express from "express"
+import http from "http"
+import bodyParser from "body-parser"
+import cookieParser from "cookie-parser"
+import compression from "compression"
+import cors from "cors"
+import pg from "pg"
+import 'dotenv/config'
 import userRoute from "./Routes/userRoute.js"
 
-import {PrismaClient} from "@prisma/client";
+import {Server} from "socket.io"
 
-const prisma = new PrismaClient();
-const app =  express();
-/* app.use(cors({
-  origin: 'http://localhost:8081/',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-})); */
+import {PrismaClient} from "@prisma/client"
+
+const connectedByName = new Map<string, string>(); 
+// |
+// V
+// username & socket.id -> will be used to send info(msgs) from the user,
+//  and with this way io will identify the user and its corresponding SOCKER ID
+
+
+const prisma = new PrismaClient()
+const app =  express()
 
 
 app.use(cors({
@@ -33,7 +36,56 @@ app.use(`/users`, userRoute)
 const PORT = 8081;
 
 
-app.listen(PORT, ()=>{console.log("express connected")});
+const server = app.listen(PORT, ()=>{console.log("express connected")});
+
+//! SOCKET.IO SETUP
+
+const io =  new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
+    }
+});
+
+
+io.on("connection", (socket)=>{
+
+  const username = socket.handshake.auth.username as string;
+  
+  if (!username)
+    return socket.disconnect();
+  
+  connectedByName.set(username, socket.id);
+  console.log(`${username} connected with id: ${socket.id}`);
+
+  socket.on("private-message", ({payload})=>{
+  const toSocketId = connectedByName.get(payload.to);
+
+  if (toSocketId){
+    io.to(toSocketId).emit("private-message", { 
+      from : username, 
+      text: payload.text})
+  }
+  else { socket.emit("user-not-found", { to: payload.to })}
+
+
+socket.on("disconnect", ()=>{ 
+  connectedByName.delete(username);
+  console.log(`${username} disconnected`);
+});
+
+
+
+});
+
+
+
+})
+
+
+
+//! SOCKET.IO SETUP
 
 process.on("SIGINT", async () => {
   console.log("\nStopping the server...");
@@ -44,3 +96,5 @@ process.on("SIGINT", async () => {
   
   process.exit(0);
 });
+
+
