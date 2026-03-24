@@ -1,6 +1,9 @@
 //import {PrismaClient} from "../src/generated/prisma";
 import {PrismaClient} from "@prisma/client";
 import 'dotenv/config';
+import speakeasy from "speakeasy"
+import QRCode from "qrcode"
+import speakeasy from "speakeasy";
 
 import { Request, Response } from "express";
 
@@ -33,12 +36,37 @@ export const createUser = async (req: Request ,res: Response) =>{
         {
             return res.status(409).json({error: `${req.body.email} already has a account with this same email!`});
         }
-        const user  = await prisma.my_users.create({
-        data: {name:username, email, password: hash},	
-    });
+    //     const user  = await prisma.my_users.create({
+    //     data: {name:username, email, password: hash},
+    // });
+    //
+    // return res.status(201).json(user); // 201 created ;
+        const user = await prisma.my_users.create({
+            data: { name: username, email, password: hash },
+        });
 
-    return res.status(201).json(user); // 201 created ;
-}
+// 🔐 Generate 2FA secret
+        const secret = speakeasy.generateSecret({
+            name: `ft_transcendence (${email})`,
+        });
+
+// Save secret immediately (testing mode)
+        await prisma.my_users.update({
+            where: { id: user.id },
+            data: {
+                twoFactorEnabled: true,
+                twoFactorSecret: secret.base32,
+            },
+        });
+
+// Generate QR
+        const qr = await QRCode.toDataURL(secret.otpauth_url!);
+
+        return res.status(201).json({
+            message: "User created with 2FA enabled",
+            qr, // 👈 frontend will display this
+        });
+    }
     catch (error : any)
     {
         console.error(error);
@@ -155,4 +183,59 @@ export const updateUser = async (req : Request, res: Response)=>{
 //    const socket = }
 //!
 
-export default {createUser, getMe, login, getUser, updateUser/* , chat_with_friends */};
+//THIS NEEDS TO BE TRIPLE CHECKED !!!!!!!
+//we will need to add middleware so the seed doesn't get stolen!
+
+export const generate2FA = async (req: Request, res: Response) => {
+    const secret = speakeasy.generateSecret({
+        name: "ft_transcendence",
+    });
+
+    const qr = await QRCode.toDataURL(secret.otpauth_url!);
+
+    return res.json({
+        qr,
+        secret: secret.base32,
+    });
+};
+
+export const login2FA = async (req: Request, res: Response) => {
+    const { code, userId } = req.body;
+
+    const user = await prisma.my_users.findUnique({
+        where: { id: userId },
+    });
+
+    if (!user || !user.twoFactorSecret) {
+        return res.status(400).json({ error: "2FA not setup" });
+    }
+
+    const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+        token: code,
+        window: 1,
+    });
+
+    if (!verified) {
+        return res.status(400).json({ error: "Invalid code" });
+    }
+
+    const token = jwt.sign(
+        { userId: user.id },
+        process.env.JWT_SECRET!,
+        { expiresIn: "1h" }
+    );
+
+    return res.json({ token });
+};
+
+
+export default {
+    createUser,
+    getMe,
+    login,
+    login2FA,   // 2FA
+    getUser,
+    updateUser
+};

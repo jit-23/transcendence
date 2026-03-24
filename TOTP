@@ -1,0 +1,35 @@
+TOTP aka Time-based One-Time Password
+
+totp is probably on of the most secure 2fa
+and can be used offline as a app will be the one giving you the code
+after set up its very easy to use
+
+
+password = know
+totp code = have
+basically better security
+
+
+totp basically generates a code and both the db and the user will have a copy
+
+
+website will give you the code with a qr code easier i guess so you add it with some wanna be app
+like google authenticator
+
+when uses inputs the code it will do a check if equal good code if not invalid code
+
+
+totp seeds == qr code == string of text
+
+
+with the seed it will generate the code every 30 s
+
+
+seed == recovery code
+
+
+node generate key
+
+import { authenticator } from "otplib";
+
+const secret = authenticator.generateSecret();
