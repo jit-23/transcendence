@@ -13,10 +13,8 @@ model my_users{
 	email String @db.VarChar(20) @unique @map("Email")
 	password String @map("Password")
 	createdAt DateTime @default(now())
-
 	twoFactorEnabled  Boolean  @default(false)
 	twoFactorSecret   String?  @db.VarChar(100)
-
 }
 
 

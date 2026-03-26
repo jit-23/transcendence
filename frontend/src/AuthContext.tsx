@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
 
   const fetchUserData = async (token: string) => {
 	try{	
-		const response = await fetch("http://localhost:8081	/users/me", {
+		const response = await fetch("http://localhost:8081/users/me", {
 			headers: { Authorization: `Bearer ${token}` },
 		});
 		if (!response.ok) {
@@ -29,10 +29,10 @@ export function AuthProvider({ children }) {
 	}
 	};
 
-  const login = (token: string) => {
-    localStorage.setItem("token", token);
-    fetchUserData(token);
-  };
+	const login = async (token: string) => {
+		localStorage.setItem("token", token);
+		await fetchUserData(token);
+	};
 
   const logout = () => {
     localStorage.removeItem("token");
