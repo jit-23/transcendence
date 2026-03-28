@@ -1,19 +1,21 @@
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
+import { useTheme } from './ThemeContext';
 
 export function ProfilePage() {
-    const { user, refreshUser } = useContext(AuthContext);
-    const navigate = useNavigate();
+    const { user, refreshUser }  = useContext(AuthContext);
+    const { theme, toggleTheme } = useTheme();
+    const navigate               = useNavigate();
 
-    const [username, setUsername]           = useState(user?.name  ?? '');
-    const [email, setEmail]                 = useState(user?.email ?? '');
+    const [username, setUsername]               = useState(user?.name  ?? '');
+    const [email, setEmail]                     = useState(user?.email ?? '');
     const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword]     = useState('');
-    const [confirmNew, setConfirmNew]       = useState('');
-    const [loading, setLoading]             = useState(false);
-    const [success, setSuccess]             = useState<string | null>(null);
-    const [error, setError]                 = useState<string | null>(null);
+    const [newPassword, setNewPassword]         = useState('');
+    const [confirmNew, setConfirmNew]           = useState('');
+    const [loading, setLoading]                 = useState(false);
+    const [success, setSuccess]                 = useState<string | null>(null);
+    const [error, setError]                     = useState<string | null>(null);
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
@@ -49,7 +51,7 @@ export function ProfilePage() {
             const data = await res.json();
             if (!res.ok) { setError(data.error || 'Update failed'); return; }
             await refreshUser();
-            setSuccess('Profile updated!');
+            setSuccess('Profile updated successfully!');
             setCurrentPassword(''); setNewPassword(''); setConfirmNew('');
         } catch {
             setError('Network error. Please try again.');
@@ -67,9 +69,11 @@ export function ProfilePage() {
                     whiteboard
                 </div>
                 <div className="topbar-right">
-                    <button className="btn btn-ghost" onClick={() => navigate('/dashboard')}
-                            style={{ padding: '6px 14px', fontSize: '0.78rem' }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
                         ← Dashboard
+                    </button>
+                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+                        {theme === 'dark' ? '☀' : '☾'}
                     </button>
                 </div>
             </header>
@@ -80,24 +84,18 @@ export function ProfilePage() {
                     <p>Update your account information.</p>
                 </div>
 
-                {/* Avatar card */}
+                {/* Avatar row */}
                 <div className="section-card fade-up fade-up-1"
                      style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{
-                        width: 56, height: 56,
-                        borderRadius: '50%',
-                        background: 'var(--accent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 800,
-                        fontSize: '1.2rem',
-                        color: '#0e0e0f',
-                        flexShrink: 0,
-                    }}>
-                        {initials}
-                    </div>
+                    <div className="profile-avatar">{initials}</div>
                     <div>
-                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1rem' }}>
+                        <p style={{
+                            fontFamily: "'Syne', sans-serif",
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            letterSpacing: '-0.02em',
+                            marginBottom: 2,
+                        }}>
                             {user?.name}
                         </p>
                         <p style={{ color: 'var(--ink3)', fontSize: '0.78rem' }}>{user?.email}</p>
@@ -110,8 +108,8 @@ export function ProfilePage() {
                         <h3>Account Details</h3>
                     </div>
 
-                    {success && <div className="msg msg-success" style={{ marginBottom: 16 }}>{success}</div>}
-                    {error   && <div className="msg msg-error"   style={{ marginBottom: 16 }}>{error}</div>}
+                    {success && <div className="msg msg-success" style={{ marginBottom: 18 }}>{success}</div>}
+                    {error   && <div className="msg msg-error"   style={{ marginBottom: 18 }}>{error}</div>}
 
                     <form onSubmit={handleSubmit} className="form-stack">
                         <div className="form-group">
@@ -119,7 +117,7 @@ export function ProfilePage() {
                             <input
                                 type="text"
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={e => setUsername(e.target.value)}
                             />
                         </div>
                         <div className="form-group">
@@ -127,11 +125,11 @@ export function ProfilePage() {
                             <input
                                 type="email"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={e => setEmail(e.target.value)}
                             />
                         </div>
 
-                        <div className="divider" style={{ margin: '4px 0' }} />
+                        <div className="divider" />
 
                         <div className="form-group">
                             <label>New Password</label>
@@ -139,7 +137,7 @@ export function ProfilePage() {
                                 type="password"
                                 placeholder="Leave blank to keep current"
                                 value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
+                                onChange={e => setNewPassword(e.target.value)}
                             />
                         </div>
                         <div className="form-group">
@@ -148,21 +146,22 @@ export function ProfilePage() {
                                 type="password"
                                 placeholder="Repeat new password"
                                 value={confirmNew}
-                                onChange={(e) => setConfirmNew(e.target.value)}
+                                onChange={e => setConfirmNew(e.target.value)}
                             />
                         </div>
 
-                        <div className="divider" style={{ margin: '4px 0' }} />
+                        <div className="divider" />
 
                         <div className="form-group">
                             <label>
-                                Current Password <span style={{ color: 'var(--danger)' }}>*</span>
+                                Current Password{' '}
+                                <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>required</span>
                             </label>
                             <input
                                 type="password"
                                 placeholder="Required to save any changes"
                                 value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                onChange={e => setCurrentPassword(e.target.value)}
                                 required
                             />
                         </div>

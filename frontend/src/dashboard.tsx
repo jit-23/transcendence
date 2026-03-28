@@ -1,12 +1,14 @@
 import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
+import { useTheme } from "./ThemeContext";
 
 type EnableStep = "idle" | "scanning";
 
 export function Dashboard() {
-    const { user, logout } = useContext(AuthContext);
-    const navigate = useNavigate();
+    const { user, logout }          = useContext(AuthContext);
+    const { theme, toggleTheme }    = useTheme();
+    const navigate                  = useNavigate();
 
     const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled ?? false);
     const [enableStep, setEnableStep]     = useState<EnableStep>("idle");
@@ -17,7 +19,7 @@ export function Dashboard() {
     const [loading, setLoading]           = useState(false);
     const [error, setError]               = useState<string | null>(null);
 
-    const initials = user?.name?.slice(0, 2).toUpperCase() ?? "??";
+    const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
     const authHeader = () => ({
         Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -76,13 +78,14 @@ export function Dashboard() {
                         <div className="user-avatar">{initials}</div>
                         {user?.name}
                     </div>
-                    <button className="btn btn-ghost" onClick={() => navigate('/profile')}
-                            style={{ padding: '6px 14px', fontSize: '0.78rem' }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
                         Profile
                     </button>
-                    <button className="btn btn-ghost" onClick={logout}
-                            style={{ padding: '6px 14px', fontSize: '0.78rem' }}>
+                    <button className="btn btn-ghost btn-sm" onClick={logout}>
                         Sign out
+                    </button>
+                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+                        {theme === 'dark' ? '☀' : '☾'}
                     </button>
                 </div>
             </header>
@@ -90,29 +93,25 @@ export function Dashboard() {
             {/* ── Body ── */}
             <main className="dashboard-body">
                 <div className="page-title fade-up">
-                    <h1>Good to see you, {user?.name} 👋</h1>
-                    <p>Manage your account and security settings below.</p>
+                    <h1>Welcome back, {user?.name}</h1>
+                    <p>Manage your account and security settings.</p>
                 </div>
 
-                {/* Account info card */}
+                {/* Account card */}
                 <div className="section-card fade-up fade-up-1">
                     <div className="section-card-header">
                         <h3>Account</h3>
-                        <button className="btn btn-ghost" onClick={() => navigate('/profile')}
-                                style={{ padding: '5px 14px', fontSize: '0.76rem' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
                             Edit →
                         </button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {[
-                            { label: 'Username', value: user?.name },
-                            { label: 'Email',    value: user?.email },
-                        ].map(({ label, value }) => (
-                            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ color: 'var(--ink3)', fontSize: '0.78rem' }}>{label}</span>
-                                <span style={{ color: 'var(--ink2)', fontFamily: 'var(--font-mono)' }}>{value}</span>
-                            </div>
-                        ))}
+                    <div className="data-row">
+                        <span className="data-label">Username</span>
+                        <span className="data-value">{user?.name}</span>
+                    </div>
+                    <div className="data-row">
+                        <span className="data-label">Email</span>
+                        <span className="data-value">{user?.email}</span>
                     </div>
                 </div>
 
@@ -126,31 +125,33 @@ export function Dashboard() {
                         </span>
                     </div>
 
-                    {error && <div className="msg msg-error" style={{ marginBottom: 14 }}>{error}</div>}
+                    {error && (
+                        <div className="msg msg-error" style={{ marginBottom: 14 }}>{error}</div>
+                    )}
 
-                    {/* NOT enabled — idle */}
+                    {/* Idle — not enabled */}
                     {!twoFAEnabled && enableStep === "idle" && (
-                        <div>
-                            <p style={{ color: 'var(--ink3)', fontSize: '0.82rem', marginBottom: 14 }}>
-                                Add an extra layer of security to your account using an authenticator app.
+                        <>
+                            <p style={{ color: 'var(--ink3)', fontSize: '0.8rem', marginBottom: 16, lineHeight: 1.6 }}>
+                                Protect your account with a time-based one-time password from an authenticator app.
                             </p>
                             <button className="btn btn-ghost" onClick={handleGenerate} disabled={loading}>
                                 {loading ? 'Loading...' : 'Enable 2FA'}
                             </button>
-                        </div>
+                        </>
                     )}
 
-                    {/* SCANNING — show QR */}
+                    {/* Scanning — show QR */}
                     {enableStep === "scanning" && qr && (
-                        <div>
+                        <>
                             <div className="qr-warning">
-                                <span className="qr-warning-icon">⚠️</span>
-                                <span>Scan this QR code with Google Authenticator or Authy. <strong style={{ color: 'var(--ink)' }}>You won't see it again.</strong></span>
+                                <span>⚠</span>
+                                <span>Scan this with Google Authenticator or Authy. <strong style={{ color: 'var(--ink)' }}>You won't see it again.</strong></span>
                             </div>
                             <div className="qr-box">
                                 <img src={qr} alt="2FA QR Code" width={160} height={160} />
                             </div>
-                            <p style={{ color: 'var(--ink3)', fontSize: '0.78rem', marginBottom: 10 }}>
+                            <p style={{ color: 'var(--ink3)', fontSize: '0.76rem', marginBottom: 10, marginTop: 4 }}>
                                 Enter the 6-digit code from your app to confirm:
                             </p>
                             <div className="code-row">
@@ -158,7 +159,8 @@ export function Dashboard() {
                                     type="text" inputMode="numeric" maxLength={6}
                                     placeholder="000000"
                                     value={confirmCode}
-                                    onChange={(e) => setConfirmCode(e.target.value.replace(/\D/g, ''))}
+                                    onChange={e => setConfirmCode(e.target.value.replace(/\D/g, ''))}
+                                    className="code-input"
                                     autoFocus
                                 />
                                 <button className="btn btn-primary" onClick={handleConfirm} disabled={loading}>
@@ -169,26 +171,26 @@ export function Dashboard() {
                                     Cancel
                                 </button>
                             </div>
-                        </div>
+                        </>
                     )}
 
-                    {/* ENABLED */}
+                    {/* Enabled — show disable option */}
                     {twoFAEnabled && !showDisable && (
-                        <div>
-                            <p style={{ color: 'var(--ink3)', fontSize: '0.82rem', marginBottom: 14 }}>
-                                Your account is protected with two-factor authentication.
+                        <>
+                            <p style={{ color: 'var(--ink3)', fontSize: '0.8rem', marginBottom: 16, lineHeight: 1.6 }}>
+                                Your account is protected. An authenticator code is required at every login.
                             </p>
                             <button className="btn btn-danger"
                                     onClick={() => { setShowDisable(true); setError(null); }}>
                                 Disable 2FA
                             </button>
-                        </div>
+                        </>
                     )}
 
-                    {/* DISABLING */}
+                    {/* Disabling — require code */}
                     {twoFAEnabled && showDisable && (
-                        <div>
-                            <p style={{ color: 'var(--ink3)', fontSize: '0.82rem', marginBottom: 10 }}>
+                        <>
+                            <p style={{ color: 'var(--ink3)', fontSize: '0.76rem', marginBottom: 10 }}>
                                 Enter your current authenticator code to confirm:
                             </p>
                             <div className="code-row">
@@ -196,7 +198,8 @@ export function Dashboard() {
                                     type="text" inputMode="numeric" maxLength={6}
                                     placeholder="000000"
                                     value={disableCode}
-                                    onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))}
+                                    onChange={e => setDisableCode(e.target.value.replace(/\D/g, ''))}
+                                    className="code-input"
                                     autoFocus
                                 />
                                 <button className="btn btn-danger" onClick={handleDisable} disabled={loading}>
@@ -207,7 +210,7 @@ export function Dashboard() {
                                     Cancel
                                 </button>
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
             </main>
