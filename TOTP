@@ -53,3 +53,63 @@ psql -U postgres -d db
 
 SELECT * FROM "my_users";
 
+
+
+
+
+docker compose down -v;
+docker system prune -af;
+docker compose up --build
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. 🚨 index.ts — Socket disconnect listener is nested inside private-message
+This is a bug that will cause the server to never clean up disconnected users properly:
+ts// ❌ CURRENT — disconnect is inside private-message handler
+socket.on("private-message", ({ payload }) => {
+    ...
+    socket.on("disconnect", () => {   // ← nested! only fires after a message
+        connectedByName.delete(username);
+    });
+});
+
+// ✅ FIX — move disconnect to top level
+io.on("connection", (socket) => {
+    const username = socket.handshake.auth.username as string;
+    if (!username) return socket.disconnect();
+
+    connectedByName.set(username, socket.id);
+
+    socket.on("private-message", ({ payload }) => {
+        const toSocketId = connectedByName.get(payload.to);
+        if (toSocketId) {
+            io.to(toSocketId).emit("private-message", { from: username, text: payload.text });
+        } else {
+            socket.emit("user-not-found", { to: payload.to });
+        }
+    });
+
+    // ✅ top level
+    socket.on("disconnect", () => {
+        connectedByName.delete(username);
+        console.log(`${username} disconnected`);
+    });
+});
+
+
+
+
+
+

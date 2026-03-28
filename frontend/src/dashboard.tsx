@@ -1,27 +1,52 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { AuthContext } from "./AuthContext";
 
 export function Dashboard() {
-	console.log("Dashboard component rendered"); // Debugging line
-	const { user, logout } = useContext(AuthContext);
-	//const { addFriends } = useContext(AuthContext);
-	console.log("Dashboard user:", user?.email); // Debugging line
-	console.log("Dashboard user:", user?.name); // Debugging line
-  return (
-    <div>
-      <h1>Welcome {user?.name}</h1>
+    const { user, logout } = useContext(AuthContext);
+    const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled ?? false);
+    const [qr, setQr] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
-      <button onClick={logout}>
-        Logout
-      </button>
-		<b/>
-	  <button onClick={() => alert("Add friends functionality coming soon\n AND ADD HTTPS INSTEAD OF HTTP XXXXXXXXX")}>
-        Add Friends
-      </button>
-      <button onClick={() => alert("talk to someone")}>
-        talk to someone
-      </button>
-    </div>
-  );
+    const handleToggle2FA = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch("http://localhost:8081/users/toggle2FA", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            setTwoFAEnabled(data.enabled);
+            setQr(data.qr ?? null);
+        } catch (err) {
+            alert("Failed to toggle 2FA");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <h1>Welcome {user?.name}</h1>
+
+            <button onClick={logout}>Logout</button>
+
+            <div style={{ marginTop: "20px" }}>
+                <p>2FA: <strong>{twoFAEnabled ? "✅ Enabled" : "❌ Disabled"}</strong></p>
+                <button onClick={handleToggle2FA} disabled={loading}>
+                    {loading ? "Updating..." : twoFAEnabled ? "Disable 2FA" : "Enable 2FA"}
+                </button>
+
+                {qr && (
+                    <div style={{ marginTop: "16px" }}>
+                        <p>Scan with Google Authenticator:</p>
+                        <img src={qr} alt="2FA QR Code" />
+                        <p><em>You won't see this again — scan it now!</em></p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
+
 export default Dashboard;

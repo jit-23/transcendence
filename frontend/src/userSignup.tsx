@@ -5,7 +5,6 @@ export function SignupForm() {
     const [username, setUsername] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [qr, setQr] = useState('')
     const navigate = useNavigate()
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -21,14 +20,8 @@ export function SignupForm() {
             const data = await response.json()
 
             if (response.ok) {
-                console.log('Signup success:', data)
-
-                if (data.qr) {
-                    setQr(data.qr)
-                } else {
-                    navigate('/login')
-                }
-            }else {
+                navigate('/login')
+            } else {
                 alert(data.error || 'Signup failed')
             }
         } catch (error) {
@@ -71,17 +64,6 @@ export function SignupForm() {
                     Already have an account? <a href="/login">Login</a>
                 </p>
             </form>
-
-            {qr && (
-                <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                    <h3>Scan this QR with Google Authenticator</h3>
-                    <img src={qr} alt="2FA QR Code" />
-                    <br /><br />
-                    <button onClick={() => navigate('/login')}>
-                        Continue to Login
-                    </button>
-                </div>
-            )}
         </>
     )
 

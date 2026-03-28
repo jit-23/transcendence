@@ -1,5 +1,5 @@
 generator client {
- provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -7,15 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model my_users{
-	id Int @id @default(autoincrement())
-	name String @db.VarChar(20) @unique @map("Name")
-	email String @db.VarChar(20) @unique @map("Email")
-	password String @map("Password")
-	createdAt DateTime @default(now())
-	twoFactorEnabled  Boolean  @default(false)
-	twoFactorSecret   String?  @db.VarChar(100)
+model my_users {
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(200) @unique @map("Name")
+  email            String   @db.VarChar(200) @unique @map("Email")
+  password         String   @map("Password")
+  createdAt        DateTime @default(now())
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?  @db.VarChar(666)
 }
-
-
-
