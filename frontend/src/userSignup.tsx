@@ -30,43 +30,40 @@ export function SignupForm() {
     }
 
     return (
-        <>
-            <form onSubmit={handleSubmit}>
-                <h2>Create Account</h2>
+        <form onSubmit={handleSubmit}>
+            <h2>Create Account</h2>
 
-                <label>Username:</label>
-                <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                />
+            <label>Username:</label>
+            <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+            />
 
-                <label>Email:</label>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
+            <label>Email:</label>
+            <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+            />
 
-                <label>Password:</label>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
+            <label>Password:</label>
+            <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+            />
 
-                <button type="submit">Sign Up</button>
+            <button type="submit">Sign Up</button>
 
-                <p>
-                    Already have an account? <a href="/login">Login</a>
-                </p>
-            </form>
-        </>
+            <p>
+                Already have an account? <a href="/login">Login</a>
+            </p>
+        </form>
     )
-
 }
 
 export default SignupForm

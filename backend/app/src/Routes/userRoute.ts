@@ -1,18 +1,39 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
-    createUser, login, login2FA,
-    getUser, updateUser, getMe, toggle2FA // ← add toggle2FA
-} from '../controllers/userController.js';
+    createUser,
+    login,
+    login2FA,
+    generate2FA,
+    confirm2FA,
+    disable2FA,
+    getUser,
+    updateUser,
+    getMe,
+} from '../controllers/userController';
 
 const router = Router();
 
-router.get('/', getUser);
-router.put('/:id', updateUser);
-router.get('/me', getMe);
+// Max 5 attempts per 15 min on the 2FA verify endpoint
+const twoFALimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { error: 'Too many 2FA attempts, please login again' },
+});
 
+// Public
 router.post('/signup', createUser);
 router.post('/login', login);
-router.post('/login2FA', login2FA);
-router.post('/toggle2FA', toggle2FA); // ← new
+router.post('/login2FA', twoFALimiter, login2FA);
+
+// Protected (auth checked inside each controller via getUser() helper)
+router.get('/me', getMe);
+router.get('/', getUser);
+router.put('/:id', updateUser);
+
+// 2FA management
+router.post('/2fa/generate', generate2FA); // step 1: get QR
+router.post('/2fa/confirm',  confirm2FA);  // step 2: confirm scan
+router.post('/2fa/disable',  disable2FA);  // disable with code verification
 
 export default router;
