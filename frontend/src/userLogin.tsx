@@ -1,29 +1,27 @@
-
 import { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 
 export function LoginForm() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [code, setCode] = useState('');
-    const [tempToken, setTempToken] = useState<string | null>(null);
-    const [needs2FA, setNeeds2FA] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [email, setEmail]           = useState('');
+    const [password, setPassword]     = useState('');
+    const [code, setCode]             = useState('');
+    const [tempToken, setTempToken]   = useState<string | null>(null);
+    const [needs2FA, setNeeds2FA]     = useState(false);
+    const [loading, setLoading]       = useState(false);
+    const [error, setError]           = useState<string | null>(null);
     const { login } = useContext(AuthContext);
-    const navigate = useNavigate();
+    const navigate  = useNavigate();
 
-    const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setLoading(true);
-
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true); setError(null);
         try {
-            const res = await fetch('http://localhost:8081/users/login', {
+            const res  = await fetch('http://localhost:8081/users/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             });
-
             const data = await res.json();
 
             if (data.requires2FA) {
@@ -33,99 +31,121 @@ export function LoginForm() {
                 await login(data.token);
                 navigate('/dashboard');
             } else {
-                alert(data.error || 'Login failed');
+                setError(data.error || 'Login failed');
             }
-        } catch (err) {
-            console.error(err);
-            alert('Network error. Please try again.');
+        } catch {
+            setError('Network error. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     const handle2FA = async () => {
-        console.log("Sending 2FA:", { code, tempToken });
-        if (!tempToken) {
-            alert("User session lost. Please login again.");
-            setNeeds2FA(false);
-            return;
-        }
-
-        if (!code) {
-            alert('Please enter your 2FA code');
-            return;
-        }
-
-        setLoading(true);
+        if (!tempToken) { setNeeds2FA(false); return; }
+        if (!code)      { setError('Enter your 6-digit code'); return; }
+        setLoading(true); setError(null);
         try {
-            const res = await fetch('http://localhost:8081/users/login2FA', {
+            const res  = await fetch('http://localhost:8081/users/login2FA', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code, tempToken }),
             });
-
             const data = await res.json();
-
             if (data.token) {
-                await login(data.token)
-                navigate('/dashboard')
+                await login(data.token);
+                navigate('/dashboard');
             } else {
-                alert(data.error || 'Invalid 2FA code');
+                setError(data.error || 'Invalid code');
             }
-        } catch (err) {
-            console.error(err);
-            alert('Network error during 2FA verification');
+        } catch {
+            setError('Network error');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div style={{ maxWidth: '300px', margin: '50px auto', fontFamily: 'sans-serif' }}>
-            {!needs2FA ? (
-                <form onSubmit={handleLogin}>
-                    <h2>Login</h2>
-
-                    <label>Email:</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-
-                    <label>Password:</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-
-                    <button type="submit" disabled={loading}>
-                        {loading ? 'Logging in...' : 'Login'}
-                    </button>
-                    <p>
-                        Don't have an account? <a href="/signup">Sign up</a>
+        <div id="center">
+            <div className="card fade-up">
+                <div className="auth-header">
+                    <div className="logo">
+                        <div className="logo-mark">W</div>
+                        whiteboard
+                    </div>
+                    <p className="auth-subtitle">
+                        {needs2FA ? 'Two-factor verification' : 'Sign in to your workspace'}
                     </p>
-                </form>
-            ) : (
-                <div>
-                    <h2>Enter 2FA Code</h2>
-                    <input
-                        placeholder="6-digit code"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                    />
-                    <button
-                        type="button"
-                        onClick={handle2FA}
-                        disabled={!tempToken || loading}
-                    >
-                        {loading ? "Verifying..." : "Verify"}
-                    </button>
                 </div>
-            )}
+
+                {error && <div className="msg msg-error" style={{ marginBottom: 16 }}>{error}</div>}
+
+                {!needs2FA ? (
+                    <form onSubmit={handleLogin} className="form-stack">
+                        <div className="form-group">
+                            <label>Email</label>
+                            <input
+                                type="email"
+                                placeholder="you@example.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Password</label>
+                            <input
+                                type="password"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="btn btn-primary btn-full" disabled={loading}
+                                style={{ marginTop: 4 }}>
+                            {loading ? 'Signing in...' : 'Sign in →'}
+                        </button>
+                    </form>
+                ) : (
+                    <div className="form-stack">
+                        <p style={{ color: 'var(--ink2)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                            Open your authenticator app and enter the 6-digit code.
+                        </p>
+                        <div className="form-group">
+                            <label>Authentication Code</label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={6}
+                                placeholder="000000"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                                autoFocus
+                                style={{ letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.2rem' }}
+                            />
+                        </div>
+                        <button
+                            className="btn btn-primary btn-full"
+                            onClick={handle2FA}
+                            disabled={!tempToken || loading}
+                        >
+                            {loading ? 'Verifying...' : 'Verify →'}
+                        </button>
+                        <button
+                            className="btn btn-ghost btn-full"
+                            onClick={() => { setNeeds2FA(false); setError(null); setCode(''); }}
+                        >
+                            ← Back to login
+                        </button>
+                    </div>
+                )}
+
+                <div className="auth-footer">
+                    Don't have an account?{' '}
+                    <Link to="/signup">Create one</Link>
+                </div>
+            </div>
         </div>
     );
 }
