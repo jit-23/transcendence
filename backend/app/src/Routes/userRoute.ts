@@ -10,6 +10,7 @@ import {
     getUser,
     updateUser,
     getMe,
+    updateMe,
 } from '../controllers/userController';
 
 const router = Router();
@@ -26,14 +27,17 @@ router.post('/signup', createUser);
 router.post('/login', login);
 router.post('/login2FA', twoFALimiter, login2FA);
 
-// Protected (auth checked inside each controller via getUser() helper)
+// Profile
 router.get('/me', getMe);
-router.get('/', getUser);
-router.put('/:id', updateUser);
+router.put('/me', updateMe);       // ← update own profile
 
 // 2FA management
-router.post('/2fa/generate', generate2FA); // step 1: get QR
-router.post('/2fa/confirm',  confirm2FA);  // step 2: confirm scan
-router.post('/2fa/disable',  disable2FA);  // disable with code verification
+router.post('/2fa/generate', generate2FA);
+router.post('/2fa/confirm',  confirm2FA);
+router.post('/2fa/disable',  disable2FA);
+
+// Admin-style (kept for compatibility)
+router.get('/', getUser);
+router.put('/:id', updateUser);
 
 export default router;

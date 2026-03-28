@@ -2,7 +2,8 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { LoginForm } from "./userLogin.tsx";
 import { Dashboard } from "./dashboard";
-import { SignupForm } from './userSignup.tsx'
+import { SignupForm } from './userSignup.tsx';
+import { ProfilePage } from './profile.tsx';
 import PrivateRoute from "./PrivateRoute";
 import { useContext } from "react";
 import { AuthContext } from "./AuthContext";
@@ -11,7 +12,7 @@ import '../css/App.css'
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
-    if (!authReady) return null; // still loading
+    if (!authReady) return null;
     if (user) return <Navigate to="/dashboard" />;
     return children;
 }
@@ -23,7 +24,7 @@ function NotFound() {
             <p>Page not found</p>
             <Link to="/">Go home</Link>
         </div>
-    )
+    );
 }
 
 function Home() {
@@ -36,7 +37,7 @@ function Home() {
                 <Link to="/signup">Register</Link>
             </nav>
         </div>
-    )
+    );
 }
 
 function App() {
@@ -47,21 +48,19 @@ function App() {
                     <Route path="/" element={<Home />} />
 
                     <Route path="/login" element={
-                        <PublicRoute>
-                            <LoginForm />
-                        </PublicRoute>
+                        <PublicRoute><LoginForm /></PublicRoute>
                     } />
 
                     <Route path="/signup" element={
-                        <PublicRoute>
-                            <SignupForm />
-                        </PublicRoute>
+                        <PublicRoute><SignupForm /></PublicRoute>
                     } />
 
                     <Route path="/dashboard" element={
-                        <PrivateRoute>
-                            <Dashboard />
-                        </PrivateRoute>
+                        <PrivateRoute><Dashboard /></PrivateRoute>
+                    } />
+
+                    <Route path="/profile" element={
+                        <PrivateRoute><ProfilePage /></PrivateRoute>
                     } />
 
                     <Route path="*" element={<NotFound />} />

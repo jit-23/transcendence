@@ -30,18 +30,15 @@ export const createUser = async (req: Request, res: Response) => {
 
         if (await prisma.my_users.findUnique({ where: { name: username } }))
             return res.status(409).json({ error: "Username exists" });
-
         if (await prisma.my_users.findUnique({ where: { email } }))
             return res.status(409).json({ error: "Email exists" });
 
         const hash = await bcrypt.hash(password, 10);
-
         await prisma.my_users.create({
             data: { name: username, email, password: hash, twoFactorEnabled: false, twoFactorSecret: null },
         });
 
         return res.status(201).json({ message: "User created" });
-
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
@@ -69,7 +66,6 @@ export const login = async (req: Request, res: Response) => {
 
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
         return res.status(200).json({ token, user: { id: user.id, email: user.email, username: user.name } });
-
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
@@ -105,7 +101,7 @@ export const login2FA = async (req: Request, res: Response) => {
     return res.json({ token });
 };
 
-// ─── 2FA: STEP 1 — generate QR, save secret, keep disabled until confirmed ────
+// ─── 2FA: STEP 1 ──────────────────────────────────────────────────────────────
 export const generate2FA = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -118,19 +114,14 @@ export const generate2FA = async (req: Request, res: Response) => {
         const secret = speakeasy.generateSecret({ name: `ft_transcendence (${user.email})` });
         const qr = await QRCode.toDataURL(secret.otpauth_url!);
 
-        await prisma.my_users.update({
-            where: { id: user.id },
-            data: { twoFactorSecret: secret.base32 },
-        });
-
+        await prisma.my_users.update({ where: { id: user.id }, data: { twoFactorSecret: secret.base32 } });
         return res.json({ qr });
-
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
 };
 
-// ─── 2FA: STEP 2 — user enters first code to confirm they scanned correctly ───
+// ─── 2FA: STEP 2 ──────────────────────────────────────────────────────────────
 export const confirm2FA = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -146,23 +137,18 @@ export const confirm2FA = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "2FA already active" });
 
         const valid = speakeasy.totp.verify({
-            secret: user.twoFactorSecret,
-            encoding: "base32",
-            token: code,
-            window: 1,
+            secret: user.twoFactorSecret, encoding: "base32", token: code, window: 1,
         });
-
         if (!valid) return res.status(401).json({ error: "Invalid code — scan the QR again" });
 
         await prisma.my_users.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
         return res.json({ enabled: true });
-
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
 };
 
-// ─── 2FA: DISABLE — requires current code to prevent session hijack ───────────
+// ─── 2FA: DISABLE ─────────────────────────────────────────────────────────────
 export const disable2FA = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -177,21 +163,15 @@ export const disable2FA = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "2FA is not enabled" });
 
         const valid = speakeasy.totp.verify({
-            secret: user.twoFactorSecret,
-            encoding: "base32",
-            token: code,
-            window: 1,
+            secret: user.twoFactorSecret, encoding: "base32", token: code, window: 1,
         });
-
         if (!valid) return res.status(401).json({ error: "Invalid 2FA code" });
 
         await prisma.my_users.update({
             where: { id: user.id },
             data: { twoFactorEnabled: false, twoFactorSecret: null },
         });
-
         return res.json({ enabled: false });
-
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
@@ -207,14 +187,68 @@ export const getMe = async (req: Request, res: Response) => {
             where: { id: auth.userId },
             select: { id: true, name: true, email: true, twoFactorEnabled: true },
         });
-
         return res.json(user);
     } catch {
         return res.status(401).json({ error: "Unauthorized" });
     }
 };
 
-// ─── GET ALL / UPDATE ─────────────────────────────────────────────────────────
+// ─── UPDATE MY PROFILE ────────────────────────────────────────────────────────
+// Requires current password to make any change.
+// Only updates fields that are actually provided.
+// Hashes new password if provided.
+export const updateMe = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const { username, email, currentPassword, newPassword } = req.body;
+
+        const user = await prisma.my_users.findUnique({ where: { id: auth.userId } });
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        // Always verify current password first
+        if (!currentPassword)
+            return res.status(400).json({ error: "Current password is required" });
+        const validPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!validPassword)
+            return res.status(401).json({ error: "Current password is incorrect" });
+
+        // Check uniqueness only if the value is actually changing
+        if (username && username !== user.name) {
+            if (await prisma.my_users.findUnique({ where: { name: username } }))
+                return res.status(409).json({ error: "Username already taken" });
+        }
+        if (email && email !== user.email) {
+            if (await prisma.my_users.findUnique({ where: { email } }))
+                return res.status(409).json({ error: "Email already in use" });
+        }
+
+        const data: any = {};
+        if (username) data.name     = username;
+        if (email)    data.email    = email;
+        if (newPassword) {
+            if (newPassword.length < 6)
+                return res.status(422).json({ error: "New password must be at least 6 characters" });
+            data.password = await bcrypt.hash(newPassword, 10);
+        }
+
+        if (Object.keys(data).length === 0)
+            return res.status(400).json({ error: "Nothing to update" });
+
+        const updated = await prisma.my_users.update({
+            where: { id: auth.userId },
+            data,
+            select: { id: true, name: true, email: true, twoFactorEnabled: true },
+        });
+
+        return res.json({ message: "Profile updated", user: updated });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── GET ALL / UPDATE (kept for compatibility) ────────────────────────────────
 export const getUser = async (_req: Request, res: Response) => {
     const users = await prisma.my_users.findMany();
     res.json(users);
