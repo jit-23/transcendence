@@ -11,6 +11,13 @@ import {
     updateUser,
     getMe,
     updateMe,
+    searchUsers,
+    sendFriendRequest,
+    getReceivedFriendRequests,
+    acceptFriendRequest,
+    rejectFriendRequest,
+    getFriends,
+    unfriend,
 } from '../controllers/userController';
 
 const router = Router();
@@ -35,6 +42,17 @@ router.put('/me', updateMe);       // ← update own profile
 router.post('/2fa/generate', generate2FA);
 router.post('/2fa/confirm',  confirm2FA);
 router.post('/2fa/disable',  disable2FA);
+
+// Search
+router.get('/search', searchUsers);
+
+// Friend requests
+router.post('/friend-request/send', sendFriendRequest);
+router.get('/friend-request/received', getReceivedFriendRequests);
+router.post('/friend-request/:id/accept', acceptFriendRequest);
+router.post('/friend-request/:id/reject', rejectFriendRequest);
+router.get('/friends', getFriends);
+router.post('/friends/:id/unfriend', unfriend);
 
 // Admin-style (kept for compatibility)
 router.get('/', getUser);

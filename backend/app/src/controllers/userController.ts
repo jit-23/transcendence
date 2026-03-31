@@ -248,6 +248,225 @@ export const updateMe = async (req: Request, res: Response) => {
     }
 };
 
+// ─── SEARCH USERS ─────────────────────────────────────────────────────────────
+export const searchUsers = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const { query } = req.query;
+        if (!query || typeof query !== 'string')
+            return res.status(400).json({ error: "Query parameter required" });
+
+        if (query.trim().length < 1)
+            return res.status(400).json({ error: "Search query too short" });
+
+        const users = await prisma.my_users.findMany({
+            where: {
+                OR: [
+                    { name: { contains: query, mode: 'insensitive' } },
+                    { email: { contains: query, mode: 'insensitive' } },
+                ],
+                NOT: { id: auth.userId }, // Exclude self
+            },
+            select: { id: true, name: true, email: true, createdAt: true },
+            take: 20, // Limit results
+        });
+
+        return res.json(users);
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── SEND FRIEND REQUEST ──────────────────────────────────────────────────────
+export const sendFriendRequest = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const { receiverId } = req.body;
+        if (!receiverId) return res.status(400).json({ error: "Receiver ID required" });
+
+        if (receiverId === auth.userId)
+            return res.status(400).json({ error: "Cannot send request to yourself" });
+
+        const receiver = await prisma.my_users.findUnique({ where: { id: receiverId } });
+        if (!receiver) return res.status(404).json({ error: "User not found" });
+
+        // Check any existing relation in either direction.
+        const existing = await prisma.friend_request.findFirst({
+            where: {
+                OR: [
+                    { senderId: auth.userId, receiverId },
+                    { senderId: receiverId, receiverId: auth.userId },
+                ],
+            },
+        });
+
+        if (existing) {
+            if (existing.status === "accepted") {
+                return res.status(400).json({ error: "You are already friends" });
+            }
+
+            if (existing.status === "pending") {
+                return res.status(400).json({ error: "Request already pending" });
+            }
+
+            // If previous relation was rejected, allow a fresh invitation.
+            await prisma.friend_request.delete({ where: { id: existing.id } });
+        }
+
+        const request = await prisma.friend_request.create({
+            data: { senderId: auth.userId, receiverId },
+        });
+
+        return res.status(201).json({ message: "Friend request sent", request });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── RECEIVED FRIEND REQUESTS ────────────────────────────────────────────────
+export const getReceivedFriendRequests = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const requests = await prisma.friend_request.findMany({
+            where: { receiverId: auth.userId, status: "pending" },
+            include: {
+                sender: {
+                    select: { id: true, name: true, email: true },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return res.json(requests);
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── ACCEPT FRIEND REQUEST ───────────────────────────────────────────────────
+export const acceptFriendRequest = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const requestId = Number(req.params.id);
+        if (!requestId) return res.status(400).json({ error: "Invalid request id" });
+
+        const existing = await prisma.friend_request.findUnique({ where: { id: requestId } });
+        if (!existing || existing.receiverId !== auth.userId)
+            return res.status(404).json({ error: "Request not found" });
+        if (existing.status !== "pending")
+            return res.status(400).json({ error: "Request already handled" });
+
+        const updated = await prisma.friend_request.update({
+            where: { id: requestId },
+            data: { status: "accepted" },
+        });
+
+        return res.json({ message: "Friend request accepted", request: updated });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── REJECT FRIEND REQUEST ───────────────────────────────────────────────────
+export const rejectFriendRequest = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const requestId = Number(req.params.id);
+        if (!requestId) return res.status(400).json({ error: "Invalid request id" });
+
+        const existing = await prisma.friend_request.findUnique({ where: { id: requestId } });
+        if (!existing || existing.receiverId !== auth.userId)
+            return res.status(404).json({ error: "Request not found" });
+        if (existing.status !== "pending")
+            return res.status(400).json({ error: "Request already handled" });
+
+        const updated = await prisma.friend_request.update({
+            where: { id: requestId },
+            data: { status: "rejected" },
+        });
+
+        return res.json({ message: "Friend request rejected", request: updated });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── FRIENDS LIST ────────────────────────────────────────────────────────────
+export const getFriends = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const friendships = await prisma.friend_request.findMany({
+            where: {
+                status: "accepted",
+                OR: [
+                    { senderId: auth.userId },
+                    { receiverId: auth.userId },
+                ],
+            },
+            include: {
+                sender: { select: { id: true, name: true, email: true } },
+                receiver: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        const seen = new Set<number>();
+        const friends = friendships
+            .map((item) => (item.senderId === auth.userId ? item.receiver : item.sender))
+            .filter((friend) => {
+                if (seen.has(friend.id)) return false;
+                seen.add(friend.id);
+                return true;
+            });
+
+        return res.json(friends);
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── UNFRIEND ────────────────────────────────────────────────────────────────
+export const unfriend = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const friendId = Number(req.params.id);
+        if (!friendId) return res.status(400).json({ error: "Invalid friend id" });
+        if (friendId === auth.userId)
+            return res.status(400).json({ error: "Cannot unfriend yourself" });
+
+        const relation = await prisma.friend_request.findFirst({
+            where: {
+                status: "accepted",
+                OR: [
+                    { senderId: auth.userId, receiverId: friendId },
+                    { senderId: friendId, receiverId: auth.userId },
+                ],
+            },
+        });
+
+        if (!relation) return res.status(404).json({ error: "Friendship not found" });
+
+        await prisma.friend_request.delete({ where: { id: relation.id } });
+        return res.json({ message: "Friend removed" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 // ─── GET ALL / UPDATE (kept for compatibility) ────────────────────────────────
 export const getUser = async (_req: Request, res: Response) => {
     const users = await prisma.my_users.findMany();

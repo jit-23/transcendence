@@ -1,9 +1,24 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 
 type EnableStep = "idle" | "scanning";
+
+type ReceivedFriendRequest = {
+    id: number;
+    sender: {
+        id: number;
+        name: string;
+        email: string;
+    };
+};
+
+type Friend = {
+    id: number;
+    name: string;
+    email: string;
+};
 
 export function Dashboard() {
     const { user, logout }          = useContext(AuthContext);
@@ -18,6 +33,13 @@ export function Dashboard() {
     const [disableCode, setDisableCode]   = useState("");
     const [loading, setLoading]           = useState(false);
     const [error, setError]               = useState<string | null>(null);
+    const [requests, setRequests]         = useState<ReceivedFriendRequest[]>([]);
+    const [requestsLoading, setRequestsLoading] = useState(false);
+    const [requestsError, setRequestsError] = useState<string | null>(null);
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [friendsLoading, setFriendsLoading] = useState(false);
+    const [friendsError, setFriendsError] = useState<string | null>(null);
+    const [unfriendingId, setUnfriendingId] = useState<number | null>(null);
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
@@ -64,6 +86,98 @@ export function Dashboard() {
         } catch { setError("Network error"); }
         finally { setLoading(false); }
     };
+
+    const fetchRequests = async () => {
+        setRequestsLoading(true);
+        setRequestsError(null);
+        try {
+            const res = await fetch("http://localhost:8081/users/friend-request/received", {
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setRequestsError(data.error || "Failed to load friend requests");
+                setRequests([]);
+            } else {
+                setRequests(data);
+            }
+        } catch {
+            setRequestsError("Network error while loading friend requests");
+            setRequests([]);
+        } finally {
+            setRequestsLoading(false);
+        }
+    };
+
+    const decideRequest = async (requestId: number, action: "accept" | "reject") => {
+        setRequestsError(null);
+        try {
+            const res = await fetch(`http://localhost:8081/users/friend-request/${requestId}/${action}`, {
+                method: "POST",
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setRequestsError(data.error || "Failed to update request");
+                return;
+            }
+            setRequests(prev => prev.filter(request => request.id !== requestId));
+            if (action === "accept") {
+                fetchFriends();
+            }
+        } catch {
+            setRequestsError("Network error while updating request");
+        }
+    };
+
+    const fetchFriends = async () => {
+        setFriendsLoading(true);
+        setFriendsError(null);
+        try {
+            const res = await fetch("http://localhost:8081/users/friends", {
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setFriendsError(data.error || "Failed to load friends");
+                setFriends([]);
+            } else {
+                setFriends(data);
+            }
+        } catch {
+            setFriendsError("Network error while loading friends");
+            setFriends([]);
+        } finally {
+            setFriendsLoading(false);
+        }
+    };
+
+    const handleUnfriend = async (friendId: number) => {
+        setFriendsError(null);
+        setUnfriendingId(friendId);
+        try {
+            const res = await fetch(`http://localhost:8081/users/friends/${friendId}/unfriend`, {
+                method: "POST",
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setFriendsError(data.error || "Failed to remove friend");
+                return;
+            }
+
+            setFriends(prev => prev.filter(friend => friend.id !== friendId));
+        } catch {
+            setFriendsError("Network error while removing friend");
+        } finally {
+            setUnfriendingId(null);
+        }
+    };
+
+    useEffect(() => {
+        fetchRequests();
+        fetchFriends();
+    }, []);
 
     return (
         <div className="dashboard-shell">
@@ -114,7 +228,135 @@ export function Dashboard() {
                         <span className="data-value">{user?.email}</span>
                     </div>
                 </div>
+				{/* Navigation shortcuts */}
+				<div className="section-card fade-up fade-up-2">
+                    <div className="section-card-header">
+                        <h3>Quick Actions</h3>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/search')}>
+                                Search Friends
+                            </button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/canvas')}>
+                                Canvas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div className="section-card fade-up fade-up-2">
+                    <div className="section-card-header">
+                        <h3>Friend Requests</h3>
+                        <button className="btn btn-ghost btn-sm" onClick={fetchRequests} disabled={requestsLoading}>
+                            {requestsLoading ? "Loading..." : "Refresh"}
+                        </button>
+                    </div>
 
+                    {requestsError && (
+                        <div className="msg msg-error" style={{ marginBottom: 14 }}>{requestsError}</div>
+                    )}
+
+                    {!requestsLoading && requests.length === 0 && (
+                        <p style={{ color: 'var(--ink3)', fontSize: '0.8rem' }}>
+                            No pending requests.
+                        </p>
+                    )}
+
+                    {requests.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {requests.map((request) => (
+                                <div
+                                    key={request.id}
+                                    style={{
+                                        padding: "10px 12px",
+                                        border: "1px solid var(--border)",
+                                        borderRadius: 8,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        gap: 12,
+                                    }}
+                                >
+                                    <div>
+                                        <p style={{ marginBottom: 4, fontWeight: 600 }}>{request.sender.name}</p>
+                                        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{request.sender.email}</p>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => decideRequest(request.id, "accept")}
+                                        >
+                                            Accept
+                                        </button>
+                                        <button
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => decideRequest(request.id, "reject")}
+                                        >
+                                            Reject
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="section-card fade-up fade-up-2">
+                    <div className="section-card-header">
+                        <h3>My Friends</h3>
+                        <button className="btn btn-ghost btn-sm" onClick={fetchFriends} disabled={friendsLoading}>
+                            {friendsLoading ? "Loading..." : "Refresh"}
+                        </button>
+                    </div>
+
+                    {friendsError && (
+                        <div className="msg msg-error" style={{ marginBottom: 14 }}>{friendsError}</div>
+                    )}
+
+                    {!friendsLoading && friends.length === 0 && (
+                        <p style={{ color: 'var(--ink3)', fontSize: '0.8rem' }}>
+                            You do not have friends yet.
+                        </p>
+                    )}
+
+                    {friends.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {friends.map((friend) => (
+                                <div
+                                    key={friend.id}
+                                    style={{
+                                        padding: "10px 12px",
+                                        border: "1px solid var(--border)",
+                                        borderRadius: 8,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        gap: 12,
+                                    }}
+                                >
+                                    <div>
+                                        <p style={{ marginBottom: 4, fontWeight: 600 }}>{friend.name}</p>
+                                        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{friend.email}</p>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => navigate(`/chat?to=${encodeURIComponent(friend.name)}`)}
+                                        >
+                                            Chat
+                                        </button>
+                                        <button
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => handleUnfriend(friend.id)}
+                                            disabled={unfriendingId === friend.id}
+                                        >
+                                            {unfriendingId === friend.id ? "Removing..." : "Unfriend"}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
                 {/* 2FA card */}
                 <div className="section-card fade-up fade-up-2">
                     <div className="section-card-header">

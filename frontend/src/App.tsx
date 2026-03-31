@@ -8,7 +8,9 @@ import PrivateRoute    from "./PrivateRoute";
 import { useContext }  from "react";
 import { AuthContext } from "./AuthContext";
 import { useTheme }    from "./ThemeContext";
-
+import { SearchFriends } from "./searchFriends.tsx";
+import { ChatPage } from "./chat.tsx";
+import Canvas from "./Canvas.tsx";
 import '../css/App.css'
 
 function PublicRoute({ children }) {
@@ -104,6 +106,18 @@ function App() {
 
                 <Route path="/profile" element={
                     <PrivateRoute><ProfilePage /></PrivateRoute>
+                } />
+
+                <Route path="/search" element={
+                    <PrivateRoute><SearchFriends /></PrivateRoute>
+                } />
+
+                <Route path="/chat" element={
+                    <PrivateRoute><ChatPage /></PrivateRoute>
+                } />
+
+                <Route path="/canvas" element={
+                    <PrivateRoute><Canvas /></PrivateRoute>
                 } />
 
                 <Route path="*" element={<NotFound />} />

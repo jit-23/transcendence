@@ -54,6 +54,12 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("typing", ({ to, isTyping }) => {
+    const toSocketId = connectedByName.get(to);
+    if (!toSocketId) return;
+    io.to(toSocketId).emit("typing", { from: username, isTyping: Boolean(isTyping) });
+  });
+
   // ✅ FIXED: was nested inside private-message handler before
   socket.on("disconnect", () => {
     connectedByName.delete(username);
