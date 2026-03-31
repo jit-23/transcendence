@@ -60,13 +60,18 @@ export default function Canvas() {
 	const shapesRef = useRef<Shape[]>([]);
 	const draftShapeRef = useRef<Shape | null>(null);
 	const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+	const initializedRef = useRef(false);
+	const initializedSketchRef = useRef(false);
 
 	useEffect(() => {
+		if (initializedRef.current) return;
+		initializedRef.current = true;
 		settingsRef.current = { backgroundColor, lineColor, tool, fill };
 	}, [backgroundColor, lineColor, tool, fill]);
 
   useEffect(() => {
-		if (!canvasHostRef.current || p5Ref.current) return;
+		if (!canvasHostRef.current || p5Ref.current || initializedSketchRef.current) return;
+		initializedSketchRef.current = true;
 
     const sketch = (s: p5) => {
 			const resizeToViewport = () => {
