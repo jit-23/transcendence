@@ -9,12 +9,19 @@ sudo docker inspect --format '{{.State.Pid}}' <PID>
 
 
 
+docker compose down
+rm -rf frontend/node_modules frontend/package-lock.json
+docker compose build --no-cache frontend_server
+docker compose up -d
+
+
+
+
 
 NOTA PARA MIM:
 -> TRATA DOS URL PARA O BACK END FICAR CONECTADO A BASE DE DADOS
 
-docker exec -it postgres psql -U postgres -c "\l"
-
+docker exec -it postgres psql -U postgres -c "\l27
 
 command: >
     sh -c "sleep 5 && 
@@ -22,42 +29,8 @@ command: >
            node dist/index.js"
 
 
-
- docker compose exec -it backend_server sh
-/app # ls
-dist               package-lock.json  prisma.config.ts   tsconfig.json
-node_modules       package.json       src
-/app # vim prisma.config.ts 
-sh: vim: not found
-/app # cat prisma.config.ts 
-export default {
-  schema: 'src/prisma/schema.prisma',
-}
-/app # 
-
-
-////-> this is the error:
- PrismaClientInitializationError: 
-backend   | Invalid `prisma.user.findUnique()` invocation in
-backend   | /app/dist/controllers/userController.js:18:31
-backend   | 
-backend   |   15 if (!password) {
-backend   |   16     return res.status(422).json({ error: "password required" }); //422   -> error for invalid data
-backend   |   17 }
-backend   | → 18 if (await prisma.user.findUnique(
-backend   | Can't reach database server at `db:5432`
-backend   | 
-backend   | Please make sure your database server is running at `db:5432`.
-backend   |     at ei.handleRequestError (/app/node_modules/@prisma/client/runtime/library.js:121:7568)
-backend   |     at ei.handleAndLogRequestError (/app/node_modules/@prisma/client/runtime/library.js:121:6593)
-backend   |     at ei.request (/app/node_modules/@prisma/client/runtime/library.js:121:6300)
-backend   |     at async a (/app/node_modules/@prisma/client/runtime/library.js:130:9551)
-backend   |     at async createUser (/app/dist/controllers/userController.js:18:13) {
-backend   |   clientVersion: '6.19.2',
-backend   |   errorCode: undefined,
-backend   |   retryable: undefined
-backend   | }
-
-
-
       npx prisma db push --accept-data-loss --schema=./src/prisma/schema.prisma && node dist/index.js"
+
+
+
+-> 

@@ -6,7 +6,6 @@ services:
     security_opt:
       - label:disable # This relaxes AppArmor/SELinux for this container
     init: true
-    privileged: true
     ports:
      - "5173:5173"
     # In host mode, ports: are ignored because it uses your PC's real ports
@@ -25,8 +24,8 @@ services:
     security_opt:
       - label:disable # This relaxes AppArmor/SELinux for this container
     init: true
-    privileged: true
     environment:
+      - JWT_SECRET=${JWT_SECRET}
       # We use 'db' because Docker DNS maps 'db' to the database container's IP
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
@@ -39,6 +38,8 @@ services:
   db:
     privileged: true
     image: postgres:13.2
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

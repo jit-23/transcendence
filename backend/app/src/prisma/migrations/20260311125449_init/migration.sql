@@ -1,9 +1,11 @@
 -- CreateTable
 CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
-    "Name" VARCHAR(20) NOT NULL,
+    "id" SERIAL PRIMARY KEY,
+    "Name" VARCHAR(20) NOT NULL UNIQUE,
+    "Email" VARCHAR(50) NOT NULL UNIQUE,
     "Password" TEXT NOT NULL,
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+    "twoFactorEnabled" BOOLEAN DEFAULT false,
+    "twoFactorSecret" TEXT
 );
 
 -- CreateIndex
