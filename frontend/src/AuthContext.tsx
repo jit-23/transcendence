@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
 			setUser(userData);
 		} catch (error) {
 			console.error("Error fetching user data:", error);
-			localStorage.removeItem("token");
+			sessionStorage.removeItem("token");
 			setUser(null);
 		} finally {
 			setAuthReady(true);
@@ -24,22 +24,22 @@ export function AuthProvider({ children }) {
 	};
 
 	const login = async (token: string) => {
-		localStorage.setItem("token", token);
+		sessionStorage.setItem("token", token);
 		await fetchUserData(token);
 	};
 
 	const logout = () => {
-		localStorage.removeItem("token");
+		sessionStorage.removeItem("token");
 		setUser(null);
 	};
 
 	const refreshUser = async () => {
-		const token = localStorage.getItem("token");
+		const token = sessionStorage.getItem("token");
 		if (token) await fetchUserData(token);
 	};
 
 	useEffect(() => {
-		const token = localStorage.getItem("token");
+		const token = sessionStorage.getItem("token");
 		if (!token) {
 			setAuthReady(true);
 			return;

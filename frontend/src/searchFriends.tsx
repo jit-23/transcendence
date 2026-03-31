@@ -23,7 +23,7 @@ export function SearchFriends() {
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
 
     const authHeader = () => ({
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
         "Content-Type": "application/json",
     });
 

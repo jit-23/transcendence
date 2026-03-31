@@ -5,8 +5,11 @@ import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 
 type ChatMessage = {
+  id?: number;
+  senderId?: number;
   from: string;
   text: string;
+  createdAt?: string;
 };
 
 export function ChatPage() {
@@ -16,18 +19,58 @@ export function ChatPage() {
   const navigate = useNavigate();
 
   const to = (searchParams.get("to") || "").trim();
+  const conversationId = Number(searchParams.get("conversationId") || "0");
+  const groupName = (searchParams.get("name") || "").trim();
+  const isGroupMode = conversationId > 0;
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isFriendTyping, setIsFriendTyping] = useState(false);
+  const [typingLabel, setTypingLabel] = useState("");
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const myName = useMemo(() => user?.name || "", [user?.name]);
 
+  const authHeader = () => ({
+    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+    "Content-Type": "application/json",
+  });
+
   useEffect(() => {
-    if (!myName || !to) return;
+    if (!isGroupMode) return;
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`http://localhost:8081/conversations/${conversationId}/messages`, {
+          headers: authHeader(),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "Failed to load messages");
+          return;
+        }
+
+        const normalized = data.map((message: any) => ({
+          id: message.id,
+          senderId: message.sender?.id,
+          from: message.sender?.name || "unknown",
+          text: message.content,
+          createdAt: message.created_at,
+        }));
+
+        setMessages(normalized);
+      } catch {
+        setError("Failed to load message history");
+      }
+    };
+
+    loadHistory();
+  }, [conversationId, isGroupMode]);
+
+  useEffect(() => {
+    if (!myName || (!to && !isGroupMode)) return;
 
     const s = io("http://localhost:8081", {
       auth: { username: myName },
@@ -43,15 +86,37 @@ export function ChatPage() {
     });
 
     s.on("private-message", (msg: ChatMessage) => {
+      if (isGroupMode) return;
       if (msg.from === to || msg.from === myName) {
         setMessages((prev) => [...prev, msg]);
       }
     });
 
     s.on("typing", ({ from, isTyping }: { from: string; isTyping: boolean }) => {
+      if (isGroupMode) return;
       if (from === to) {
         setIsFriendTyping(isTyping);
       }
+    });
+
+    s.on("conversation-message", ({ conversationId: incomingId, message }: any) => {
+      if (!isGroupMode || incomingId !== conversationId) return;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: message.id,
+          senderId: message.sender?.id,
+          from: message.sender?.name || "unknown",
+          text: message.content,
+          createdAt: message.created_at,
+        },
+      ]);
+    });
+
+    s.on("conversation-typing", ({ conversationId: incomingId, from, isTyping }: any) => {
+      if (!isGroupMode || incomingId !== conversationId || from === myName) return;
+      setIsFriendTyping(Boolean(isTyping));
+      setTypingLabel(`${from} is typing...`);
     });
 
     s.on("user-not-found", () => {
@@ -61,12 +126,17 @@ export function ChatPage() {
     setSocket(s);
 
     return () => {
-      s.emit("typing", { to, isTyping: false });
+      if (isGroupMode) {
+        s.emit("conversation-typing", { conversationId, isTyping: false });
+      } else {
+        s.emit("typing", { to, isTyping: false });
+      }
       s.disconnect();
       setSocket(null);
       setIsFriendTyping(false);
+      setTypingLabel("");
     };
-  }, [myName, to]);
+  }, [myName, to, isGroupMode, conversationId]);
 
   const sendMessage = (e: FormEvent) => {
     e.preventDefault();
@@ -78,26 +148,34 @@ export function ChatPage() {
     const clean = text.trim();
     if (!clean) return;
 
-    socket.emit("private-message", {
-      payload: { to, text: clean },
-    });
+    if (isGroupMode) {
+      socket.emit("conversation-message", { conversationId, text: clean });
+      socket.emit("conversation-typing", { conversationId, isTyping: false });
+    } else {
+      socket.emit("private-message", {
+        payload: { to, text: clean },
+      });
+      socket.emit("typing", { to, isTyping: false });
+      setMessages((prev) => [...prev, { from: myName, text: clean }]);
+    }
 
-    socket.emit("typing", { to, isTyping: false });
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
       typingTimeout.current = null;
     }
-
-    setMessages((prev) => [...prev, { from: myName, text: clean }]);
     setText("");
   };
 
   const onTypingChange = (value: string) => {
     setText(value);
-    if (!socket || !connected || !to) return;
+    if (!socket || !connected || (!to && !isGroupMode)) return;
 
     const hasText = value.trim().length > 0;
-    socket.emit("typing", { to, isTyping: hasText });
+    if (isGroupMode) {
+      socket.emit("conversation-typing", { conversationId, isTyping: hasText });
+    } else {
+      socket.emit("typing", { to, isTyping: hasText });
+    }
 
     if (typingTimeout.current) {
       clearTimeout(typingTimeout.current);
@@ -105,7 +183,11 @@ export function ChatPage() {
 
     if (hasText) {
       typingTimeout.current = setTimeout(() => {
-        socket.emit("typing", { to, isTyping: false });
+        if (isGroupMode) {
+          socket.emit("conversation-typing", { conversationId, isTyping: false });
+        } else {
+          socket.emit("typing", { to, isTyping: false });
+        }
       }, 900);
     }
   };
@@ -127,17 +209,17 @@ export function ChatPage() {
 
       <main className="dashboard-body">
         <div className="page-title fade-up">
-          <h1>Chat with {to || "..."}</h1>
+          <h1>{isGroupMode ? `Group: ${groupName || `#${conversationId}`}` : `Chat with ${to || "..."}`}</h1>
           <p>{connected ? "Connected" : "Connecting..."}</p>
         </div>
 
-        {!to && (
+        {!to && !isGroupMode && (
           <div className="section-card fade-up">
             <div className="msg msg-error">Missing chat target. Open chat from your friends list.</div>
           </div>
         )}
 
-        {to && (
+        {(to || isGroupMode) && (
           <div className="section-card fade-up fade-up-1">
             {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
 
@@ -159,7 +241,7 @@ export function ChatPage() {
                 <p style={{ color: "var(--ink3)", fontSize: "0.85rem" }}>No messages yet.</p>
               )}
               {messages.map((msg, index) => {
-                const mine = msg.from === myName;
+                const mine = msg.from === myName || msg.senderId === user?.id;
                 return (
                   <div
                     key={`${msg.from}-${index}`}
@@ -198,7 +280,7 @@ export function ChatPage() {
 
             {isFriendTyping && (
               <p style={{ marginTop: 8, color: "var(--ink3)", fontSize: "0.8rem" }}>
-                {to} is typing...
+                {isGroupMode ? typingLabel || "Someone is typing..." : `${to} is typing...`}
               </p>
             )}
           </div>

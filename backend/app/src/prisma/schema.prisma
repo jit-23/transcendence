@@ -22,6 +22,7 @@ model my_users{
 	twoFactorSecret String?
 
 	conversations conversation_participants[]
+	messages message[]
 	sentRequests friend_request[] @relation("SentRequests")
 	receivedRequests friend_request[] @relation("ReceivedRequests")
 
@@ -30,9 +31,11 @@ model my_users{
 model conversation {
 	id 			Int 			@id @default(autoincrement())
 	type 		ConversationType @default(DIRECT)
+	name        String?
 	created_at	DateTime 	@default(now())
 
 	participants conversation_participants[]
+	messages    message[]
 
 }
 
@@ -62,4 +65,15 @@ model friend_request {
 	receiver my_users @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
 
 	@@unique([senderId, receiverId])
+}
+
+model message {
+	id Int @id @default(autoincrement())
+	conversation_id Int
+	sender_id Int
+	content String
+	created_at DateTime @default(now())
+
+	conversation conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+	sender my_users @relation(fields: [sender_id], references: [id], onDelete: Cascade)
 }
