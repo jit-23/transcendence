@@ -11,13 +11,16 @@ export function AuthProvider({ children }) {
 			const response = await fetch("http://localhost:8081/users/me", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
+			if (response.status === 401 || response.status === 403) {
+				localStorage.removeItem("token");
+				setUser(null);
+				return;
+			}
 			if (!response.ok) throw new Error("Failed to fetch user data");
 			const userData = await response.json();
 			setUser(userData);
 		} catch (error) {
 			console.error("Error fetching user data:", error);
-			localStorage.removeItem("token");
-			setUser(null);
 		} finally {
 			setAuthReady(true);
 		}
