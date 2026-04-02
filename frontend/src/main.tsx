@@ -5,11 +5,9 @@ import { AuthProvider } from "./AuthContext"
 import { ThemeProvider } from "./ThemeContext"
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  //  <React.StrictMode>
         <ThemeProvider>
             <AuthProvider>
                 <App />
             </AuthProvider>
         </ThemeProvider>
-//    </React.StrictMode>
 )

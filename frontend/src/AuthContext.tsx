@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
 			console.error("Error fetching user data:", error);
 			sessionStorage.removeItem("token");
 			setUser(null);
-		} finally {
+	} finally {
 			setAuthReady(true);
 		}
 	};
