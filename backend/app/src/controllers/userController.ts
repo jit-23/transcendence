@@ -22,7 +22,7 @@ function getAuthUser(req: Request): { userId: number } | null {
 // ─── SIGNUP ───────────────────────────────────────────────────────────────────
 export const createUser = async (req: Request, res: Response) => {
     try {
-        const { username, email, password } = req.body;
+        const { username, email, password, avatar } = req.body;
 
         if (!username) return res.status(422).json({ error: "username required" });
         if (!email)    return res.status(422).json({ error: "Email required" });
@@ -33,9 +33,30 @@ export const createUser = async (req: Request, res: Response) => {
         if (await prisma.my_users.findUnique({ where: { email } }))
             return res.status(409).json({ error: "Email exists" });
 
+        // Validate avatar if provided
+        let validatedAvatar: string | null = null;
+        if (avatar) {
+            if (avatar.startsWith("default:")) {
+                const num = parseInt(avatar.split(":")[1]);
+                if (!isNaN(num) && num >= 1 && num <= 4) validatedAvatar = avatar;
+            } else if (avatar.startsWith("data:image/")) {
+                const sizeBytes = (avatar.length * 3) / 4;
+                const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
+                if (sizeBytes <= 2 * 1024 * 1024 && validTypes.some(t => avatar.startsWith(t)))
+                    validatedAvatar = avatar;
+            }
+        }
+
         const hash = await bcrypt.hash(password, 10);
         await prisma.my_users.create({
-            data: { name: username, email, password: hash, twoFactorEnabled: false, twoFactorSecret: null },
+            data: {
+                name: username,
+                email,
+                password: hash,
+                avatar: validatedAvatar,
+                twoFactorEnabled: false,
+                twoFactorSecret: null,
+            },
         });
 
         return res.status(201).json({ message: "User created" });
