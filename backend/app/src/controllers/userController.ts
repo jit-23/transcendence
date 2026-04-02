@@ -185,7 +185,7 @@ export const getMe = async (req: Request, res: Response) => {
 
         const user = await prisma.my_users.findUnique({
             where: { id: auth.userId },
-            select: { id: true, name: true, email: true, twoFactorEnabled: true },
+            select: { id: true, name: true, email: true, twoFactorEnabled: true, avatar: true },
         });
         return res.json(user);
     } catch {
@@ -194,9 +194,6 @@ export const getMe = async (req: Request, res: Response) => {
 };
 
 // ─── UPDATE MY PROFILE ────────────────────────────────────────────────────────
-// Requires current password to make any change.
-// Only updates fields that are actually provided.
-// Hashes new password if provided.
 export const updateMe = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -239,10 +236,49 @@ export const updateMe = async (req: Request, res: Response) => {
         const updated = await prisma.my_users.update({
             where: { id: auth.userId },
             data,
-            select: { id: true, name: true, email: true, twoFactorEnabled: true },
+            select: { id: true, name: true, email: true, twoFactorEnabled: true, avatar: true },
         });
 
         return res.json({ message: "Profile updated", user: updated });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const updateAvatar = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const { avatar } = req.body;
+        if (!avatar) return res.status(400).json({ error: "Avatar required" });
+
+        // Validate default selection
+        if (avatar.startsWith("default:")) {
+            const num = parseInt(avatar.split(":")[1]);
+            if (isNaN(num) || num < 1 || num > 4)
+                return res.status(400).json({ error: "Invalid default avatar (choose 1–4)" });
+        }
+        // Validate base64 upload
+        else if (avatar.startsWith("data:image/")) {
+            // Rough size check — base64 of 1MB image ≈ 1.37MB string
+            const sizeBytes = (avatar.length * 3) / 4;
+            if (sizeBytes > 2 * 1024 * 1024)
+                return res.status(413).json({ error: "Image too large (max 2MB)" });
+
+            const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
+            if (!validTypes.some(t => avatar.startsWith(t)))
+                return res.status(400).json({ error: "Only JPG, PNG or WebP allowed" });
+        } else {
+            return res.status(400).json({ error: "Invalid avatar format" });
+        }
+
+        await prisma.my_users.update({
+            where: { id: auth.userId },
+            data: { avatar },
+        });
+
+        return res.json({ message: "Avatar updated", avatar });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }

@@ -20,7 +20,7 @@ app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 
 app.use(`/users`, userRoute)
 
@@ -60,7 +60,6 @@ io.on("connection", (socket) => {
     io.to(toSocketId).emit("typing", { from: username, isTyping: Boolean(isTyping) });
   });
 
-  // ✅ FIXED: was nested inside private-message handler before
   socket.on("disconnect", () => {
     connectedByName.delete(username);
     console.log(`${username} disconnected`);
