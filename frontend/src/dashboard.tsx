@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
+import { Avatar } from "./Avatar";
 
 type EnableStep = "idle" | "scanning";
 
@@ -189,7 +190,7 @@ export function Dashboard() {
                 </div>
                 <div className="topbar-right">
                     <div className="user-chip">
-                        <div className="user-avatar">{initials}</div>
+                        <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
                         {user?.name}
                     </div>
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
@@ -218,6 +219,21 @@ export function Dashboard() {
                         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
                             Edit →
                         </button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                        <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={44} />
+                        <div>
+                            <p style={{ fontSize: '0.88rem', fontFamily: "'Syne', sans-serif", fontWeight: 600, color: 'var(--ink)', marginBottom: 1 }}>
+                                {user?.name}
+                            </p>
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => navigate('/profile')}
+                                style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                            >
+                                Change avatar
+                            </button>
+                        </div>
                     </div>
                     <div className="data-row">
                         <span className="data-label">Username</span>

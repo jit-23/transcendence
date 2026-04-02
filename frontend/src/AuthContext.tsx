@@ -1,9 +1,32 @@
 import { createContext, useEffect, useState } from "react";
 
-export const AuthContext = createContext(null);
+// export const AuthContext = createContext(null);
+interface User {
+	id: number;
+	name: string;
+	email: string;
+	twoFactorEnabled: boolean;
+	avatar?: string | null;
+}
+
+interface AuthContextType {
+	user: User | null;
+	authReady: boolean;
+	login: (token: string) => Promise<void>;
+	logout: () => void;
+	refreshUser: () => Promise<void>;
+}
+
+export const AuthContext = createContext<AuthContextType>({
+	user: null,
+	authReady: false,
+	login: async () => {},
+	logout: () => {},
+	refreshUser: async () => {},
+});
 
 export function AuthProvider({ children }) {
-	const [user, setUser] = useState(null);
+	const [user, setUser]         = useState<User | null>(null);
 	const [authReady, setAuthReady] = useState(false);
 
 	const fetchUserData = async (token: string) => {
@@ -11,16 +34,13 @@ export function AuthProvider({ children }) {
 			const response = await fetch("http://localhost:8081/users/me", {
 				headers: { Authorization: `Bearer ${token}` },
 			});
-			if (response.status === 401 || response.status === 403) {
-				localStorage.removeItem("token");
-				setUser(null);
-				return;
-			}
 			if (!response.ok) throw new Error("Failed to fetch user data");
 			const userData = await response.json();
 			setUser(userData);
 		} catch (error) {
 			console.error("Error fetching user data:", error);
+			localStorage.removeItem("token");
+			setUser(null);
 		} finally {
 			setAuthReady(true);
 		}
@@ -43,10 +63,7 @@ export function AuthProvider({ children }) {
 
 	useEffect(() => {
 		const token = localStorage.getItem("token");
-		if (!token) {
-			setAuthReady(true);
-			return;
-		}
+		if (!token) { setAuthReady(true); return; }
 		fetchUserData(token);
 	}, []);
 

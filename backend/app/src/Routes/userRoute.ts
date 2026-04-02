@@ -11,6 +11,7 @@ import {
     updateUser,
     getMe,
     updateMe,
+    updateAvatar,
     searchUsers,
     sendFriendRequest,
     getReceivedFriendRequests,
@@ -36,7 +37,8 @@ router.post('/login2FA', twoFALimiter, login2FA);
 
 // Profile
 router.get('/me', getMe);
-router.put('/me', updateMe);       // ← update own profile
+router.put('/me', updateMe);
+router.put('/me/avatar', updateAvatar);
 
 // 2FA management
 router.post('/2fa/generate', generate2FA);
