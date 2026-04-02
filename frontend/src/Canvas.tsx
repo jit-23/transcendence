@@ -59,9 +59,300 @@ type EraserShape = {
 type Shape = LineShape | RectangleShape | CircleShape | FreeHandShape | DotShape | EraserShape;
 const HISTORY_LIMIT = 50;
 
+type RgbColor = {
+	r: number;
+	g: number;
+	b: number;
+};
+
+const DEFAULT_BACKGROUND_COLOR = "#ffffff";
+const DEFAULT_LINE_COLOR = "#111111";
+const COLOR_SWATCHES = [
+	"#111111",
+	"#ffffff",
+	"#ef4444",
+	"#f97316",
+	"#eab308",
+	"#22c55e",
+	"#06b6d4",
+	"#3b82f6",
+	"#8b5cf6",
+	"#ec4899",
+];
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const hexToRgb = (value: string): RgbColor | null => {
+	const normalized = value.trim().replace(/^#/, "");
+	if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+	return {
+		r: Number.parseInt(normalized.slice(0, 2), 16),
+		g: Number.parseInt(normalized.slice(2, 4), 16),
+		b: Number.parseInt(normalized.slice(4, 6), 16),
+	};
+};
+
+const rgbToHex = ({ r, g, b }: RgbColor) => {
+	const toHex = (component: number) => clamp(Math.round(component), 0, 255).toString(16).padStart(2, "0");
+	return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+const rgbToHsl = ({ r, g, b }: RgbColor) => {
+	const red = r / 255;
+	const green = g / 255;
+	const blue = b / 255;
+	const max = Math.max(red, green, blue);
+	const min = Math.min(red, green, blue);
+	const lightness = (max + min) / 2;
+
+	if (max === min) {
+		return { h: 0, s: 0, l: lightness };
+	}
+
+	const delta = max - min;
+	const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+	let hue = 0;
+
+	switch (max) {
+		case red:
+			hue = (green - blue) / delta + (green < blue ? 6 : 0);
+			break;
+		case green:
+			hue = (blue - red) / delta + 2;
+			break;
+		default:
+			hue = (red - green) / delta + 4;
+	}
+
+	return { h: hue * 60, s: saturation, l: lightness };
+};
+
+const hslToRgb = (h: number, s: number, l: number) => {
+	const hue = ((h % 360) + 360) % 360 / 360;
+
+	if (s === 0) {
+		const value = Math.round(l * 255);
+		return { r: value, g: value, b: value };
+	}
+
+	const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+	const p = 2 * l - q;
+	const hueToRgb = (pValue: number, qValue: number, tValue: number) => {
+		let t = tValue;
+		if (t < 0) t += 1;
+		if (t > 1) t -= 1;
+		if (t < 1 / 6) return pValue + (qValue - pValue) * 6 * t;
+		if (t < 1 / 2) return qValue;
+		if (t < 2 / 3) return pValue + (qValue - pValue) * (2 / 3 - t) * 6;
+		return pValue;
+	};
+
+	return {
+		r: Math.round(hueToRgb(p, q, hue + 1 / 3) * 255),
+		g: Math.round(hueToRgb(p, q, hue) * 255),
+		b: Math.round(hueToRgb(p, q, hue - 1 / 3) * 255),
+	};
+};
+
+const normalizeHexColor = (value: string, fallback: string) => {
+	const rgb = hexToRgb(value);
+	return rgb ? rgbToHex(rgb) : fallback;
+};
+
+function ColorPickerControl({
+	label,
+	value,
+	onChange,
+	defaultValue,
+}: {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+	defaultValue: string;
+}) {
+	const [open, setOpen] = useState(false);
+	const [draftColor, setDraftColor] = useState(() => normalizeHexColor(value, defaultValue));
+	const panelRef = useRef<HTMLDivElement | null>(null);
+	const buttonRef = useRef<HTMLButtonElement | null>(null);
+	const dragModeRef = useRef<"sv" | "hue" | null>(null);
+
+	const currentColor = normalizeHexColor(value, defaultValue);
+	const currentRgb = hexToRgb(currentColor) ?? hexToRgb(defaultValue) ?? { r: 0, g: 0, b: 0 };
+	const currentHsl = rgbToHsl(currentRgb);
+	const draftRgb = hexToRgb(draftColor) ?? currentRgb;
+	const draftHsl = rgbToHsl(draftRgb);
+
+	useEffect(() => {
+		if (!open) {
+			setDraftColor(currentColor);
+		}
+	}, [currentColor, open]);
+
+	useEffect(() => {
+		const handlePointerDown = (event: PointerEvent) => {
+			if (!open) return;
+			const target = event.target as Node | null;
+			if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+			setOpen(false);
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (!open) return;
+			if (event.key === "Escape") setOpen(false);
+		};
+
+		document.addEventListener("pointerdown", handlePointerDown);
+		document.addEventListener("keydown", handleKeyDown);
+		return () => {
+			document.removeEventListener("pointerdown", handlePointerDown);
+			document.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [open]);
+
+	const updateFromPalette = (clientX: number, clientY: number) => {
+		const palette = panelRef.current?.querySelector<HTMLElement>("[data-color-palette]");
+		if (!palette) return;
+		const rect = palette.getBoundingClientRect();
+		const saturation = clamp((clientX - rect.left) / rect.width, 0, 1);
+		const lightness = clamp(1 - (clientY - rect.top) / rect.height, 0, 1);
+		const rgb = hslToRgb(draftHsl.h, saturation, lightness);
+		setDraftColor(rgbToHex(rgb));
+	};
+
+	const updateFromHue = (clientX: number) => {
+		const hueTrack = panelRef.current?.querySelector<HTMLElement>("[data-color-hue]");
+		if (!hueTrack) return;
+		const rect = hueTrack.getBoundingClientRect();
+		const hue = clamp((clientX - rect.left) / rect.width, 0, 1) * 360;
+		const rgb = hslToRgb(hue, draftHsl.s, draftHsl.l);
+		setDraftColor(rgbToHex(rgb));
+	};
+
+	const handlePalettePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		dragModeRef.current = "sv";
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		updateFromPalette(event.clientX, event.clientY);
+	};
+
+	const handlePalettePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+		if (dragModeRef.current !== "sv") return;
+		updateFromPalette(event.clientX, event.clientY);
+	};
+
+	const handleHuePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		dragModeRef.current = "hue";
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		updateFromHue(event.clientX);
+	};
+
+	const handleHuePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+		if (dragModeRef.current !== "hue") return;
+		updateFromHue(event.clientX);
+	};
+
+	const stopDragging = () => {
+		dragModeRef.current = null;
+	};
+
+	return (
+		<div className="color-picker">
+			<span className="color-picker__label">{label}</span>
+			<button
+				type="button"
+				ref={buttonRef}
+				className="color-picker__trigger"
+				onClick={() => setOpen((nextOpen) => !nextOpen)}
+				aria-expanded={open}
+			>
+				<span className="color-picker__swatch" style={{ background: currentColor }} />
+				<span className="color-picker__value">{currentColor.toUpperCase()}</span>
+			</button>
+			{open ? (
+				<div ref={panelRef} className="color-picker__panel">
+					<div
+						data-color-palette
+						className="color-picker__palette"
+						style={{
+							backgroundColor: `hsl(${draftHsl.h}, 100%, 50%)`,
+							backgroundImage: `
+								linear-gradient(to right, #ffffff, rgba(255,255,255,0)),
+								linear-gradient(to top, #000000, rgba(0,0,0,0))
+							`,
+						}}
+						onPointerDown={handlePalettePointerDown}
+						onPointerMove={handlePalettePointerMove}
+						onPointerUp={stopDragging}
+						onPointerLeave={stopDragging}
+					>
+						<div
+							className="color-picker__cursor"
+							style={{
+								left: `${draftHsl.s * 100}%`,
+								top: `${(1 - draftHsl.l) * 100}%`,
+								background: currentColor,
+							}}
+						/>
+					</div>
+					<div className="color-picker__slider-group">
+						<div
+							data-color-hue
+							className="color-picker__hue"
+							style={{
+								background: "linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)",
+							}}
+							onPointerDown={handleHuePointerDown}
+							onPointerMove={handleHuePointerMove}
+							onPointerUp={stopDragging}
+							onPointerLeave={stopDragging}
+						>
+							<div
+								className="color-picker__cursor color-picker__cursor--hue"
+								style={{ left: `${(draftHsl.h / 360) * 100}%` }}
+							/>
+						</div>
+						<div className="color-picker__hex-row">
+							<input
+								type="text"
+								value={draftColor.toUpperCase()}
+								onChange={(event) => setDraftColor(normalizeHexColor(event.target.value, currentColor))}
+								className="color-picker__hex-input"
+								aria-label={`${label} hex value`}
+							/>
+							<button
+								type="button"
+								className="color-picker__apply"
+								onClick={() => {
+									onChange(draftColor);
+									setOpen(false);
+								}}
+							>
+								Apply
+							</button>
+						</div>
+						<div className="color-picker__swatches">
+							{COLOR_SWATCHES.map((swatch) => (
+								<button
+									key={swatch}
+									type="button"
+									className="color-picker__swatch-button"
+									style={{ background: swatch }}
+									onClick={() => setDraftColor(swatch)}
+									aria-label={`Select ${swatch}`}
+								/>
+							))}
+						</div>
+					</div>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 export default function Canvas() {
-	const [backgroundColor, setBackgroundColor] = useState("#ffffff");
-	const [lineColor, setLineColor] = useState("#111111");
+	const [backgroundColor, setBackgroundColor] = useState(DEFAULT_BACKGROUND_COLOR);
+	const [lineColor, setLineColor] = useState(DEFAULT_LINE_COLOR);
 	const [tool, setTool] = useState<Tool>("freehand");
 	const [fill, setFill] = useState(false);
 	const [strokeWeight, setStrokeWeight] = useState(4);
@@ -72,8 +363,8 @@ export default function Canvas() {
 	const p5Ref = useRef<p5 | null>(null);
 
 	const settingsRef = useRef({
-		backgroundColor: "#ffffff",
-		lineColor: "#111111",
+		backgroundColor: DEFAULT_BACKGROUND_COLOR,
+		lineColor: DEFAULT_LINE_COLOR,
 		tool: "freehand" as Tool,
 		fill: false,
 		strokeWeight: 4,
@@ -156,7 +447,13 @@ export default function Canvas() {
 	};
 
 	useEffect(() => {
-		settingsRef.current = { backgroundColor, lineColor, tool, fill, strokeWeight };
+		settingsRef.current = {
+			backgroundColor: normalizeHexColor(backgroundColor, DEFAULT_BACKGROUND_COLOR),
+			lineColor: normalizeHexColor(lineColor, DEFAULT_LINE_COLOR),
+			tool,
+			fill,
+			strokeWeight,
+		};
 	}, [backgroundColor, lineColor, tool, fill, strokeWeight]);
 
 	useEffect(() => {
@@ -315,7 +612,7 @@ export default function Canvas() {
 			};
 
 			s.draw = () => {
-				s.background(settingsRef.current.backgroundColor);
+					s.background(normalizeHexColor(settingsRef.current.backgroundColor, DEFAULT_BACKGROUND_COLOR));
 				s.push();
 				s.translate(viewRef.current.offsetX, viewRef.current.offsetY);
 				s.scale(viewRef.current.scale);
@@ -339,7 +636,7 @@ export default function Canvas() {
 					draftShapeRef.current = {
 						kind: settingsRef.current.tool,
 						points: [{ x: worldPoint.x, y: worldPoint.y }],
-						...(settingsRef.current.tool === "freehand" ? { color: settingsRef.current.lineColor } : {}),
+						...(settingsRef.current.tool === "freehand" ? { color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR) } : {}),
 						strokeWeight: settingsRef.current.strokeWeight,
 					} as FreeHandShape | EraserShape;
 					return;
@@ -351,7 +648,7 @@ export default function Canvas() {
 					y1: worldPoint.y,
 					x2: worldPoint.x,
 					y2: worldPoint.y,
-					color: settingsRef.current.lineColor,
+						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
 					filled: settingsRef.current.fill,
 					strokeWeight: settingsRef.current.strokeWeight,
 				} as LineShape | RectangleShape | CircleShape;
@@ -369,7 +666,7 @@ export default function Canvas() {
 						kind: "dot",
 						x: worldPoint.x,
 						y: worldPoint.y,
-						color: settingsRef.current.lineColor,
+						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
 						strokeWeight: settingsRef.current.strokeWeight,
 					});
 					draftShapeRef.current = null;
@@ -449,27 +746,23 @@ export default function Canvas() {
 				</div>
 
 				<div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "center", flexWrap: "wrap", alignContent: "center" }}>
-					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Background</span>
-						<span style={controlFieldStyle}>
-							<input
-								type="color"
-								value={backgroundColor}
-								onChange={(event) => setBackgroundColor(event.target.value)}
-							/>
-						</span>
-					</label>
+					<div style={controlLabelStyle}>
+						<ColorPickerControl
+							label="Background"
+							value={backgroundColor}
+							onChange={setBackgroundColor}
+							defaultValue={DEFAULT_BACKGROUND_COLOR}
+						/>
+					</div>
 
-					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Line Color</span>
-						<span style={controlFieldStyle}>
-							<input
-								type="color"
-								value={lineColor}
-								onChange={(event) => setLineColor(event.target.value)}
-							/>
-						</span>
-					</label>
+					<div style={controlLabelStyle}>
+						<ColorPickerControl
+							label="Line Color"
+							value={lineColor}
+							onChange={setLineColor}
+							defaultValue={DEFAULT_LINE_COLOR}
+						/>
+					</div>
 
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Tool</span>
