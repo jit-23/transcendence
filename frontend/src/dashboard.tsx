@@ -8,6 +8,24 @@ import { FriendRequestsCard } from "./components/dashboard/FriendRequestsCard";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { EnableStep, Friend, ReceivedFriendRequest } from "./components/dashboard/types";
+import { Avatar } from "./Avatar";
+
+type EnableStep = "idle" | "scanning";
+
+type ReceivedFriendRequest = {
+    id: number;
+    sender: {
+        id: number;
+        name: string;
+        email: string;
+    };
+};
+
+type Friend = {
+    id: number;
+    name: string;
+    email: string;
+};
 
 export function Dashboard() {
     const { user, logout }          = useContext(AuthContext);
@@ -186,7 +204,7 @@ export function Dashboard() {
                 </div>
                 <div className="topbar-right">
                     <div className="user-chip">
-                        <div className="user-avatar">{initials}</div>
+                        <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
                         {user?.name}
                     </div>
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>

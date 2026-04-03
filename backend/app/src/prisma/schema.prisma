@@ -20,6 +20,7 @@ model my_users{
 	createdAt DateTime @default(now())
 	twoFactorEnabled Boolean @default(false)
 	twoFactorSecret String?
+	avatar           String?
 
 	conversations conversation_participants[]
 	messages message[]
