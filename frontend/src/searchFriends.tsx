@@ -33,11 +33,9 @@ export function SearchFriends() {
             setError("Enter a username or email to search");
             return;
         }
-
         setLoading(true);
         setError(null);
         setSearched(true);
-
         try {
             const res = await fetch(
                 `http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`,

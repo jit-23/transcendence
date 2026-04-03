@@ -23,7 +23,7 @@ function getAuthUser(req: Request): { userId: number } | null {
 export const createUser = async (req: Request, res: Response) => {
     try {
         const { username, email, password } = req.body;
-z
+
         if (!username) return res.status(422).json({ error: "username required" });
         if (!email)    return res.status(422).json({ error: "Email required" });
         if (!password) return res.status(422).json({ error: "password required" });

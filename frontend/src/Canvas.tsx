@@ -88,7 +88,29 @@ export default function Canvas() {
 	const initializedSketchRef = useRef(false);
 	const dotRef = useRef(true);
 
+	const undo = () => {
+		if (undoDepthRef.current <= 0) return;
+		const removedShape = shapesRef.current.pop();
+		if (!removedShape) return;
+		redoShapesRef.current.push(removedShape);
+		if (redoShapesRef.current.length > HISTORY_LIMIT) {
+			redoShapesRef.current.shift();
+		}
+		undoDepthRef.current -= 1;
+		draftShapeRef.current = null;
+		dragStartRef.current = null;
+	};
+
+	const redo = () => {
+		const restoredShape = redoShapesRef.current.pop();
+		if (!restoredShape) return;
+		shapesRef.current.push(restoredShape);
+		undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+	};
+
 	const clearCanvas = () => {
+		if (shapesRef.current.length === 0) return;
+		if (!window.confirm("Clear the entire canvas? This cannot be undone.")) return;
 		shapesRef.current = [];
 		redoShapesRef.current = [];
 		undoDepthRef.current = 0;
@@ -137,7 +159,7 @@ export default function Canvas() {
 		justifyItems: "center" as const,
 		alignItems: "center" as const,
 		textAlign: "center" as const,
-		width: "120px",
+		width: "80px",
 	};
 	const controlNameStyle = {
 		display: "flex",
@@ -146,6 +168,7 @@ export default function Canvas() {
 		width: "100%",
 		height: "100%",
 		whiteSpace: "nowrap" as const,
+		fontSize: "0.8rem",
 	};
 	const controlFieldStyle = {
 		display: "flex",
@@ -448,9 +471,77 @@ export default function Canvas() {
 					</label>
 				</div>
 
-				<div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "center", flexWrap: "wrap", alignContent: "center" }}>
+				<div style={{ display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", flexWrap: "wrap", alignContent: "center" }}>
+					{/* Undo/Redo */}
+					<button
+						type="button"
+						onClick={undo}
+						disabled={undoDepthRef.current <= 0}
+						title="Undo"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						↶
+					</button>
+					<button
+						type="button"
+						onClick={redo}
+						disabled={redoShapesRef.current.length === 0}
+						title="Redo"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						↷
+					</button>
+
+					{/* Tools */}
+					<button
+						type="button"
+						onClick={() => setTool("freehand")}
+						className={tool === "freehand" ? "btn btn-primary" : "btn btn-ghost"}
+						title="Freehand"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						✏️
+					</button>
+					<button
+						type="button"
+						onClick={() => setTool("eraser")}
+						className={tool === "eraser" ? "btn btn-primary" : "btn btn-ghost"}
+						title="Eraser"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						🧽
+					</button>
+					<button
+						type="button"
+						onClick={() => setTool("line")}
+						className={tool === "line" ? "btn btn-primary" : "btn btn-ghost"}
+						title="Line"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						📏
+					</button>
+					<button
+						type="button"
+						onClick={() => setTool("rectangle")}
+						className={tool === "rectangle" ? "btn btn-primary" : "btn btn-ghost"}
+						title="Rectangle"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						▭
+					</button>
+					<button
+						type="button"
+						onClick={() => setTool("circle")}
+						className={tool === "circle" ? "btn btn-primary" : "btn btn-ghost"}
+						title="Circle"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						○
+					</button>
+
+					{/* Colors and Settings */}
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Background</span>
+						<span style={controlNameStyle}>BG</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="color"
@@ -461,7 +552,7 @@ export default function Canvas() {
 					</label>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Line Color</span>
+						<span style={controlNameStyle}>Color</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="color"
@@ -472,23 +563,7 @@ export default function Canvas() {
 					</label>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Tool</span>
-						<span style={controlFieldStyle}>
-							<select
-								value={tool}
-								onChange={(event) => setTool(event.target.value as Tool)}
-							>
-								<option value="freehand">Free Hand</option>
-								<option value="eraser">Eraser</option>
-								<option value="line">Line</option>
-								<option value="rectangle">Rectangle</option>
-								<option value="circle">Circle</option>
-							</select>
-						</span>
-					</label>
-
-					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Fill Shape</span>
+						<span style={controlNameStyle}>Fill</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="checkbox"
@@ -499,7 +574,7 @@ export default function Canvas() {
 					</label>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Stroke Weight</span>
+						<span style={controlNameStyle}>Size</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="number"
@@ -513,7 +588,7 @@ export default function Canvas() {
 									const clamped = Math.min(30, Math.max(1, parsed));
 									setStrokeWeight(clamped);
 								}}
-								style={{ width: "64px" }}
+								style={{ width: "50px" }}
 							/>
 						</span>
 					</label>
@@ -525,10 +600,24 @@ export default function Canvas() {
 								type="text"
 								value={`${zoomPercent}%`}
 								readOnly
-								style={{ width: "64px", textAlign: "center" }}
+								style={{ width: "50px", textAlign: "center" }}
 							/>
 						</span>
 					</label>
+
+					{/* Clear Button */}
+					<button
+						type="button"
+						onClick={() => {
+							if (window.confirm("Are you sure you want to clear the canvas? This action cannot be undone.")) {
+								clearCanvas();
+							}
+						}}
+						title="Clear Canvas"
+						style={{ fontSize: "1.2rem", padding: "4px 8px" }}
+					>
+						🗑️
+					</button>
 				</div>
 
 				<div />
