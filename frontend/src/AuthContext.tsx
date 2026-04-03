@@ -6,10 +6,10 @@ export function AuthProvider({ children }) {
 	const [user, setUser] = useState(null);
 	const [authReady, setAuthReady] = useState(false);
 
-	const fetchUserData = async (token: string) => {
-		try {
-			const response = await fetch("http://localhost:8081/users/me", {
-				headers: { Authorization: `Bearer ${token}` },
+		const fetchUserData = async (token: string) => {
+			try {
+				const response = await fetch("http://localhost:8081/users/me", { 
+					headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!response.ok) throw new Error("Failed to fetch user data");
 			const userData = await response.json();
@@ -33,12 +33,13 @@ export function AuthProvider({ children }) {
 		setUser(null);
 	};
 
-	const refreshUser = async () => {
+	const refreshUser = async () => {  // checa o token e atualiza os dados do usuário, útil para manter a sessão ativa
 		const token = sessionStorage.getItem("token");
-		if (token) await fetchUserData(token);
+		if (token) 
+			await fetchUserData(token);
 	};
 
-	useEffect(() => {
+	useEffect(() => { // e para renovar o token
 		const token = sessionStorage.getItem("token");
 		if (!token) {
 			setAuthReady(true);

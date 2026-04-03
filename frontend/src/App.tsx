@@ -16,8 +16,10 @@ import '../css/App.css'
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
-    if (!authReady) return null;
-    if (user) return <Navigate to="/dashboard" />;
+    if (!authReady) 
+        return null;
+    if (user)
+        return <Navigate to="/dashboard" />;
     return children;
 }
 
