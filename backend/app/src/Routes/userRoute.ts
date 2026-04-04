@@ -53,7 +53,7 @@ router.post('/friend-request/send', sendFriendRequest);
 router.get('/friend-request/received', getReceivedFriendRequests);
 router.post('/friend-request/:id/accept', acceptFriendRequest);
 router.post('/friend-request/:id/reject', rejectFriendRequest);
-router.get('/friends', getFriends);
+router.get('/friends',  );
 router.post('/friends/:id/unfriend', unfriend);
 
 // Admin-style (kept for compatibility)
