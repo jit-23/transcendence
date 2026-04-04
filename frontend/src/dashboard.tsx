@@ -66,6 +66,17 @@ export function Dashboard() {
         "Content-Type": "application/json",
     });
 
+    const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 10000) => {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            return await fetch(input, { ...init, signal: controller.signal });
+        } finally {
+            window.clearTimeout(timeout);
+        }
+    };
+
     const handleGenerate = async () => {
         setLoading(true); setError(null);
         try {
@@ -196,7 +207,7 @@ export function Dashboard() {
         setCanvasesLoading(true);
         setCanvasesError(null);
         try {
-            const res = await fetch("http://localhost:8081/canvases", {
+            const res = await fetchWithTimeout("http://localhost:8081/canvases", {
                 headers: authHeader(),
             });
             const data = await res.json();
@@ -206,18 +217,22 @@ export function Dashboard() {
             } else {
                 setCanvases(data);
             }
-        } catch {
-            setCanvasesError("Network error while loading canvases");
+        } catch (error: any) {
+            if (error?.name === "AbortError") {
+                setCanvasesError("Server timeout while loading canvases");
+            } else {
+                setCanvasesError("Network error while loading canvases");
+            }
             setCanvases([]);
         } finally {
             setCanvasesLoading(false);
         }
     };
 
-    const handleAddCanvas = async (name: string) => {
+    const handleAddCanvas = async (name: string): Promise<boolean> => {
         setCanvasesError(null);
         try {
-            const res = await fetch("http://localhost:8081/canvases", {
+            const res = await fetchWithTimeout("http://localhost:8081/canvases", {
                 method: "POST",
                 headers: authHeader(),
                 body: JSON.stringify({ name: name.trim() || `Canvas ${canvases.length + 1}` }),
@@ -225,11 +240,17 @@ export function Dashboard() {
             const data = await res.json();
             if (!res.ok) {
                 setCanvasesError(data.error || "Failed to create canvas");
-                return;
+                return false;
             }
-            setCanvases(prev => [data, ...prev]);
-        } catch {
-            setCanvasesError("Network error while creating canvas");
+            setCanvases(prev => [...prev, data]);
+            return true;
+        } catch (error: any) {
+            if (error?.name === "AbortError") {
+                setCanvasesError("Server timeout while creating canvas");
+            } else {
+                setCanvasesError("Network error while creating canvas");
+            }
+            return false;
         }
     };
 
@@ -293,6 +314,7 @@ export function Dashboard() {
                 <QuickActionsCard
                     canvases={canvases}
                     canvasesLoading={canvasesLoading}
+                    canvasesError={canvasesError}
                     onSearchFriends={() => navigate('/search')}
                     onGroupChats={() => navigate('/groups')}
                     onAddCanvas={handleAddCanvas}
@@ -314,7 +336,7 @@ export function Dashboard() {
                     error={friendsError}
                     unfriendingId={unfriendingId}
                     onRefresh={fetchFriends}
-                    onChat={(friendName) => navigate(`/chat?to=${encodeURIComponent(friendName)}`)}
+                    onChat={(friend) => navigate(`/chat?friendId=${friend.id}&name=${encodeURIComponent(friend.name)}`)}
                     onUnfriend={handleUnfriend}
                 />
 

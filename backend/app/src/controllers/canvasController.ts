@@ -90,7 +90,7 @@ export async function getUserCanvases(req: Request, res: Response) {
                     select: { id: true, name: true, email: true },
                 },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { createdAt: "asc" },
         });
 
         res.json(

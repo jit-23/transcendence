@@ -11,9 +11,10 @@ type Canvas = {
 type QuickActionsCardProps = {
   canvases: Canvas[];
   canvasesLoading: boolean;
+  canvasesError: string | null;
   onSearchFriends: () => void;
   onGroupChats: () => void;
-  onAddCanvas: (name: string) => void;
+  onAddCanvas: (name: string) => Promise<boolean>;
   onDeleteCanvas: (canvasId: number) => void;
   onOpenCanvas: (canvasId: number) => void;
 };
@@ -21,6 +22,7 @@ type QuickActionsCardProps = {
 export function QuickActionsCard({
   canvases,
   canvasesLoading,
+  canvasesError,
   onSearchFriends,
   onGroupChats,
   onAddCanvas,
@@ -29,17 +31,19 @@ export function QuickActionsCard({
 }: QuickActionsCardProps) {
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
+  const [creatingCanvas, setCreatingCanvas] = React.useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (canvases.length >= 3) return;
-    if (newCanvasName.trim()) {
-      onAddCanvas(newCanvasName);
+    setCreatingCanvas(true);
+    const requestedName = newCanvasName.trim() || `Canvas ${canvases.length + 1}`;
+    const created = await onAddCanvas(requestedName);
+
+    if (created) {
       setNewCanvasName("");
       setShowNameInput(false);
-    } else {
-      onAddCanvas(`Canvas ${canvases.length + 1}`);
-      setShowNameInput(false);
     }
+    setCreatingCanvas(false);
   };
   return (
     <div className="section-card fade-up fade-up-2">
@@ -70,7 +74,12 @@ export function QuickActionsCard({
               placeholder="Canvas name (optional)"
               value={newCanvasName}
               onChange={(e) => setNewCanvasName(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleCreate()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleCreate();
+                }
+              }}
               autoFocus
               style={{
                 flex: 1,
@@ -83,10 +92,12 @@ export function QuickActionsCard({
             />
             <button
               className="btn btn-primary btn-sm"
-              onClick={handleCreate}
-              disabled={canvasesLoading}
+              onClick={() => {
+                void handleCreate();
+              }}
+              disabled={canvasesLoading || creatingCanvas}
             >
-              Create
+              {creatingCanvas ? "Creating..." : "Create"}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -98,6 +109,12 @@ export function QuickActionsCard({
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {canvasesError && (
+        <div style={{ marginTop: 10, color: "var(--error)", fontSize: "0.9rem" }}>
+          {canvasesError}
         </div>
       )}
 
@@ -119,7 +136,16 @@ export function QuickActionsCard({
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => onOpenCanvas(canvas.id)}
-                  style={{ textAlign: "left", marginBottom: "4px" }}
+                  title={canvas.name}
+                  style={{
+                    textAlign: "left",
+                    marginBottom: "4px",
+                    width: "100%",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    justifyContent: "flex-start",
+                  }}
                 >
                   {canvas.name}
                 </button>

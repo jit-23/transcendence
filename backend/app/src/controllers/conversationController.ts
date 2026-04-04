@@ -14,6 +14,87 @@ function getAuthUser(req: Request): { userId: number } | null {
     }
 }
 
+async function areFriends(userId: number, friendId: number) {
+    const relation = await prisma.friend_request.findFirst({
+        where: {
+            status: "accepted",
+            OR: [
+                { senderId: userId, receiverId: friendId },
+                { senderId: friendId, receiverId: userId },
+            ],
+        },
+        select: { id: true },
+    });
+
+    return Boolean(relation);
+}
+
+export const createOrGetDirectConversation = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const friendId = Number(req.body.friendId);
+        if (!Number.isInteger(friendId) || friendId <= 0)
+            return res.status(400).json({ error: "Invalid friendId" });
+
+        if (friendId === auth.userId)
+            return res.status(400).json({ error: "Cannot create direct chat with yourself" });
+
+        const friend = await prisma.my_users.findUnique({
+            where: { id: friendId },
+            select: { id: true, name: true, email: true },
+        });
+        if (!friend) return res.status(404).json({ error: "Friend not found" });
+
+        const friends = await areFriends(auth.userId, friendId);
+        if (!friends) return res.status(403).json({ error: "You can only chat directly with accepted friends" });
+
+        const existing = await prisma.conversation.findFirst({
+            where: {
+                type: "DIRECT",
+                AND: [
+                    { participants: { some: { user_id: auth.userId } } },
+                    { participants: { some: { user_id: friendId } } },
+                    {
+                        participants: {
+                            every: {
+                                OR: [
+                                    { user_id: auth.userId },
+                                    { user_id: friendId },
+                                ],
+                            },
+                        },
+                    },
+                ],
+            },
+            select: { id: true, type: true, name: true },
+        });
+
+        if (existing) return res.json(existing);
+
+        const created = await prisma.conversation.create({
+            data: {
+                type: "DIRECT",
+                name: null,
+            },
+            select: { id: true, type: true, name: true },
+        });
+
+        await prisma.conversation_participants.createMany({
+            data: [
+                { conversation_id: created.id, user_id: auth.userId, role: "member" },
+                { conversation_id: created.id, user_id: friendId, role: "member" },
+            ],
+            skipDuplicates: true,
+        });
+
+        return res.status(201).json(created);
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 export const createGroupConversation = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
