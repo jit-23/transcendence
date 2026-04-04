@@ -8,6 +8,7 @@ import pg from "pg"
 import 'dotenv/config'
 import userRoute from "./Routes/userRoute"
 import conversationRoute from "./Routes/conversationRoute"
+import canvasRoute from "./Routes/canvasRoute"
 
 import { PrismaClient } from "@prisma/client"
 import { setupChatSocket } from "./sockets/chatSocket"
@@ -23,6 +24,7 @@ app.use(express.json({ limit: "5mb" }));
 
 app.use(`/users`, userRoute)
 app.use(`/conversations`, conversationRoute)
+app.use(`/canvases`, canvasRoute)
 
 const PORT = 8081;
 const server = app.listen(PORT, () => { console.log("express connected") });

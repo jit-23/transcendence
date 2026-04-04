@@ -2,8 +2,20 @@ import { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 import { PrismaClient } from "@prisma/client";
 
+type CanvasInvite = {
+  inviteId: string;
+  fromUsername: string;
+  fromUserId: number;
+  toUsername: string;
+  toUserId: number;
+  canvasId: number;
+  canvasName: string;
+  createdAt: number;
+};
+
 export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
   const connectedByName = new Map<string, string>();
+  const pendingCanvasInvites = new Map<string, CanvasInvite>();
 
   const io = new Server(server, {
     cors: {
@@ -22,6 +34,13 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
     console.log(`${username} connected with id: ${socket.id}`);
 
     let connectedUserId: number | null = null;
+
+    const emitToUser = (targetUsername: string, event: string, payload: unknown) => {
+      const targetSocketId = connectedByName.get(targetUsername);
+      if (!targetSocketId) return false;
+      io.to(targetSocketId).emit(event, payload);
+      return true;
+    };
 
     (async () => {
       const dbUser = await prisma.my_users.findUnique({
@@ -116,11 +135,6 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       });
     });
 
-    socket.on("disconnect", () => {
-      connectedByName.delete(username);
-      console.log(`${username} disconnected`);
-    });
-  });
-
-  return io;
-}
+    //////
+    // Canvas Invite Events
+    

@@ -26,6 +26,8 @@ model my_users{
 	messages message[]
 	sentRequests friend_request[] @relation("SentRequests")
 	receivedRequests friend_request[] @relation("ReceivedRequests")
+	canvases canvas[]
+	canvasCollaborations canvas_collaborator[]
 
 }
 
@@ -77,4 +79,27 @@ model message {
 
 	conversation conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
 	sender my_users @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+}
+
+model canvas {
+	id Int @id @default(autoincrement())
+	userId Int
+	name String @db.VarChar(100)
+	content String? @db.Text
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+
+	user my_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+	collaborators canvas_collaborator[]
+}
+
+model canvas_collaborator {
+	canvasId Int
+	userId Int
+	addedAt DateTime @default(now())
+
+	canvas canvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+	user my_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+	@@id([canvasId, userId])
 }

@@ -27,6 +27,14 @@ type Friend = {
     email: string;
 };
 
+type Canvas = {
+    id: number;
+    name: string;
+    userId: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
 export function Dashboard() {
     const { user, logout }          = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
@@ -47,7 +55,9 @@ export function Dashboard() {
     const [friendsLoading, setFriendsLoading] = useState(false);
     const [friendsError, setFriendsError] = useState<string | null>(null);
     const [unfriendingId, setUnfriendingId] = useState<number | null>(null);
-    const [canvasButtons, setCanvasButtons] = useState<number[]>([]);
+    const [canvases, setCanvases] = useState<Canvas[]>([]);
+    const [canvasesLoading, setCanvasesLoading] = useState(false);
+    const [canvasesError, setCanvasesError] = useState<string | null>(null);
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
@@ -182,16 +192,68 @@ export function Dashboard() {
         }
     };
 
-    const handleAddCanvasButton = () => {
-        setCanvasButtons((prev) => {
-            if (prev.length >= 3) return prev;
-            return [...prev, prev.length + 1];
-        });
+    const fetchCanvases = async () => {
+        setCanvasesLoading(true);
+        setCanvasesError(null);
+        try {
+            const res = await fetch("http://localhost:8081/canvases", {
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCanvasesError(data.error || "Failed to load canvases");
+                setCanvases([]);
+            } else {
+                setCanvases(data);
+            }
+        } catch {
+            setCanvasesError("Network error while loading canvases");
+            setCanvases([]);
+        } finally {
+            setCanvasesLoading(false);
+        }
     };
 
+    const handleAddCanvas = async (name: string) => {
+        setCanvasesError(null);
+        try {
+            const res = await fetch("http://localhost:8081/canvases", {
+                method: "POST",
+                headers: authHeader(),
+                body: JSON.stringify({ name: name.trim() || `Canvas ${canvases.length + 1}` }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCanvasesError(data.error || "Failed to create canvas");
+                return;
+            }
+            setCanvases(prev => [data, ...prev]);
+        } catch {
+            setCanvasesError("Network error while creating canvas");
+        }
+    };
+
+    const handleDeleteCanvas = async (canvasId: number) => {
+        setCanvasesError(null);
+        try {
+            const res = await fetch(`http://localhost:8081/canvases/${canvasId}`, {
+                method: "DELETE",
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCanvasesError(data.error || "Failed to delete canvas");
+                return;
+            }
+            setCanvases(prev => prev.filter(canvas => canvas.id !== canvasId));
+        } catch {
+            setCanvasesError("Network error while deleting canvas");
+        }
+    };
     useEffect(() => {
         fetchRequests();
         fetchFriends();
+        fetchCanvases();
     }, []);
 
     return (
@@ -229,11 +291,13 @@ export function Dashboard() {
                 <AccountCard username={user?.name} email={user?.email} onEdit={() => navigate('/profile')} />
 
                 <QuickActionsCard
-                    canvasButtons={canvasButtons}
+                    canvases={canvases}
+                    canvasesLoading={canvasesLoading}
                     onSearchFriends={() => navigate('/search')}
                     onGroupChats={() => navigate('/groups')}
-                    onAddCanvas={handleAddCanvasButton}
-                    onOpenCanvas={(canvasNumber) => navigate(`/canvas?slot=${canvasNumber}`)}
+                    onAddCanvas={handleAddCanvas}
+                    onDeleteCanvas={handleDeleteCanvas}
+                    onOpenCanvas={(canvasId) => navigate(`/canvas?id=${canvasId}`)}
                 />
 
                 <FriendRequestsCard
