@@ -1,5 +1,5 @@
 generator client {
- provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -12,55 +12,52 @@ enum ConversationType {
   GROUP
 }
 
-model my_users{
-	id Int @id @default(autoincrement())
-	name String @db.VarChar(50) @unique @map("Name")
-	email String @db.VarChar(100) @unique @map("Email")
-	password String @map("Password")
-	createdAt DateTime @default(now())
-	twoFactorEnabled Boolean @default(false)
-	twoFactorSecret String?
-	avatar           String?
+model my_users {
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(50) @unique @map("Name")
+  email            String   @db.VarChar(100) @unique @map("Email")
+  password         String?  @map("Password") // nullable — Google users have no password
+  googleId         String?  @unique // Google's user ID
+  avatar           String?
+  createdAt        DateTime @default(now())
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?
 
-	conversations conversation_participants[]
-	sentRequests friend_request[] @relation("SentRequests")
-	receivedRequests friend_request[] @relation("ReceivedRequests")
-
+  conversations    conversation_participants[]
+  sentRequests     friend_request[]            @relation("SentRequests")
+  receivedRequests friend_request[]            @relation("ReceivedRequests")
 }
 
 model conversation {
-	id 			Int 			@id @default(autoincrement())
-	type 		ConversationType @default(DIRECT)
-	created_at	DateTime 	@default(now())
+  id         Int              @id @default(autoincrement())
+  type       ConversationType @default(DIRECT)
+  created_at DateTime         @default(now())
 
-	participants conversation_participants[]
-
+  participants conversation_participants[]
 }
 
-
-
 model conversation_participants {
-	conversation_id 	Int
-    user_id				Int
-	joinedAt 			DateTime @default(now())
-    joined_at 			DateTime @default(now())
-    role 				String
+  conversation_id Int
+  user_id         Int
+  joinedAt        DateTime @default(now())
+  joined_at       DateTime @default(now())
+  role            String
 
-	conversation conversation @relation(fields: [conversation_id], references: [id])
-  	user         my_users @relation(fields: [user_id], references: [id])
+  conversation conversation @relation(fields: [conversation_id], references: [id])
+  user         my_users     @relation(fields: [user_id], references: [id])
 
-	@@id([conversation_id, user_id])
+  @@id([conversation_id, user_id])
 }
 
 model friend_request {
-	id Int @id @default(autoincrement())
-	senderId Int
-	receiverId Int
-	status String @default("pending")
-	createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
 
-	sender my_users @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
-	receiver my_users @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender   my_users @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver my_users @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
 
-	@@unique([senderId, receiverId])
+  @@unique([senderId, receiverId])
 }

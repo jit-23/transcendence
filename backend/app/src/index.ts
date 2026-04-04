@@ -5,8 +5,10 @@ import cookieParser from "cookie-parser"
 import compression from "compression"
 import cors from "cors"
 import pg from "pg"
+import passport from "passport"
 import 'dotenv/config'
 import userRoute from "./Routes/userRoute"
+import googleAuthRoute from "./Routes/googleAuthRoute"
 
 import { Server } from "socket.io"
 import { PrismaClient } from "@prisma/client"
@@ -21,8 +23,10 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: "5mb" }));
+app.use(passport.initialize()); // JWT only — no sessions needed
 
-app.use(`/users`, userRoute)
+app.use('/users', userRoute);
+app.use('/auth/google', googleAuthRoute);
 
 const PORT = 8081;
 const server = app.listen(PORT, () => { console.log("express connected") });
