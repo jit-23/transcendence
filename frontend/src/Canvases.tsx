@@ -9,7 +9,6 @@ export function CanvasesPage() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-
   const [canvases, setCanvases] = useState<Canvas[]>([]);
 	  
 	const [canvasesLoading, setCanvasesLoading] = useState(false);
