@@ -12,6 +12,8 @@ import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
 import Canvas from "./Canvas.tsx";
 import { GroupChatsPage } from "./groupChats.tsx";
+import { ConversationsPage } from "./conversations.tsx";
+import { CanvasesPage } from "./Canvases.tsx";
 import '../css/App.css'
 
 function PublicRoute({ children }) {
@@ -117,6 +119,14 @@ function App() {
 
                 <Route path="/chat" element={
                     <PrivateRoute><ChatPage /></PrivateRoute>
+                } />
+
+                <Route path="/conversations" element={
+                    <PrivateRoute><ConversationsPage /></PrivateRoute>
+                } />
+				
+				<Route path="/Canvases" element={
+                    <PrivateRoute><CanvasesPage /></PrivateRoute>
                 } />
 
                 <Route path="/groups" element={

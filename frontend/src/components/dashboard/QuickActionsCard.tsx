@@ -11,8 +11,6 @@ type Canvas = {
 type QuickActionsCardProps = {
   canvases: Canvas[];
   canvasesLoading: boolean;
-  onSearchFriends: () => void;
-  onGroupChats: () => void;
   onAddCanvas: (name: string) => void;
   onDeleteCanvas: (canvasId: number) => void;
   onOpenCanvas: (canvasId: number) => void;
@@ -21,14 +19,17 @@ type QuickActionsCardProps = {
 export function QuickActionsCard({
   canvases,
   canvasesLoading,
-  onSearchFriends,
-  onGroupChats,
   onAddCanvas,
   onDeleteCanvas,
   onOpenCanvas,
 }: QuickActionsCardProps) {
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
+
+    const authHeader = () => ({
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+        "Content-Type": "application/json",
+    });
 
   const handleCreate = () => {
     if (canvases.length >= 3) return;
@@ -46,12 +47,6 @@ export function QuickActionsCard({
       <div className="section-card-header">
         <h3>Your Canvases</h3>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-ghost btn-sm" onClick={onSearchFriends}>
-            Search Friends
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onGroupChats}>
-            Group Chats
-          </button>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => setShowNameInput(true)}

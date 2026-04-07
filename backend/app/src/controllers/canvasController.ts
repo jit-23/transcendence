@@ -49,6 +49,7 @@ async function isFriend(userId: number, friendId: number) {
 
 export async function createCanvas(req: Request, res: Response) {
     try {
+		console.log("Received request to create canvas with body:", req.body);
         const auth = getAuthUser(req);
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 

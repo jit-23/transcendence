@@ -1,13 +1,9 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
-import { AccountCard } from "./components/dashboard/AccountCard";
-import { QuickActionsCard } from "./components/dashboard/QuickActionsCard";
-import { FriendRequestsCard } from "./components/dashboard/FriendRequestsCard";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
-import { EnableStep, Friend, ReceivedFriendRequest } from "./components/dashboard/types";
 import { Avatar } from "./Avatar";
 
 type EnableStep = "idle" | "scanning";
@@ -27,12 +23,10 @@ type Friend = {
     email: string;
 };
 
-type Canvas = {
+type SearchResult = {
     id: number;
     name: string;
-    userId: number;
-    createdAt: string;
-    updatedAt: string;
+    email: string;
 };
 
 export function Dashboard() {
@@ -55,11 +49,19 @@ export function Dashboard() {
     const [friendsLoading, setFriendsLoading] = useState(false);
     const [friendsError, setFriendsError] = useState<string | null>(null);
     const [unfriendingId, setUnfriendingId] = useState<number | null>(null);
-    const [canvases, setCanvases] = useState<Canvas[]>([]);
-    const [canvasesLoading, setCanvasesLoading] = useState(false);
-    const [canvasesError, setCanvasesError] = useState<string | null>(null);
+    
+	
+    
+	const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
+    const [searched, setSearched] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
+    const [showRequestsPanel, setShowRequestsPanel] = useState(false);
 
-    const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
+    const requestsPanelRef = useRef<HTMLDivElement | null>(null);
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -192,69 +194,124 @@ export function Dashboard() {
         }
     };
 
-    const fetchCanvases = async () => {
-        setCanvasesLoading(true);
-        setCanvasesError(null);
+
+    const openAddFriendModal = () => {
+        setShowAddFriendModal(true);
+        setSearchQuery("");
+        setSearchResults([]);
+        setSearchError(null);
+        setSearched(false);
+    };
+
+    const closeAddFriendModal = () => {
+        setShowAddFriendModal(false);
+        setSearchLoading(false);
+    };
+
+    const handleSearchUsers = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!searchQuery.trim()) {
+            setSearchError("Enter a username or email to search");
+            return;
+        }
+
+        setSearchLoading(true);
+        setSearchError(null);
+        setSearched(true);
+
         try {
-            const res = await fetch("http://localhost:8081/canvases", {
+            const res = await fetch(`http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`, {
                 headers: authHeader(),
             });
             const data = await res.json();
+
             if (!res.ok) {
-                setCanvasesError(data.error || "Failed to load canvases");
-                setCanvases([]);
-            } else {
-                setCanvases(data);
+                setSearchError(data.error || "Search failed");
+                setSearchResults([]);
+                return;
             }
+
+            const filtered = data.filter((result: SearchResult) => result.id !== user?.id);
+            setSearchResults(filtered);
         } catch {
-            setCanvasesError("Network error while loading canvases");
-            setCanvases([]);
+            setSearchError("Network error during search");
+            setSearchResults([]);
         } finally {
-            setCanvasesLoading(false);
+            setSearchLoading(false);
         }
     };
 
-    const handleAddCanvas = async (name: string) => {
-        setCanvasesError(null);
+    const handleSendRequest = async (receiverId: number) => {
+        setPendingRequests(prev => new Set(prev).add(receiverId));
+        setSearchError(null);
+
         try {
-            const res = await fetch("http://localhost:8081/canvases", {
+            const res = await fetch("http://localhost:8081/users/friend-request/send", {
                 method: "POST",
                 headers: authHeader(),
-                body: JSON.stringify({ name: name.trim() || `Canvas ${canvases.length + 1}` }),
+                body: JSON.stringify({ receiverId }),
             });
             const data = await res.json();
+
             if (!res.ok) {
-                setCanvasesError(data.error || "Failed to create canvas");
-                return;
+                setSearchError(data.error || "Failed to send request");
+                setPendingRequests(prev => {
+                    const updated = new Set(prev);
+                    updated.delete(receiverId);
+                    return updated;
+                });
             }
-            setCanvases(prev => [data, ...prev]);
         } catch {
-            setCanvasesError("Network error while creating canvas");
+            setSearchError("Network error");
+            setPendingRequests(prev => {
+                const updated = new Set(prev);
+                updated.delete(receiverId);
+                return updated;
+            });
         }
     };
 
-    const handleDeleteCanvas = async (canvasId: number) => {
-        setCanvasesError(null);
-        try {
-            const res = await fetch(`http://localhost:8081/canvases/${canvasId}`, {
-                method: "DELETE",
-                headers: authHeader(),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setCanvasesError(data.error || "Failed to delete canvas");
-                return;
-            }
-            setCanvases(prev => prev.filter(canvas => canvas.id !== canvasId));
-        } catch {
-            setCanvasesError("Network error while deleting canvas");
-        }
-    };
     useEffect(() => {
         fetchRequests();
         fetchFriends();
-        fetchCanvases();
     }, []);
+
+    useEffect(() => {
+        if (!showAddFriendModal) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                closeAddFriendModal();
+            }
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [showAddFriendModal]);
+
+    useEffect(() => {
+        if (!showRequestsPanel) return;
+
+        const onClickOutside = (event: MouseEvent) => {
+            if (requestsPanelRef.current && !requestsPanelRef.current.contains(event.target as Node)) {
+                setShowRequestsPanel(false);
+            }
+        };
+
+        const onEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setShowRequestsPanel(false);
+            }
+        };
+
+        window.addEventListener("mousedown", onClickOutside);
+        window.addEventListener("keydown", onEscape);
+
+        return () => {
+            window.removeEventListener("mousedown", onClickOutside);
+            window.removeEventListener("keydown", onEscape);
+        };
+    }, [showRequestsPanel]);
 
     return (
         <div className="dashboard-shell">
@@ -272,6 +329,56 @@ export function Dashboard() {
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
                         Profile
                     </button>
+                    <button className="btn btn-primary btn-sm" onClick={openAddFriendModal}>
+                        Add friend
+                    </button>
+                    <div className="topbar-notification" ref={requestsPanelRef}>
+                        <button
+                            className="notification-bell-btn"
+                            onClick={() => setShowRequestsPanel(prev => !prev)}
+                            title="Friend requests"
+                            aria-label="Friend requests"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-5.2V11a7 7 0 1 0-14 0v5.8L3.6 18a1 1 0 0 0 .7 1.8h15.4a1 1 0 0 0 .7-1.8L19 16.8Z" />
+                            </svg>
+                            {requests.length > 0 && <span className="notification-badge">{requests.length}</span>}
+                        </button>
+
+                        {showRequestsPanel && (
+                            <div className="notification-panel">
+                                <div className="notification-panel-header">
+                                    <h3>Friend Requests</h3>
+                                    <button className="btn btn-ghost btn-sm" onClick={fetchRequests} disabled={requestsLoading}>
+                                        {requestsLoading ? "..." : "Refresh"}
+                                    </button>
+                                </div>
+
+                                {requestsError && <div className="msg msg-error" style={{ marginBottom: 10 }}>{requestsError}</div>}
+
+                                {!requestsLoading && requests.length === 0 && (
+                                    <p className="notification-empty">No pending requests.</p>
+                                )}
+
+                                {requests.length > 0 && (
+                                    <div className="notification-list">
+                                        {requests.map((request) => (
+                                            <div key={request.id} className="notification-item">
+                                                <div>
+                                                    <p style={{ marginBottom: 4, fontWeight: 600 }}>{request.sender.name}</p>
+                                                    <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{request.sender.email}</p>
+                                                </div>
+                                                <div style={{ display: "flex", gap: 6 }}>
+                                                    <button className="btn btn-primary btn-sm" onClick={() => decideRequest(request.id, "accept")}>Accept</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => decideRequest(request.id, "reject")}>Reject</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                     <button className="btn btn-ghost btn-sm" onClick={logout}>
                         Sign out
                     </button>
@@ -288,56 +395,112 @@ export function Dashboard() {
                     <p>Manage your account and security settings.</p>
                 </div>
 
-                <AccountCard username={user?.name} email={user?.email} onEdit={() => navigate('/profile')} />
+                <div className="dashboard-layout">
+                    <section className="dashboard-main-column">
 
-                <QuickActionsCard
-                    canvases={canvases}
-                    canvasesLoading={canvasesLoading}
-                    onSearchFriends={() => navigate('/search')}
-                    onGroupChats={() => navigate('/groups')}
-                    onAddCanvas={handleAddCanvas}
-                    onDeleteCanvas={handleDeleteCanvas}
-                    onOpenCanvas={(canvasId) => navigate(`/canvas?id=${canvasId}`)}
-                />
+                        <div className="section-card fade-up fade-up-2">
+                            <div className="section-card-header" style={{ marginBottom: 0 }}>
+                                <h3>Talk to friends</h3>
+                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/conversations')}>
+                                    Open
+                                </button>
+                            </div>
+                        </div>
+						 <div className="section-card fade-up fade-up-2">
+                            <div className="section-card-header" style={{ marginBottom: 0 }}>
+                                <h3>Plan Your Group Projects</h3>
+                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/Canvases')}>
+                                    Open
+                                </button>
+                            </div>
+                        </div>
 
-                <FriendRequestsCard
-                    requests={requests}
-                    loading={requestsLoading}
-                    error={requestsError}
-                    onRefresh={fetchRequests}
-                    onDecide={decideRequest}
-                />
+                        <TwoFactorCard
+                            twoFAEnabled={twoFAEnabled}
+                            enableStep={enableStep}
+                            qr={qr}
+                            confirmCode={confirmCode}
+                            disableCode={disableCode}
+                            showDisable={showDisable}
+                            loading={loading}
+                            error={error}
+                            setConfirmCode={setConfirmCode}
+                            setDisableCode={setDisableCode}
+                            setEnableStep={setEnableStep}
+                            setQr={setQr}
+                            setShowDisable={setShowDisable}
+                            setError={setError}
+                            onGenerate={handleGenerate}
+                            onConfirm={handleConfirm}
+                            onDisable={handleDisable}
+                        />
+                    </section>
 
-                <FriendsCard
-                    friends={friends}
-                    loading={friendsLoading}
-                    error={friendsError}
-                    unfriendingId={unfriendingId}
-                    onRefresh={fetchFriends}
-                    onChat={(friendName) => navigate(`/chat?to=${encodeURIComponent(friendName)}`)}
-                    onUnfriend={handleUnfriend}
-                />
-
-                <TwoFactorCard
-                    twoFAEnabled={twoFAEnabled}
-                    enableStep={enableStep}
-                    qr={qr}
-                    confirmCode={confirmCode}
-                    disableCode={disableCode}
-                    showDisable={showDisable}
-                    loading={loading}
-                    error={error}
-                    setConfirmCode={setConfirmCode}
-                    setDisableCode={setDisableCode}
-                    setEnableStep={setEnableStep}
-                    setQr={setQr}
-                    setShowDisable={setShowDisable}
-                    setError={setError}
-                    onGenerate={handleGenerate}
-                    onConfirm={handleConfirm}
-                    onDisable={handleDisable}
-                />
+                    <aside className="dashboard-friends-column">
+                        <FriendsCard
+                            friends={friends}
+                            loading={friendsLoading}
+                            error={friendsError}
+                            unfriendingId={unfriendingId}
+                            onRefresh={fetchFriends}
+                            onChat={(friendName) => navigate(`/chat?to=${encodeURIComponent(friendName)}`)}
+                            onUnfriend={handleUnfriend}
+                        />
+                    </aside>
+                </div>
             </main>
+
+            {showAddFriendModal && (
+                <div className="dashboard-modal-backdrop" onClick={closeAddFriendModal}>
+                    <div className="dashboard-modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="dashboard-modal-header">
+                            <h3>Add Friend</h3>
+                            <button className="btn btn-ghost btn-sm" onClick={closeAddFriendModal}>
+                                Close
+                            </button>
+                        </div>
+
+                        <form className="dashboard-modal-search" onSubmit={handleSearchUsers}>
+                            <input
+                                type="text"
+                                placeholder="Search by username or email"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                autoFocus
+                            />
+                            <button className="btn btn-primary btn-sm" type="submit" disabled={searchLoading}>
+                                {searchLoading ? "Searching..." : "Search"}
+                            </button>
+                        </form>
+
+                        {searchError && <div className="msg msg-error">{searchError}</div>}
+
+                        {searched && !searchLoading && searchResults.length === 0 && (
+                            <p className="dashboard-modal-empty">No users found.</p>
+                        )}
+
+                        {searchResults.length > 0 && (
+                            <div className="dashboard-modal-results">
+                                {searchResults.map((result) => (
+                                    <div key={result.id} className="dashboard-modal-result-item">
+                                        <div>
+                                            <p style={{ fontWeight: 600, marginBottom: 4 }}>{result.name}</p>
+                                            <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{result.email}</p>
+                                        </div>
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => handleSendRequest(result.id)}
+                                            disabled={pendingRequests.has(result.id)}
+                                        >
+                                            {pendingRequests.has(result.id) ? "Requested" : "Invite"}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
