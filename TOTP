@@ -62,30 +62,6 @@ docker system prune -af;
 docker compose up --build
 
 
-========================================================================================================================
-                                                      42 api stuff
-========================================================================================================================
-
-
-Base url
-    GET https://api.intra.42.fr/oauth/authorize
-
-Parameters
-Name	         Type	    Description
-client_id   	string	    Required. The client ID you received from 42 when you registered.
-redirect_uri	string	    Required. The URL in your app where users will be sent after authorization. See details below about redirect urls.
-scope	        string	    A space separated list of scopes.
-                                If not provided, scope defaults to an empty list of scopes for users that don't have a valid token for the app.
-                                For users who do already have a valid token for the app, the user won't be shown the OAuth authorization page with the list of scopes.
-                                Instead, this step of the flow will automatically complete with the same scopes that were used last time the user completed the flow.
-state	        string	    An unguessable random string. It is used to protect against cross-site request forgery attacks.
-response_type	string	    The response type. Ususally code
-
-
-
-All this things will make together a nice and understandable URI, like:
-
-https://api.intra.42.fr/oauth/authorize?client_id=your_very_long_client_id&redirect_uri=http%3A%2F%2Flocalhost%3A1919%2Fusers%2Fauth%2Fft%2Fcallback&response_type=code&scope=public&state=a_very_long_random_string_witchmust_be_unguessable'
 
 
 
@@ -99,12 +75,38 @@ https://api.intra.42.fr/oauth/authorize?client_id=your_very_long_client_id&redir
 
 
 
+1. 🚨 index.ts — Socket disconnect listener is nested inside private-message
+This is a bug that will cause the server to never clean up disconnected users properly:
+ts// ❌ CURRENT — disconnect is inside private-message handler
+socket.on("private-message", ({ payload }) => {
+    ...
+    socket.on("disconnect", () => {   // ← nested! only fires after a message
+        connectedByName.delete(username);
+    });
+});
 
+// ✅ FIX — move disconnect to top level
+io.on("connection", (socket) => {
+    const username = socket.handshake.auth.username as string;
+    if (!username) return socket.disconnect();
 
+    connectedByName.set(username, socket.id);
 
+    socket.on("private-message", ({ payload }) => {
+        const toSocketId = connectedByName.get(payload.to);
+        if (toSocketId) {
+            io.to(toSocketId).emit("private-message", { from: username, text: payload.text });
+        } else {
+            socket.emit("user-not-found", { to: payload.to });
+        }
+    });
 
-curl  -H "Authorization: Bearer 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" "https://api.intra.42.fr/v2/community_services/paulo-do.json"
-
+    // ✅ top level
+    socket.on("disconnect", () => {
+        connectedByName.delete(username);
+        console.log(`${username} disconnected`);
+    });
+});
 
 
 
