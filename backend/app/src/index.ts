@@ -8,7 +8,7 @@ import pg from "pg"
 import 'dotenv/config'
 import userRoute from "./Routes/userRoute"
 import conversationRoute from "./Routes/conversationRoute"
-import canvasRoute from "./Routes/canvasRoute"
+import canvasRoute from "./Routes/CanvasRoute"
 
 import { PrismaClient } from "@prisma/client"
 import { setupChatSocket } from "./sockets/chatSocket"

@@ -134,7 +134,8 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
         isTyping: Boolean(isTyping),
       });
     });
-
+  }	);
+}
     //////
     // Canvas Invite Events
     
