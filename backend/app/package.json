@@ -20,6 +20,8 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/passport": "^1.0.16",
+    "@types/passport-google-oauth20": "^2.0.16",
     "@types/pg": "^8.18.0",
     "nodemon": "^3.1.14",
     "prisma": "^6.19.2",
@@ -37,8 +39,10 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "pg": "^8.20.0",
     "express-rate-limit": "^7.5.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.20.0",
     "speakeasy": "^2.0.0",
     "qrcode": "^1.5.4"
   }

@@ -1,13 +1,14 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
-import { LoginForm }   from "./userLogin.tsx";
-import { Dashboard }   from "./dashboard";
-import { SignupForm }  from './userSignup.tsx';
-import { ProfilePage } from './profile.tsx';
-import PrivateRoute    from "./PrivateRoute";
-import { useContext }  from "react";
-import { AuthContext } from "./AuthContext";
-import { useTheme }    from "./ThemeContext";
+import { LoginForm }    from "./userLogin.tsx";
+import { Dashboard }    from "./dashboard";
+import { SignupForm }   from './userSignup.tsx';
+import { ProfilePage }  from './profile.tsx';
+import { AuthCallback } from './AuthCallback.tsx';
+import PrivateRoute     from "./PrivateRoute";
+import { useContext }   from "react";
+import { AuthContext }  from "./AuthContext";
+import { useTheme }     from "./ThemeContext";
 import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
 import Canvas from "./Canvas.tsx";
@@ -48,10 +49,8 @@ function NotFound() {
 
 function Home() {
     const { theme, toggleTheme } = useTheme();
-
     return (
         <div id="center">
-            {/* Theme toggle top-right */}
             <button
                 className="theme-toggle"
                 onClick={toggleTheme}
@@ -60,28 +59,19 @@ function Home() {
             >
                 {theme === 'dark' ? '☀' : '☾'}
             </button>
-
             <div style={{ textAlign: 'center', maxWidth: 440 }}>
                 <div className="logo" style={{ justifyContent: 'center', marginBottom: 32, fontSize: '1.1rem' }}>
                     <div className="logo-mark" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>W</div>
                     whiteboard
                 </div>
-
                 <h1 style={{ fontSize: '2.8rem', marginBottom: 16, lineHeight: 1.1 }}>
                     Think together,<br />
                     <span style={{ color: 'var(--ink2)' }}>in real time.</span>
                 </h1>
-
-                <p style={{
-                    color: 'var(--ink3)',
-                    fontSize: '0.875rem',
-                    lineHeight: 1.8,
-                    marginBottom: 36,
-                }}>
+                <p style={{ color: 'var(--ink3)', fontSize: '0.875rem', lineHeight: 1.8, marginBottom: 36 }}>
                     A shared canvas for your team — draw, plan,<br />
                     and collaborate without the noise.
                 </p>
-
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                     <Link to="/signup" className="btn btn-primary">Get started →</Link>
                     <Link to="/login"  className="btn btn-ghost">Sign in</Link>
@@ -104,6 +94,9 @@ function App() {
                 <Route path="/signup" element={
                     <PublicRoute><SignupForm /></PublicRoute>
                 } />
+
+                {/* Google OAuth lands here — must NOT be inside PublicRoute */}
+                <Route path="/auth/callback" element={<AuthCallback />} />
 
                 <Route path="/dashboard" element={
                     <PrivateRoute><Dashboard /></PrivateRoute>
