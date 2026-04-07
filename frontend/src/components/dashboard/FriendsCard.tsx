@@ -6,7 +6,7 @@ type FriendsCardProps = {
   error: string | null;
   unfriendingId: number | null;
   onRefresh: () => void;
-  onChat: (friendName: string) => void;
+  onChat: (friend: Friend) => void;
   onUnfriend: (friendId: number) => void;
 };
 
@@ -55,7 +55,7 @@ export function FriendsCard({
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={() => onChat(friend.name)}>
+                <button className="btn btn-primary btn-sm" onClick={() => onChat(friend)}>
                   Chat
                 </button>
                 <button

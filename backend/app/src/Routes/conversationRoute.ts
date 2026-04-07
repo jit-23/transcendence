@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+    createOrGetDirectConversation,
     createGroupConversation,
     getMyConversations,
     getConversationMessages,
@@ -8,6 +9,7 @@ import {
 const router = Router();
 
 router.post("/group", createGroupConversation);
+router.post("/direct", createOrGetDirectConversation);
 router.get("/my", getMyConversations);
 router.get("/:id/messages", getConversationMessages);
 

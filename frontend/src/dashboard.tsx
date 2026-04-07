@@ -68,6 +68,17 @@ export function Dashboard() {
         "Content-Type": "application/json",
     });
 
+    const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 10000) => {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            return await fetch(input, { ...init, signal: controller.signal });
+        } finally {
+            window.clearTimeout(timeout);
+        }
+    };
+
     const handleGenerate = async () => {
         setLoading(true); setError(null);
         try {
