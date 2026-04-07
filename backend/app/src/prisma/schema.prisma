@@ -16,8 +16,9 @@ model my_users {
   id               Int      @id @default(autoincrement())
   name             String   @db.VarChar(50) @unique @map("Name")
   email            String   @db.VarChar(100) @unique @map("Email")
-  password         String?  @map("Password") // nullable — Google users have no password
-  googleId         String?  @unique // Google's user ID
+  password         String?  @map("Password")
+  googleId         String?  @unique
+  fortyTwoId       String?  @unique
   avatar           String?
   createdAt        DateTime @default(now())
   twoFactorEnabled Boolean  @default(false)
