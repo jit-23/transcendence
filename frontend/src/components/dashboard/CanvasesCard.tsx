@@ -8,21 +8,23 @@ type Canvas = {
   updatedAt: string;
 };
 
-type QuickActionsCardProps = {
+type CanvasesCardProps = {
   canvases: Canvas[];
   canvasesLoading: boolean;
-  onAddCanvas: (name: string) => void;
+  canvasesError?: string | null;
+  onAddCanvas: (name: string) => Promise<boolean>;
   onDeleteCanvas: (canvasId: number) => void;
   onOpenCanvas: (canvasId: number) => void;
 };
 
-export function QuickActionsCard({
+export function CanvasesCard({
   canvases,
   canvasesLoading,
+  canvasesError,
   onAddCanvas,
   onDeleteCanvas,
   onOpenCanvas,
-}: QuickActionsCardProps) {
+}: CanvasesCardProps) {
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
   const [creatingCanvas, setCreatingCanvas] = React.useState(false);

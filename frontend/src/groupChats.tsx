@@ -69,8 +69,10 @@ export function GroupChatsPage() {
   };
 
   const createGroup = async () => {
-    if (!groupName.trim()) return setError("Group name is required");
-    if (selected.length < 1) return setError("Select at least one friend");
+    if (!groupName.trim())
+      return setError("Group name is required");
+   /*  if (selected.length < 0)
+      return setError("Select at least one friend"); */
 
     setLoading(true);
     setError(null);

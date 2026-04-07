@@ -98,7 +98,8 @@ export const createOrGetDirectConversation = async (req: Request, res: Response)
 export const createGroupConversation = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
-        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+        if (!auth)
+            return res.status(401).json({ error: "Unauthorized" });
 
         const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
         const incomingMemberIds: unknown[] = Array.isArray(req.body.memberIds) ? req.body.memberIds : [];
@@ -111,12 +112,13 @@ export const createGroupConversation = async (req: Request, res: Response) => {
             .filter((id) => id !== auth.userId);
 
         if (!name) return res.status(400).json({ error: "Group name is required" });
-        if (memberIds.length < 1) return res.status(400).json({ error: "Select at least one member" });
 
-        const validMembers = await prisma.my_users.findMany({
-            where: { id: { in: memberIds } },
-            select: { id: true },
-        });
+        const validMembers = memberIds.length
+            ? await prisma.my_users.findMany({
+                where: { id: { in: memberIds } },
+                select: { id: true },
+            })
+            : [];
 
         if (validMembers.length !== memberIds.length)
             return res.status(404).json({ error: "One or more members were not found" });

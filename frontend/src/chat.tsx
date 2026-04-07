@@ -1,5 +1,5 @@
 import { FormEvent, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
 
@@ -7,7 +7,9 @@ export function ChatPage() {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const initialTarget = searchParams.get("to") ?? "";
+    const friendIdParam = searchParams.get("friendId");
+    const friendNameParam = searchParams.get("name") ?? "";
+    const initialTarget = friendNameParam || (searchParams.get("to") ?? "");
 
     const [target, setTarget] = useState(initialTarget);
     const [draftTarget, setDraftTarget] = useState(initialTarget);
@@ -15,13 +17,74 @@ export function ChatPage() {
     const [status, setStatus] = useState<string | null>(null);
     const [messages, setMessages] = useState<Array<{ from: string; text: string; self: boolean }>>([]);
     const [peerTyping, setPeerTyping] = useState<string | null>(null);
+    const [conversationLoading, setConversationLoading] = useState(false);
 
     const socketRef = useRef<Socket | null>(null);
     const typingTimeoutRef = useRef<number | null>(null);
 
+    const authHeader = () => ({
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+        "Content-Type": "application/json",
+    });
+
     const canSend = useMemo(() => {
-        return Boolean(target.trim() && text.trim() && socketRef.current);
-    }, [target, text]);
+        return Boolean(target.trim() && text.trim() && socketRef.current && !conversationLoading);
+    }, [target, text, conversationLoading]);
+
+    useEffect(() => {
+        if (!friendIdParam) return;
+        if (!user?.name) return;
+
+        const friendId = Number(friendIdParam);
+        if (!Number.isInteger(friendId) || friendId <= 0) {
+            setStatus("Invalid friendId in URL");
+            return;
+        }
+
+        let cancelled = false;
+
+        const openDirectConversation = async () => {
+            setConversationLoading(true);
+            setStatus("Opening conversation...");
+
+            try {
+                const res = await fetch("http://localhost:8081/conversations/direct", {
+                    method: "POST",
+                    headers: authHeader(),
+                    body: JSON.stringify({ friendId }),
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setStatus(data.error || "Failed to open conversation");
+                    return;
+                }
+
+                if (cancelled) return;
+
+                const displayName = friendNameParam || data.name || `User ${friendId}`;
+                setTarget(displayName);
+                setDraftTarget(displayName);
+                setMessages([]);
+                setPeerTyping(null);
+                setStatus(`Chatting with ${displayName}`);
+            } catch {
+                if (!cancelled) {
+                    setStatus("Network error while opening conversation");
+                }
+            } finally {
+                if (!cancelled) {
+                    setConversationLoading(false);
+                }
+            }
+        };
+
+        void openDirectConversation();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [friendIdParam, friendNameParam, user?.name]);
 
     useEffect(() => {
         if (!user?.name) return;

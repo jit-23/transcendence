@@ -1,19 +1,27 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 import { Avatar } from "./Avatar";
-import { QuickActionsCard } from "./components/dashboard/QuickActionsCard";
+import { CanvasesCard } from "./components/dashboard/CanvasesCard";
+
+type Canvas = {
+  id: number;
+  name: string;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export function CanvasesPage() {
   const { user } = useContext(AuthContext);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [canvases, setCanvases] = useState<Canvas[]>([]);
-	  
 	const [canvasesLoading, setCanvasesLoading] = useState(false);
-	  
 	const [canvasesError, setCanvasesError] = useState<string | null>(null);
+
 
 
     const authHeader = () => ({
@@ -21,6 +29,8 @@ export function CanvasesPage() {
         "Content-Type": "application/json",
     });
 	
+
+    console.log("CanvasesPage: entered");
     const fetchCanvases = async () => {
         setCanvasesLoading(true);
         setCanvasesError(null);
@@ -43,7 +53,7 @@ export function CanvasesPage() {
         }
     };
 
-    const handleAddCanvas = async (name: string) => {
+    const handleAddCanvas = async (name: string): Promise<boolean> => {
         setCanvasesError(null);
         try {
 			const res = await fetch("http://localhost:8081/canvases", {
@@ -54,11 +64,13 @@ export function CanvasesPage() {
             const data = await res.json();
             if (!res.ok) {
 				setCanvasesError(data.error || "Failed to create canvas");
-                return;
+          return false;
             }
             setCanvases(prev => [...prev, data]);
+        return true;
         } catch {
 			setCanvasesError("Network error while creating canvas");
+        return false;
         }
     };
 
@@ -79,6 +91,14 @@ export function CanvasesPage() {
             setCanvasesError("Network error while deleting canvas");
         }
     };
+
+      const handleOpenCanvas = (canvasId: number) => {
+        navigate(`/canvas?id=${canvasId}`);
+      };
+
+      useEffect(() => {
+        fetchCanvases();
+      }, []);
 
   return (
 	<div className="dashboard-shell">
@@ -107,12 +127,13 @@ export function CanvasesPage() {
 		</div>
 		 <div className="dashboard-layout">
                     <section className="dashboard-main-column">
-                        <QuickActionsCard
+                        <CanvasesCard
                             canvases={canvases}
                             canvasesLoading={canvasesLoading}
+                          canvasesError={canvasesError}
                             onAddCanvas={handleAddCanvas}
                             onDeleteCanvas={handleDeleteCanvas}
-                            onOpenCanvas={(canvasId) => navigate(`/canvas?id=${canvasId}`)}/>
+                          onOpenCanvas={handleOpenCanvas}/>
 					</section>
 			</div>
 		<div className="section-card fade-up fade-up-1" style={{ maxWidth: 785 }}>
