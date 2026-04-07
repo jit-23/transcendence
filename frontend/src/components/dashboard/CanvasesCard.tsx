@@ -6,24 +6,47 @@ type Canvas = {
   userId: number;
   createdAt: string;
   updatedAt: string;
+  isOwner?: boolean;
+};
+
+type Friend = {
+  id: number;
+  name: string;
+  email: string;
 };
 
 type CanvasesCardProps = {
   canvases: Canvas[];
   canvasesLoading: boolean;
   canvasesError?: string | null;
+  friends: Friend[];
+  friendsLoading: boolean;
+  friendsError: string | null;
+  inviteCanvasId: number | null;
+  inviteError: string | null;
+  invitingFriendId: number | null;
   onAddCanvas: (name: string) => Promise<boolean>;
   onDeleteCanvas: (canvasId: number) => void;
   onOpenCanvas: (canvasId: number) => void;
+  onOpenInviteCanvas: (canvasId: number | null) => void;
+  onInviteFriend: (canvasId: number, friendId: number) => void;
 };
 
 export function CanvasesCard({
   canvases,
   canvasesLoading,
   canvasesError,
+  friends,
+  friendsLoading,
+  friendsError,
+  inviteCanvasId,
+  inviteError,
+  invitingFriendId,
   onAddCanvas,
   onDeleteCanvas,
   onOpenCanvas,
+  onOpenInviteCanvas,
+  onInviteFriend,
 }: CanvasesCardProps) {
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
@@ -151,6 +174,42 @@ export function CanvasesCard({
                 >
                   Delete
                 </button>
+                {canvas.isOwner && (
+                  <button
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => onOpenInviteCanvas(inviteCanvasId === canvas.id ? null : canvas.id)}
+                    style={{ marginTop: 4, fontSize: "0.75rem" }}
+                  >
+                    {inviteCanvasId === canvas.id ? "Close Invite" : "Invite"}
+                  </button>
+                )}
+
+                {canvas.isOwner && inviteCanvasId === canvas.id && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+                    {inviteError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{inviteError}</div>}
+                    {friendsError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{friendsError}</div>}
+                    {friendsLoading && <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>Loading friends...</p>}
+                    {!friendsLoading && friends.length === 0 && (
+                      <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>No friends available to invite.</p>
+                    )}
+                    {!friendsLoading && friends.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {friends.map((friend) => (
+                          <button
+                            key={friend.id}
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => onInviteFriend(canvas.id, friend.id)}
+                            disabled={invitingFriendId === friend.id}
+                            style={{ justifyContent: "space-between", fontSize: "0.72rem" }}
+                          >
+                            <span>{friend.name}</span>
+                            <span>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

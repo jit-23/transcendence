@@ -11,6 +11,13 @@ type Canvas = {
   userId: number;
   createdAt: string;
   updatedAt: string;
+  isOwner?: boolean;
+};
+
+type Friend = {
+  id: number;
+  name: string;
+  email: string;
 };
 
 export function CanvasesPage() {
@@ -21,7 +28,14 @@ export function CanvasesPage() {
   const [canvases, setCanvases] = useState<Canvas[]>([]);
 	const [canvasesLoading, setCanvasesLoading] = useState(false);
 	const [canvasesError, setCanvasesError] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [friendsError, setFriendsError] = useState<string | null>(null);
+  const [inviteCanvasId, setInviteCanvasId] = useState<number | null>(null);
+  const [invitingFriendId, setInvitingFriendId] = useState<number | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
+  const [groupIntegrators, setGroupIntegrators] = useState<Friend[]>([]);
 
 
     const authHeader = () => ({
@@ -29,6 +43,25 @@ export function CanvasesPage() {
         "Content-Type": "application/json",
     });
 	
+    const groupChat = async (canvasId: number) => {
+      try {
+        const res = await fetch(`http://localhost:8081/canvases/${canvasId}/collaborators`, {
+          headers: authHeader(),
+        });
+        if (!res.ok)
+          return ;
+        const data = await res.json();
+        const merged = [
+        { ...data.owner, role: "owner" as const },
+        ...data.collaborators.map((u: any) => ({ id: u.id, name: u.name, email: u.email, role: "collaborator" as const })),
+        ];
+        
+        setGroupIntegrators(merged);
+
+      } catch (error) {
+        console.error("Error fetching group chats:", error);
+      }
+    }
 
     console.log("CanvasesPage: entered");
     const fetchCanvases = async () => {
@@ -52,6 +85,28 @@ export function CanvasesPage() {
             setCanvasesLoading(false);
         }
     };
+
+      const fetchFriends = async () => {
+        setFriendsLoading(true);
+        setFriendsError(null);
+        try {
+          const res = await fetch("http://localhost:8081/users/friends", {
+            headers: authHeader(),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setFriendsError(data.error || "Failed to load friends");
+            setFriends([]);
+          } else {
+            setFriends(data);
+          }
+        } catch {
+          setFriendsError("Network error while loading friends");
+          setFriends([]);
+        } finally {
+          setFriendsLoading(false);
+        }
+      };
 
     const handleAddCanvas = async (name: string): Promise<boolean> => {
         setCanvasesError(null);
@@ -92,13 +147,43 @@ export function CanvasesPage() {
         }
     };
 
+      const handleInviteFriend = async (canvasId: number, friendId: number) => {
+        setInviteError(null);
+        setInvitingFriendId(friendId);
+        try {
+          const res = await fetch(`http://localhost:8081/canvases/${canvasId}/collaborators`, {
+            method: "POST",
+            headers: authHeader(),
+            body: JSON.stringify({ friendId }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to invite friend");
+          }
+
+          setInviteCanvasId(canvasId);
+        } catch (err: any) {
+          setInviteError(err.message || "Failed to invite friend");
+        } finally {
+          setInvitingFriendId(null);
+        }
+      };
+
       const handleOpenCanvas = (canvasId: number) => {
         navigate(`/canvas?id=${canvasId}`);
       };
 
       useEffect(() => {
+        
         fetchCanvases();
+        fetchFriends();
+        const canvasId = Number(new URLSearchParams(window.location.search).get("id"));
+        if (!Number.isInteger(canvasId) || canvasId <= 0)
+          return;
+        groupChat(canvasId);
       }, []);
+
+
 
   return (
 	<div className="dashboard-shell">
@@ -133,7 +218,15 @@ export function CanvasesPage() {
                           canvasesError={canvasesError}
                             onAddCanvas={handleAddCanvas}
                             onDeleteCanvas={handleDeleteCanvas}
-                          onOpenCanvas={handleOpenCanvas}/>
+                          onOpenCanvas={handleOpenCanvas}
+                          friends={friends}
+                          friendsLoading={friendsLoading}
+                          friendsError={friendsError}
+                          inviteCanvasId={inviteCanvasId}
+                          inviteError={inviteError}
+                          invitingFriendId={invitingFriendId}
+                          onOpenInviteCanvas={setInviteCanvasId}
+                          onInviteFriend={handleInviteFriend}/>
 					</section>
 			</div>
 		<div className="section-card fade-up fade-up-1" style={{ maxWidth: 785 }}>
