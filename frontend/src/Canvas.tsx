@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import p5 from "p5";
 
-type Tool = "line" | "rectangle" | "circle" | "freehand" | "eraser" | "cursor";
+type Tool = "line" | "rectangle" | "circle" | "freehand" | "eraser" | "text" | "cursor";
 
 type LineShape = {
 	kind: "line";
@@ -68,7 +68,20 @@ type EraserShape = {
 	angle: number;
 };
 
-type Shape = LineShape | RectangleShape | CircleShape | FreeHandShape | DotShape | EraserShape;
+type TextShape = {
+	kind: "text";
+	id: string;
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+	text: string;
+	color: string;
+	fontSize: number;
+	angle: number;
+};
+
+type Shape = LineShape | RectangleShape | CircleShape | FreeHandShape | DotShape | EraserShape | TextShape;
 const HISTORY_LIMIT = 50;
 
 type RgbColor = {
@@ -160,6 +173,14 @@ const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6):
 			return Math.abs(normalized - 1) <= 0.15;
 		}
 
+		case "text": {
+			const minX = Math.min(shape.x1, shape.x2);
+			const maxX = Math.max(shape.x1, shape.x2);
+			const minY = Math.min(shape.y1, shape.y2);
+			const maxY = Math.max(shape.y1, shape.y2);
+			return testX >= minX - hitTolerance && testX <= maxX + hitTolerance && testY >= minY - hitTolerance && testY <= maxY + hitTolerance;
+		}
+
 		default:
 			return false;
 	}
@@ -188,6 +209,7 @@ const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 
 		case "rectangle":
 		case "circle":
+		case "text":
 			return { ...shape, x1: shape.x1 + deltaX, y1: shape.y1 + deltaY, x2: shape.x2 + deltaX, y2: shape.y2 + deltaY };
 
 		default:
@@ -223,6 +245,7 @@ const getShapeBounds = (shape: Shape): Bounds => {
 			}
 			return { minX, minY, maxX, maxY };
 		}
+		case "text":
 		default:
 			return {
 				minX: Math.min(shape.x1, shape.x2),
@@ -334,6 +357,17 @@ const resizeShapeFromBounds = (shape: Shape, sourceBounds: Bounds, targetBounds:
 				...shape,
 				points: shape.points.map((point) => map(point.x, point.y)),
 			};
+		case "text": {
+			const p1 = map(shape.x1, shape.y1);
+			const p2 = map(shape.x2, shape.y2);
+			return {
+				...shape,
+				x1: p1.x,
+				y1: p1.y,
+				x2: p2.x,
+				y2: p2.y,
+			};
+		}
 		default: {
 			const p1 = map(shape.x1, shape.y1);
 			const p2 = map(shape.x2, shape.y2);
@@ -731,6 +765,8 @@ export default function Canvas() {
 	const [strokeWeight, setStrokeWeight] = useState(4);
 	const [zoomPercent, setZoomPercent] = useState(100);
 	const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+	const [editingTextShapeId, setEditingTextShapeId] = useState<string | null>(null);
+	const [textDraftValue, setTextDraftValue] = useState("");
 	const selectedShapeIdRef = useRef<string | null>(null);
 	const hoveredShapeIdRef = useRef<string | null>(null);
 	const hoveredHandleRef = useRef<AnyHandle | null>(null);
@@ -769,6 +805,8 @@ export default function Canvas() {
 	const eraserMarkedShapeIdsRef = useRef<Set<string>>(new Set());
 	const eraserTouchLatchRef = useRef<Set<string>>(new Set());
 	const eraserLastPointRef = useRef<{ x: number; y: number } | null>(null);
+	const textEditorRef = useRef<HTMLTextAreaElement | null>(null);
+	const editingTextShapeIdRef = useRef<string | null>(null);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
 	const dotRef = useRef(true);
@@ -786,10 +824,52 @@ export default function Canvas() {
 		rotationSessionRef.current = null;
 		selectedShapeIdRef.current = null;
 		setSelectedShapeId(null);
+		setEditingTextShapeId(null);
+		setTextDraftValue("");
 		eraserMarkedShapeIdsRef.current.clear();
 		eraserTouchLatchRef.current.clear();
 		eraserLastPointRef.current = null;
 		dotRef.current = true;
+	};
+
+	const syncEditingTextShape = () => {
+		editingTextShapeIdRef.current = editingTextShapeId;
+	};
+
+	useEffect(() => {
+		syncEditingTextShape();
+	}, [editingTextShapeId]);
+
+	const getShapeById = (shapeId: string | null) => {
+		if (!shapeId) return null;
+		return shapesRef.current.find((shape) => shape.id === shapeId) ?? null;
+	};
+
+	const startTextEditing = (shapeId: string, initialText: string, pushHistory: boolean) => {
+		if (pushHistory) {
+			pushUndoSnapshot();
+		}
+		selectedShapeIdRef.current = shapeId;
+		setSelectedShapeId(shapeId);
+		setEditingTextShapeId(shapeId);
+		setTextDraftValue(initialText);
+		hoveredShapeIdRef.current = shapeId;
+		hoveredHandleRef.current = null;
+	};
+
+	const stopTextEditing = () => {
+		setEditingTextShapeId(null);
+		setTextDraftValue("");
+		editingTextShapeIdRef.current = null;
+	};
+
+	const updateEditingTextShape = (nextText: string) => {
+		const shape = getShapeById(editingTextShapeIdRef.current);
+		if (!shape || shape.kind !== "text") return;
+		const shapeIndex = shapesRef.current.findIndex((entry) => entry.id === shape.id);
+		if (shapeIndex < 0) return;
+		shapesRef.current[shapeIndex] = { ...shape, text: nextText };
+		setTextDraftValue(nextText);
 	};
 
 	const cloneShape = (shape: Shape): Shape => {
@@ -813,6 +893,13 @@ export default function Canvas() {
 			setSelectedShapeId(null);
 			hoveredShapeIdRef.current = null;
 			hoveredHandleRef.current = null;
+		}
+
+		if (editingTextShapeIdRef.current) {
+			const editingExists = shapesRef.current.some((shape) => shape.id === editingTextShapeIdRef.current);
+			if (!editingExists) {
+				stopTextEditing();
+			}
 		}
 	};
 
@@ -886,6 +973,12 @@ export default function Canvas() {
 	}, [selectedShapeId]);
 
 	useEffect(() => {
+		if (editingTextShapeId && textEditorRef.current) {
+			textEditorRef.current.focus();
+		}
+	}, [editingTextShapeId]);
+
+	useEffect(() => {
 		settingsRef.current = {
 			backgroundColor: normalizeHexColor(backgroundColor, DEFAULT_BACKGROUND_COLOR),
 			lineColor: normalizeHexColor(lineColor, DEFAULT_LINE_COLOR),
@@ -893,7 +986,34 @@ export default function Canvas() {
 			fill,
 			strokeWeight,
 		};
+
+		if (tool !== "text" && tool !== "cursor" && editingTextShapeIdRef.current) {
+			stopTextEditing();
+		}
 	}, [backgroundColor, lineColor, tool, fill, strokeWeight]);
+
+	const editingTextShape = getShapeById(editingTextShapeId);
+	const editingTextStyle =
+		editingTextShape && editingTextShape.kind === "text"
+			? (() => {
+					const bounds = getShapeBounds(editingTextShape);
+					const center = getRotationCenter(editingTextShape);
+					const { scale, offsetX, offsetY } = viewRef.current;
+					const width = Math.max(1, (bounds.maxX - bounds.minX) * scale);
+					const height = Math.max(1, (bounds.maxY - bounds.minY) * scale);
+					const centerX = center.x * scale + offsetX;
+					const centerY = center.y * scale + offsetY;
+					return {
+						left: `${centerX - width / 2}px`,
+						top: `${centerY - height / 2}px`,
+						width: `${width}px`,
+						height: `${height}px`,
+						transform: `rotate(${editingTextShape.angle}deg)`,
+						color: editingTextShape.color,
+						fontSize: `${Math.max(12, editingTextShape.fontSize * scale)}px`,
+					};
+				})()
+			: null;
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -1192,7 +1312,6 @@ export default function Canvas() {
 						s.noFill();
 						s.stroke(highlightColor);
 						s.strokeWeight(1);
-						s.ellipseMode(s.CENTER);
 						for (const point of shape.points) {
 							s.ellipse(point.x, point.y, 2, 2);
 						}
@@ -1247,6 +1366,36 @@ export default function Canvas() {
 						s.strokeWeight(2);
 						s.rect(shape.x1, shape.y1, shape.x2, shape.y2);
 					}
+					if (shape.angle !== 0) s.pop();
+					return;
+				}
+
+				if (shape.kind === "text") {
+					const minX = Math.min(shape.x1, shape.x2);
+					const maxX = Math.max(shape.x1, shape.x2);
+					const minY = Math.min(shape.y1, shape.y2);
+					const maxY = Math.max(shape.y1, shape.y2);
+					const padding = Math.max(6, shape.fontSize * 0.3);
+					const textX = minX + padding;
+					const textY = minY + padding;
+					const textWidth = Math.max(1, maxX - minX - padding * 2);
+					const textHeight = Math.max(1, maxY - minY - padding * 2);
+
+					s.noStroke();
+					s.fill(shape.color);
+					s.textSize(shape.fontSize);
+					s.textAlign(s.LEFT, s.TOP);
+					s.textWrap(s.WORD);
+					s.text(shape.text || "", textX, textY, textWidth, textHeight);
+
+					if (isSelected || isHovered || editingTextShapeIdRef.current === shape.id) {
+						s.noFill();
+						s.stroke(editingTextShapeIdRef.current === shape.id ? "#f59e0b" : highlightColor);
+						s.strokeWeight(1);
+						s.rectMode(s.CORNERS);
+						s.rect(minX, minY, maxX, maxY);
+					}
+
 					if (shape.angle !== 0) s.pop();
 					return;
 				}
@@ -1435,6 +1584,22 @@ export default function Canvas() {
 					return;
 				}
 
+				if (settingsRef.current.tool === "text") {
+					draftShapeRef.current = {
+						kind: "text",
+						id: generateShapeId(),
+						x1: worldPoint.x,
+						y1: worldPoint.y,
+						x2: worldPoint.x,
+						y2: worldPoint.y,
+						text: "",
+						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
+						fontSize: Math.max(14, Math.round(settingsRef.current.strokeWeight * 4)),
+						angle: 0,
+					} as TextShape;
+					return;
+				}
+
 				// Drawing mode
 				if (settingsRef.current.tool === "freehand") {
 					draftShapeRef.current = {
@@ -1497,6 +1662,18 @@ export default function Canvas() {
 				}
 				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
 				return;
+			}
+
+			if (settingsRef.current.tool === "text" && !draftShapeRef.current) {
+				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
+				if (clickedShape && clickedShape.kind === "text") {
+					startTextEditing(clickedShape.id, clickedShape.text, true);
+					draftShapeRef.current = null;
+					draggedShapeIdRef.current = null;
+					resizeSessionRef.current = null;
+					rotationSessionRef.current = null;
+					return;
+				}
 			}
 
 			if (rotationSessionRef.current) {
@@ -1606,6 +1783,16 @@ export default function Canvas() {
 					return;
 				}
 
+				if (settingsRef.current.tool === "text") {
+					if (draftShapeRef.current && draftShapeRef.current.kind === "text") {
+						commitShape({ ...draftShapeRef.current });
+						startTextEditing(draftShapeRef.current.id, "", false);
+					}
+					dragStartRef.current = null;
+					draftShapeRef.current = null;
+					return;
+				}
+
 				if (resizeSessionRef.current) {
 					resizeSessionRef.current = null;
 					dragStartRef.current = null;
@@ -1658,7 +1845,7 @@ export default function Canvas() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+		<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 			<div
 				ref={controlsRef}
 				style={{
@@ -1709,6 +1896,7 @@ export default function Canvas() {
 								<option value="cursor">Cursor</option>
 								<option value="freehand">Free Hand</option>
 								<option value="eraser">Eraser</option>
+								<option value="text">Text</option>
 								<option value="line">Line</option>
 								<option value="rectangle">Rectangle</option>
 								<option value="circle">Circle</option>
@@ -1762,7 +1950,47 @@ export default function Canvas() {
 
 				<div />
 			</div>
-      <div ref={canvasHostRef} />
+			<div style={{ position: "relative", width: "100%" }}>
+				<div ref={canvasHostRef} />
+				{editingTextStyle ? (
+					<textarea
+						ref={textEditorRef}
+						value={textDraftValue}
+						onChange={(event) => updateEditingTextShape(event.target.value)}
+						onBlur={stopTextEditing}
+						onKeyDown={(event) => {
+							if (event.key === "Escape") {
+								event.preventDefault();
+								stopTextEditing();
+							}
+						}}
+						placeholder="Type here..."
+						style={{
+							position: "absolute",
+							zIndex: 20,
+							left: editingTextStyle.left,
+							top: editingTextStyle.top,
+							width: editingTextStyle.width,
+							height: editingTextStyle.height,
+							transform: editingTextStyle.transform,
+							transformOrigin: "center center",
+							boxSizing: "border-box",
+							border: "1px solid #f59e0b",
+							background: "rgba(255,255,255,0.92)",
+							color: editingTextStyle.color,
+							fontSize: editingTextStyle.fontSize,
+							lineHeight: 1.2,
+							padding: "6px",
+							resize: "none",
+							outline: "none",
+							overflow: "hidden",
+							whiteSpace: "pre-wrap",
+							wordBreak: "break-word",
+							fontFamily: "Arial, sans-serif",
+						}}
+					/>
+				) : null}
+			</div>
     </div>
   );
 }
