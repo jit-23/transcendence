@@ -122,6 +122,32 @@ export function     LoginForm() {
                             >
                                 {loading ? 'Signing in...' : 'Sign in →'}
                             </button>
+
+                            {/* ── Divider ── */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center',
+                                gap: 10, margin: '4px 0',
+                                color: 'var(--ink3)', fontSize: '0.75rem',
+                            }}>
+                                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                                or
+                                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                            </div>
+
+                            {/* ── Google button ── */}
+                            <a
+                                href="http://localhost:8081/users/auth/google"
+                                className="btn btn-ghost btn-full"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill="#4285F4" d="M45.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.1c-.5 2.7-2.1 5-4.4 6.5v5.4h7.1c4.2-3.8 6.6-9.5 6.6-16.4z"/>
+                                    <path fill="#34A853" d="M24 46c6 0 11-2 14.7-5.4l-7.1-5.4c-2 1.3-4.5 2.1-7.6 2.1-5.8 0-10.8-3.9-12.5-9.2H4.1v5.6C7.8 41.8 15.4 46 24 46z"/>
+                                    <path fill="#FBBC05" d="M11.5 28.1c-.4-1.3-.7-2.7-.7-4.1s.2-2.8.7-4.1v-5.6H4.1C2.8 17 2 20.4 2 24s.8 7 2.1 9.7l7.4-5.6z"/>
+                                    <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35 4 29.9 2 24 2 15.4 2 7.8 6.2 4.1 14.3l7.4 5.6C13.2 14.7 18.2 10.8 24 10.8z"/>
+                                </svg>
+                                Continue with Google
+                            </a>
                         </form>
                     ) : (
                         <div className="form-stack">

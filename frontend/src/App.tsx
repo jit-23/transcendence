@@ -14,6 +14,7 @@ import Canvas from "./Canvas.tsx";
 import { GroupChatsPage } from "./groupChats.tsx";
 import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
+import { OAuthCallback } from "./OAuthCallback.tsx";
 import '../css/App.css'
 
 function PublicRoute({ children }) {
@@ -136,6 +137,8 @@ function App() {
                 <Route path="/canvas" element={
                     <PrivateRoute><Canvas /></PrivateRoute>
                 } />
+
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
 
                 <Route path="*" element={<NotFound />} />
             </Routes>

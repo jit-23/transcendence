@@ -16,11 +16,12 @@ model my_users{
 	id Int @id @default(autoincrement())
 	name String @db.VarChar(50) @unique @map("Name")
 	email String @db.VarChar(100) @unique @map("Email")
-	password String @map("Password")
+	password String? @map("Password")
 	createdAt DateTime @default(now())
 	twoFactorEnabled Boolean @default(false)
 	twoFactorSecret String?
 	avatar           String?
+	googleId         String? @unique
 
 	conversations conversation_participants[]
 	messages message[]

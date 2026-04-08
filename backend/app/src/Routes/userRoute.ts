@@ -20,6 +20,7 @@ import {
     getFriends,
     unfriend,
 } from '../controllers/userController';
+import { googleAuthRedirect, googleAuthCallback } from '../controllers/googleAuthController';
 
 const router = Router();
 
@@ -34,6 +35,10 @@ const twoFALimiter = rateLimit({
 router.post('/signup', createUser);
 router.post('/login', login);
 router.post('/login2FA', twoFALimiter, login2FA);
+
+// Google OAuth
+router.get('/auth/google',          googleAuthRedirect);
+router.get('/auth/google/callback', googleAuthCallback);
 
 // Profile
 router.get('/me', getMe);

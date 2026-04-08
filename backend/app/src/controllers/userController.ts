@@ -73,6 +73,9 @@ export const login = async (req: Request, res: Response) => {
         const user = await prisma.my_users.findUnique({ where: { email } });
         if (!user) return res.status(404).json({ error: "User not found" });
 
+        if (!user.password)
+            return res.status(401).json({ error: "This account uses Google Sign-In. Please sign in with Google." });
+
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: "Invalid password" });
 
@@ -228,6 +231,8 @@ export const updateMe = async (req: Request, res: Response) => {
         // Always verify current password first
         if (!currentPassword)
             return res.status(400).json({ error: "Current password is required" });
+        if (!user.password)
+            return res.status(400).json({ error: "This account uses Google Sign-In. Password changes are not supported." });
         const validPassword = await bcrypt.compare(currentPassword, user.password);
         if (!validPassword)
             return res.status(401).json({ error: "Current password is incorrect" });
@@ -266,6 +271,7 @@ export const updateMe = async (req: Request, res: Response) => {
     }
 };
 
+// const token = sessionStorage.getItem("token");
 export const updateAvatar = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);

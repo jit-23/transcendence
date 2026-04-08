@@ -21,21 +21,44 @@ export function ProfilePage() {
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
+    const token = sessionStorage.getItem("token");//is this safe?
     const saveAvatar = async (avatar: string) => {
-        const res  = await fetch('http://localhost:8081/users/me/avatar', {
-            method: 'PUT',
+        const token = sessionStorage.getItem("token");
+        if (!token) throw new Error("Not authenticated");
+
+        const res = await fetch("http://localhost:8081/users/me/avatar", {
+            method: "PUT",
             headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${localStorage.getItem('token')}`,
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({ avatar }),
         });
+
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to save avatar');
+        if (!res.ok) throw new Error(data.error || "Failed to save avatar");
+
         await refreshUser();
         setShowPicker(false);
-        setSuccess('Avatar updated!');
+        setSuccess("Avatar updated!");
     };
+    // const saveAvatar = async (avatar: string) => {
+    //     const res = await fetch("http://localhost:8081/users/me/avatar", {
+    //         method: "PUT",
+    //         headers: {
+    //             "Content-Type": "application/json",
+    //             Authorization: `Bearer ${token}`,
+    //         },
+    //         body: JSON.stringify({ avatar }),
+    //     });
+    //
+    //     const data = await res.json();
+    //     if (!res.ok) throw new Error(data.error || "Failed to save avatar");
+    //
+    //     await refreshUser();
+    //     setShowPicker(false);
+    //     setSuccess("Avatar updated!");
+    // };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
