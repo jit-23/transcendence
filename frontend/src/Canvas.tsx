@@ -396,12 +396,17 @@ const getRotationCenter = (shape: Shape): { x: number; y: number } => {
 
 const getRotationHandlePoint = (shape: Shape): HandlePoint => {
 	const center = getRotationCenter(shape);
-	const bounds = getShapeBounds(shape);
+	const bounds = getShapeBoundsIgnoreRotation(shape);
 	const distance = (bounds.maxY - bounds.minY) / 2 + 30;
-	return {
-		handle: "rotation",
+	const localHandle = {
 		x: center.x,
 		y: center.y - distance,
+	};
+	const worldHandle = shape.angle !== 0 ? rotatePoint(localHandle, center, shape.angle) : localHandle;
+	return {
+		handle: "rotation",
+		x: worldHandle.x,
+		y: worldHandle.y,
 	};
 };
 
@@ -733,6 +738,7 @@ export default function Canvas() {
 		shapeId: string;
 		handle: ResizeHandle;
 		anchor: { x: number; y: number };
+		fixedWorldAnchor: { x: number; y: number };
 		originalBounds: Bounds;
 		originalShape: Shape;
 	} | null>(null);
@@ -755,11 +761,14 @@ export default function Canvas() {
 	});
 
 	const shapesRef = useRef<Shape[]>([]);
-	const redoShapesRef = useRef<Shape[]>([]);
-	const undoDepthRef = useRef(0);
+	const undoStatesRef = useRef<Shape[][]>([]);
+	const redoShapesRef = useRef<Shape[][]>([]);
 	const draftShapeRef = useRef<Shape | null>(null);
 	const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 	const draggedShapeIdRef = useRef<string | null>(null);
+	const eraserMarkedShapeIdsRef = useRef<Set<string>>(new Set());
+	const eraserTouchLatchRef = useRef<Set<string>>(new Set());
+	const eraserLastPointRef = useRef<{ x: number; y: number } | null>(null);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
 	const dotRef = useRef(true);
@@ -767,7 +776,7 @@ export default function Canvas() {
 	const clearCanvas = () => {
 		shapesRef.current = [];
 		redoShapesRef.current = [];
-		undoDepthRef.current = 0;
+		undoStatesRef.current = [];
 		draftShapeRef.current = null;
 		dragStartRef.current = null;
 		draggedShapeIdRef.current = null;
@@ -777,13 +786,47 @@ export default function Canvas() {
 		rotationSessionRef.current = null;
 		selectedShapeIdRef.current = null;
 		setSelectedShapeId(null);
+		eraserMarkedShapeIdsRef.current.clear();
+		eraserTouchLatchRef.current.clear();
+		eraserLastPointRef.current = null;
 		dotRef.current = true;
 	};
 
-	const commitShape = (shape: Shape) => {
-		shapesRef.current.push(shape);
-		undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+	const cloneShape = (shape: Shape): Shape => {
+		switch (shape.kind) {
+			case "freehand":
+				return { ...shape, points: shape.points.map((point) => ({ x: point.x, y: point.y })) };
+			case "eraser":
+				return { ...shape, points: shape.points.map((point) => ({ x: point.x, y: point.y })) };
+			default:
+				return { ...shape };
+		}
+	};
+
+	const cloneShapesState = (shapes: Shape[]) => shapes.map((shape) => cloneShape(shape));
+
+	const syncSelectionAfterStateChange = () => {
+		if (!selectedShapeIdRef.current) return;
+		const exists = shapesRef.current.some((shape) => shape.id === selectedShapeIdRef.current);
+		if (!exists) {
+			selectedShapeIdRef.current = null;
+			setSelectedShapeId(null);
+			hoveredShapeIdRef.current = null;
+			hoveredHandleRef.current = null;
+		}
+	};
+
+	const pushUndoSnapshot = () => {
+		undoStatesRef.current.push(cloneShapesState(shapesRef.current));
+		if (undoStatesRef.current.length > HISTORY_LIMIT) {
+			undoStatesRef.current.shift();
+		}
 		redoShapesRef.current = [];
+	};
+
+	const commitShape = (shape: Shape) => {
+		pushUndoSnapshot();
+		shapesRef.current.push(shape);
 	};
 
 	const applyZoomPercent = (nextPercentValue: number, anchor?: { x: number; y: number }) => {
@@ -865,23 +908,33 @@ export default function Canvas() {
 			event.preventDefault();
 
 			if (shouldUndo) {
-				if (undoDepthRef.current <= 0) return;
-				const removedShape = shapesRef.current.pop();
-				if (!removedShape) return;
-				redoShapesRef.current.push(removedShape);
+				const previousState = undoStatesRef.current.pop();
+				if (!previousState) return;
+				redoShapesRef.current.push(cloneShapesState(shapesRef.current));
 				if (redoShapesRef.current.length > HISTORY_LIMIT) {
 					redoShapesRef.current.shift();
 				}
-				undoDepthRef.current -= 1;
+				shapesRef.current = cloneShapesState(previousState);
+				syncSelectionAfterStateChange();
 				draftShapeRef.current = null;
 				dragStartRef.current = null;
+				resizeSessionRef.current = null;
+				rotationSessionRef.current = null;
 				return;
 			}
 
-			const restoredShape = redoShapesRef.current.pop();
-			if (!restoredShape) return;
-			shapesRef.current.push(restoredShape);
-			undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+			const nextState = redoShapesRef.current.pop();
+			if (!nextState) return;
+			undoStatesRef.current.push(cloneShapesState(shapesRef.current));
+			if (undoStatesRef.current.length > HISTORY_LIMIT) {
+				undoStatesRef.current.shift();
+			}
+			shapesRef.current = cloneShapesState(nextState);
+			syncSelectionAfterStateChange();
+			draftShapeRef.current = null;
+			dragStartRef.current = null;
+			resizeSessionRef.current = null;
+			rotationSessionRef.current = null;
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
@@ -917,6 +970,69 @@ export default function Canvas() {
 					if (isPointInShape(x, y, shape)) return shape;
 				}
 				return null;
+			};
+
+			const getTouchedShapeIdsAtPoint = (x: number, y: number) => {
+				const eraserTolerance = Math.max(4, settingsRef.current.strokeWeight / 2);
+				const touched = new Set<string>();
+				for (let index = shapesRef.current.length - 1; index >= 0; index -= 1) {
+					const shape = shapesRef.current[index];
+					if (!shape) continue;
+					if (isPointInShape(x, y, shape, eraserTolerance)) {
+						touched.add(shape.id);
+					}
+				}
+				return touched;
+			};
+
+			const toggleEraserMarksAtPoint = (x: number, y: number) => {
+				const touchedNow = getTouchedShapeIdsAtPoint(x, y);
+				for (const shapeId of touchedNow) {
+					if (eraserTouchLatchRef.current.has(shapeId)) continue;
+					if (eraserMarkedShapeIdsRef.current.has(shapeId)) {
+						eraserMarkedShapeIdsRef.current.delete(shapeId);
+					} else {
+						eraserMarkedShapeIdsRef.current.add(shapeId);
+					}
+				}
+				eraserTouchLatchRef.current = touchedNow;
+			};
+
+			const toggleEraserMarksAlongSegment = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+				const dx = end.x - start.x;
+				const dy = end.y - start.y;
+				const distance = Math.hypot(dx, dy);
+				const step = Math.max(2, settingsRef.current.strokeWeight / 2);
+				const steps = Math.max(1, Math.ceil(distance / step));
+
+				for (let i = 1; i <= steps; i++) {
+					const t = i / steps;
+					const sampleX = start.x + dx * t;
+					const sampleY = start.y + dy * t;
+					toggleEraserMarksAtPoint(sampleX, sampleY);
+				}
+			};
+
+			const commitMarkedEraserDeletes = () => {
+				if (eraserMarkedShapeIdsRef.current.size === 0) return;
+				pushUndoSnapshot();
+				const idsToDelete = eraserMarkedShapeIdsRef.current;
+				shapesRef.current = shapesRef.current.filter((shape) => !idsToDelete.has(shape.id));
+
+				if (selectedShapeIdRef.current && idsToDelete.has(selectedShapeIdRef.current)) {
+					selectedShapeIdRef.current = null;
+					setSelectedShapeId(null);
+				}
+
+				if (hoveredShapeIdRef.current && idsToDelete.has(hoveredShapeIdRef.current)) {
+					hoveredShapeIdRef.current = null;
+					hoveredHandleRef.current = null;
+				}
+
+				syncSelectionAfterStateChange();
+
+				eraserMarkedShapeIdsRef.current = new Set();
+				eraserTouchLatchRef.current = new Set();
 			};
 
 			const syncHoverFromPointer = () => {
@@ -1076,6 +1192,7 @@ export default function Canvas() {
 						s.noFill();
 						s.stroke(highlightColor);
 						s.strokeWeight(1);
+						s.ellipseMode(s.CENTER);
 						for (const point of shape.points) {
 							s.ellipse(point.x, point.y, 2, 2);
 						}
@@ -1191,10 +1308,20 @@ export default function Canvas() {
 				s.translate(viewRef.current.offsetX, viewRef.current.offsetY);
 				s.scale(viewRef.current.scale);
 				for (const shape of shapesRef.current) {
+					const isMarkedForErase = eraserMarkedShapeIdsRef.current.has(shape.id);
+					if (isMarkedForErase) {
+						s.push();
+						(s.drawingContext as CanvasRenderingContext2D).globalAlpha = 0.35;
+					}
+
 					drawShape(shape, {
 						isSelected: shape.id === selectedShapeIdRef.current,
 						isHovered: shape.id === hoveredShapeIdRef.current,
 					});
+
+					if (isMarkedForErase) {
+						s.pop();
+					}
 				}
 				if (draftShapeRef.current) {
 					drawShape(draftShapeRef.current, { isSelected: false, isHovered: false });
@@ -1219,6 +1346,16 @@ export default function Canvas() {
 
 			dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
 
+			if (settingsRef.current.tool === "eraser") {
+				eraserTouchLatchRef.current = new Set();
+				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
+				toggleEraserMarksAtPoint(worldPoint.x, worldPoint.y);
+				draggedShapeIdRef.current = null;
+				resizeSessionRef.current = null;
+				rotationSessionRef.current = null;
+				return;
+			}
+
 			if (settingsRef.current.tool === "cursor" && selectedShapeIdRef.current) {
 				const selectedShape = shapesRef.current.find((shape) => shape.id === selectedShapeIdRef.current) ?? null;
 				if (selectedShape) {
@@ -1228,6 +1365,7 @@ export default function Canvas() {
 					// Check for rotation handle first (no unrotate needed for rotation handle)
 					const rotationHandle = getRotationHandlePoint(selectedShape);
 					if (Math.abs(worldPoint.x - rotationHandle.x) <= handleRadius && Math.abs(worldPoint.y - rotationHandle.y) <= handleRadius) {
+						pushUndoSnapshot();
 						// Start rotation session
 						rotationSessionRef.current = {
 							shapeId: selectedShape.id,
@@ -1249,23 +1387,22 @@ export default function Canvas() {
 					const handle = getHandleAtPoint(unrotatedBounds, unrotatedPoint.x, unrotatedPoint.y, handleRadius);
 					
 					if (handle) {
+						pushUndoSnapshot();
 						// Resize session
 						hoveredHandleRef.current = handle;
 						
 						// Get the anchor point in unrotated space
 						const anchorInUnrotated = getOppositeHandlePoint(unrotatedBounds, handle);
-						
-						// If shape is rotated, rotate the anchor to world space so it stays fixed
-						let anchorInWorld = anchorInUnrotated;
-						if (selectedShape.angle !== 0) {
-							const center = getRotationCenter(selectedShape);
-							anchorInWorld = rotatePoint(anchorInUnrotated, center, selectedShape.angle);
-						}
+
+						const center = getRotationCenter(selectedShape);
+						const anchorInWorld =
+							selectedShape.angle !== 0 ? rotatePoint(anchorInUnrotated, center, selectedShape.angle) : anchorInUnrotated;
 						
 						resizeSessionRef.current = {
 							shapeId: selectedShape.id,
 							handle,
-							anchor: anchorInWorld,
+							anchor: anchorInUnrotated,
+							fixedWorldAnchor: anchorInWorld,
 							originalBounds: unrotatedBounds,
 							originalShape: { ...selectedShape },
 						};
@@ -1299,15 +1436,15 @@ export default function Canvas() {
 				}
 
 				// Drawing mode
-				if (settingsRef.current.tool === "freehand" || settingsRef.current.tool === "eraser") {
+				if (settingsRef.current.tool === "freehand") {
 					draftShapeRef.current = {
 						kind: settingsRef.current.tool,
 						id: generateShapeId(),
 						points: [{ x: worldPoint.x, y: worldPoint.y }],
-						...(settingsRef.current.tool === "freehand" ? { color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR) } : {}),
+						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
 						strokeWeight: settingsRef.current.strokeWeight,
 						angle: 0,
-					} as FreeHandShape | EraserShape;
+					} as FreeHandShape;
 					return;
 				}
 
@@ -1351,6 +1488,17 @@ export default function Canvas() {
 			if (!dragStartRef.current) return;
 			const worldPoint = screenToWorld(s.mouseX, s.mouseY);
 
+			if (settingsRef.current.tool === "eraser") {
+				const previousPoint = eraserLastPointRef.current;
+				if (previousPoint) {
+					toggleEraserMarksAlongSegment(previousPoint, worldPoint);
+				} else {
+					toggleEraserMarksAtPoint(worldPoint.x, worldPoint.y);
+				}
+				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
+				return;
+			}
+
 			if (rotationSessionRef.current) {
 				const { shapeId, originalShape } = rotationSessionRef.current;
 				const center = getRotationCenter(originalShape);
@@ -1382,21 +1530,29 @@ export default function Canvas() {
 			}
 
 			if (resizeSessionRef.current) {
-				const { shapeId, handle, anchor, originalBounds, originalShape } = resizeSessionRef.current;
+				const { shapeId, handle, anchor, fixedWorldAnchor, originalBounds, originalShape } = resizeSessionRef.current;
 				
-				// If the shape is rotated, unrotate both the worldPoint and anchor to work in unrotated coordinate space
+				// If the shape is rotated, unrotate pointer into unrotated coordinate space
 				let resizePoint = worldPoint;
-				let resizeAnchor = anchor;
 				if (originalShape.angle !== 0) {
 					const center = getRotationCenter(originalShape);
 					resizePoint = unrotatePoint(worldPoint, center, originalShape.angle);
-					resizeAnchor = unrotatePoint(anchor, center, originalShape.angle);
 				}
 				
-				const resizedBounds = boundsFromAnchorAndPointer(resizeAnchor, resizePoint, handle, originalBounds);
+				const resizedBounds = boundsFromAnchorAndPointer(anchor, resizePoint, handle, originalBounds);
 				const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === shapeId);
 				if (shapeIndex >= 0) {
-					shapesRef.current[shapeIndex] = resizeShapeFromBounds(originalShape, originalBounds, resizedBounds);
+					let resizedShape = resizeShapeFromBounds(originalShape, originalBounds, resizedBounds);
+
+					if (originalShape.angle !== 0) {
+						const resizedCenter = getRotationCenter(resizedShape);
+						const currentWorldOpposite = rotatePoint(anchor, resizedCenter, originalShape.angle);
+						const deltaX = fixedWorldAnchor.x - currentWorldOpposite.x;
+						const deltaY = fixedWorldAnchor.y - currentWorldOpposite.y;
+						resizedShape = moveShape(resizedShape, deltaX, deltaY);
+					}
+
+					shapesRef.current[shapeIndex] = resizedShape;
 					selectedShapeIdRef.current = shapeId;
 					hoveredShapeIdRef.current = shapeId;
 					hoveredHandleRef.current = handle;
@@ -1419,7 +1575,7 @@ export default function Canvas() {
 				// Drawing mode
 				if (!draftShapeRef.current) return;
 				dotRef.current = false;
-				if (draftShapeRef.current.kind === "freehand" || draftShapeRef.current.kind === "eraser") {
+				if (draftShapeRef.current.kind === "freehand") {
 					draftShapeRef.current = {
 						...draftShapeRef.current,
 						points: [...draftShapeRef.current.points, { x: worldPoint.x, y: worldPoint.y }],
@@ -1441,6 +1597,15 @@ export default function Canvas() {
 					return;
 				}
 
+				if (settingsRef.current.tool === "eraser") {
+					commitMarkedEraserDeletes();
+					eraserTouchLatchRef.current = new Set();
+					eraserLastPointRef.current = null;
+					dragStartRef.current = null;
+					draftShapeRef.current = null;
+					return;
+				}
+
 				if (resizeSessionRef.current) {
 					resizeSessionRef.current = null;
 					dragStartRef.current = null;
@@ -1457,7 +1622,7 @@ export default function Canvas() {
 
 				// Drawing mode
 				if (!dragStartRef.current || !draftShapeRef.current) return;
-				if ((draftShapeRef.current.kind === "freehand" || draftShapeRef.current.kind === "eraser") && draftShapeRef.current.points.length < 2) {
+				if (draftShapeRef.current.kind === "freehand" && draftShapeRef.current.points.length < 2) {
 					draftShapeRef.current = null;
 					dragStartRef.current = null;
 					return;
@@ -1470,6 +1635,8 @@ export default function Canvas() {
 			s.mouseOut = () => {
 				hoveredShapeIdRef.current = null;
 				hoveredHandleRef.current = null;
+				eraserTouchLatchRef.current = new Set();
+				eraserLastPointRef.current = null;
 				s.cursor(settingsRef.current.tool === "cursor" ? s.ARROW : s.CROSS);
 			};
 
