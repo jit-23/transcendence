@@ -686,6 +686,7 @@ function ColorPickerControl({
 	onChange,
 	defaultValue,
 	onOpenChange,
+	hideLabel,
 }: {
 	pickerId: string;
 	label: string;
@@ -693,6 +694,7 @@ function ColorPickerControl({
 	onChange: (value: string) => void;
 	defaultValue: string;
 	onOpenChange?: (pickerId: string, isOpen: boolean) => void;
+	hideLabel?: boolean;
 }) {
 	const [open, setOpen] = useState(false);
 	const [draftColor, setDraftColor] = useState(() => normalizeHexColor(value, defaultValue));
@@ -910,7 +912,7 @@ function ColorPickerControl({
 
 	return (
 		<div className="color-picker">
-			<span className="color-picker__label">{label}</span>
+			{hideLabel ? null : <span className="color-picker__label">{label}</span>}
 			<button
 				type="button"
 				ref={buttonRef}
@@ -1331,6 +1333,7 @@ export default function Canvas() {
 		width: "100%",
 		height: "100%",
 		whiteSpace: "nowrap" as const,
+		color: "#9ca3af",
 	};
 	const controlFieldStyle = {
 		display: "flex",
@@ -2561,27 +2564,35 @@ export default function Canvas() {
 				</div>
 
 				<div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "center", flexWrap: "wrap", alignContent: "center" }}>
-					<div style={controlLabelStyle}>
-						<ColorPickerControl
-							pickerId="background"
-							label="Background"
-							value={backgroundColor}
-							onChange={setBackgroundColor}
-							defaultValue={DEFAULT_BACKGROUND_COLOR}
-							onOpenChange={handleColorPickerOpenChange}
-						/>
-					</div>
+						<div style={controlLabelStyle}>
+							<span style={controlNameStyle}>Background</span>
+							<span style={controlFieldStyle}>
+								<ColorPickerControl
+									pickerId="background"
+									label="Background"
+									value={backgroundColor}
+									onChange={setBackgroundColor}
+									defaultValue={DEFAULT_BACKGROUND_COLOR}
+									onOpenChange={handleColorPickerOpenChange}
+									hideLabel
+								/>
+							</span>
+						</div>
 
-					<div style={controlLabelStyle}>
-						<ColorPickerControl
-							pickerId="line"
-							label="Line Color"
-							value={lineColor}
-							onChange={setLineColor}
-							defaultValue={DEFAULT_LINE_COLOR}
-							onOpenChange={handleColorPickerOpenChange}
-						/>
-					</div>
+						<div style={controlLabelStyle}>
+							<span style={controlNameStyle}>Line Color</span>
+							<span style={controlFieldStyle}>
+								<ColorPickerControl
+									pickerId="line"
+									label="Line Color"
+									value={lineColor}
+									onChange={setLineColor}
+									defaultValue={DEFAULT_LINE_COLOR}
+									onOpenChange={handleColorPickerOpenChange}
+									hideLabel
+								/>
+							</span>
+						</div>
 
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Tool</span>
