@@ -1,5 +1,5 @@
-import { useContext, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useContext, useEffect, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
 
@@ -14,6 +14,17 @@ export function     LoginForm() {
     const { login }                 = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
+    const location                  = useLocation();
+
+    useEffect(() => {
+        const state = location.state as { needs2FA?: boolean; tempToken?: string } | null;
+        if (state?.needs2FA && state.tempToken) {
+            setNeeds2FA(true);
+            setTempToken(state.tempToken);
+            setError(null);
+            navigate('/login', { replace: true });
+        }
+    }, [location.state, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

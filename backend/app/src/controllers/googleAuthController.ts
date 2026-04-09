@@ -98,6 +98,16 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
             }
         }
 
+        if (user.twoFactorEnabled) {
+            const tempToken = jwt.sign(
+                { userId: user.id, pending2FA: true },
+                process.env.JWT_SECRET!,
+                { expiresIn: "5m" }
+            );
+            const hash = new URLSearchParams({ requires2FA: "true", tempToken }).toString();
+            return res.redirect(`${FRONTEND_URL}/oauth/callback#${hash}`);
+        }
+
         // Issue a JWT identical to the normal login flow
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
 

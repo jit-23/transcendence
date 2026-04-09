@@ -17,6 +17,16 @@ export function OAuthCallback() {
         const hash   = window.location.hash.slice(1);          // strip leading #
         const params = new URLSearchParams(hash);
         const token  = params.get('token');
+        const requires2FA = params.get('requires2FA') === 'true';
+        const tempToken = params.get('tempToken');
+
+        if (requires2FA && tempToken) {
+            navigate('/login', {
+                replace: true,
+                state: { needs2FA: true, tempToken },
+            });
+            return;
+        }
 
         if (!token) {
             navigate('/login?error=oauth_failed', { replace: true });
