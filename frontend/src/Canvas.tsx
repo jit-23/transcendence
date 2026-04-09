@@ -1,10 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import p5 from "p5";
 
-type Tool = "line" | "rectangle" | "circle" | "freehand" | "eraser" | "text" | "cursor";
+type Tool = "line" | "arrow" | "rectangle" | "circle" | "freehand" | "eraser" | "text" | "textbox" | "textcircle" | "cursor";
+type TextFontFamily = "Times New Roman" | "Comic Sans MS" | "Papyrus Serif";
 
 type LineShape = {
 	kind: "line";
+	id: string;
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+	color: string;
+	strokeWeight: number;
+	angle: number;
+};
+
+type ArrowShape = {
+	kind: "arrow";
 	id: string;
 	x1: number;
 	y1: number;
@@ -77,11 +90,15 @@ type TextShape = {
 	y2: number;
 	text: string;
 	color: string;
+	fontFamily: TextFontFamily;
 	fontSize: number;
+	container: "rect" | "circle";
+	showBorder: boolean;
+	borderStrokeWeight: number;
 	angle: number;
 };
 
-type Shape = LineShape | RectangleShape | CircleShape | FreeHandShape | DotShape | EraserShape | TextShape;
+type Shape = LineShape | ArrowShape | RectangleShape | CircleShape | FreeHandShape | DotShape | EraserShape | TextShape;
 const HISTORY_LIMIT = 50;
 
 type RgbColor = {
@@ -143,6 +160,11 @@ const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6):
 			return dist <= shape.strokeWeight / 2 + hitTolerance;
 		}
 
+		case "arrow": {
+			const dist = distanceToLineSegment(testX, testY, shape.x1, shape.y1, shape.x2, shape.y2);
+			return dist <= shape.strokeWeight / 2 + hitTolerance;
+		}
+
 		case "rectangle": {
 			const minX = Math.min(shape.x1, shape.x2);
 			const maxX = Math.max(shape.x1, shape.x2);
@@ -195,6 +217,88 @@ const distanceToLineSegment = (px: number, py: number, x1: number, y1: number, x
 	return Math.hypot(px - closestX, py - closestY);
 };
 
+const getAngleSnappedEndPoint = (
+	start: { x: number; y: number },
+	end: { x: number; y: number },
+	angleStepDegrees = 45,
+) => {
+	const dx = end.x - start.x;
+	const dy = end.y - start.y;
+	const length = Math.hypot(dx, dy);
+	if (length === 0) return end;
+
+	const angle = Math.atan2(dy, dx);
+	const step = (angleStepDegrees * Math.PI) / 180;
+	const snappedAngle = Math.round(angle / step) * step;
+
+	return {
+		x: start.x + Math.cos(snappedAngle) * length,
+		y: start.y + Math.sin(snappedAngle) * length,
+	};
+};
+
+const getEqualSizeEndPoint = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+	const dx = end.x - start.x;
+	const dy = end.y - start.y;
+	const size = Math.max(Math.abs(dx), Math.abs(dy));
+	const signX = dx === 0 ? (dy >= 0 ? 1 : -1) : Math.sign(dx);
+	const signY = dy === 0 ? (dx >= 0 ? 1 : -1) : Math.sign(dy);
+
+	return {
+		x: start.x + signX * size,
+		y: start.y + signY * size,
+	};
+};
+
+const getConstrainedDraftEndPoint = (
+	draftShape: Shape,
+	start: { x: number; y: number },
+	end: { x: number; y: number },
+	isShiftPressed: boolean,
+) => {
+	if (!isShiftPressed) return end;
+
+	switch (draftShape.kind) {
+		case "line":
+		case "arrow":
+			return getAngleSnappedEndPoint(start, end, 45);
+		case "rectangle":
+		case "circle":
+		case "text":
+			return getEqualSizeEndPoint(start, end);
+		default:
+			return end;
+	}
+};
+
+const drawArrowSegment = (s: p5, shape: { x1: number; y1: number; x2: number; y2: number; color: string; strokeWeight: number }) => {
+	const dx = shape.x2 - shape.x1;
+	const dy = shape.y2 - shape.y1;
+	const length = Math.hypot(dx, dy);
+	if (length <= 0.001) return;
+
+	const unitX = dx / length;
+	const unitY = dy / length;
+	const headLength = Math.min(length * 0.65, Math.max(10, shape.strokeWeight * 4));
+	const headHalfWidth = Math.max(4, shape.strokeWeight * 1.8);
+	const bodyEndX = shape.x2 - unitX * headLength;
+	const bodyEndY = shape.y2 - unitY * headLength;
+	const perpX = -unitY;
+	const perpY = unitX;
+	const leftX = bodyEndX + perpX * headHalfWidth;
+	const leftY = bodyEndY + perpY * headHalfWidth;
+	const rightX = bodyEndX - perpX * headHalfWidth;
+	const rightY = bodyEndY - perpY * headHalfWidth;
+
+	s.noFill();
+	s.stroke(shape.color);
+	s.strokeWeight(shape.strokeWeight);
+	s.line(shape.x1, shape.y1, bodyEndX, bodyEndY);
+	s.noStroke();
+	s.fill(shape.color);
+	s.triangle(shape.x2, shape.y2, leftX, leftY, rightX, rightY);
+};
+
 const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 	switch (shape.kind) {
 		case "dot":
@@ -205,6 +309,7 @@ const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 			return { ...shape, points: shape.points.map((p) => ({ x: p.x + deltaX, y: p.y + deltaY })) };
 
 		case "line":
+		case "arrow":
 			return { ...shape, x1: shape.x1 + deltaX, y1: shape.y1 + deltaY, x2: shape.x2 + deltaX, y2: shape.y2 + deltaY };
 
 		case "rectangle":
@@ -474,6 +579,14 @@ const getShapeBoundsIgnoreRotation = (shape: Shape): Bounds => {
 
 const DEFAULT_BACKGROUND_COLOR = "#ffffff";
 const DEFAULT_LINE_COLOR = "#111111";
+const DEFAULT_TEXT_FONT_FAMILY: TextFontFamily = "Times New Roman";
+const DEFAULT_TEXT_FONT_SIZE = 16;
+const TEXT_FONT_OPTIONS: TextFontFamily[] = ["Times New Roman", "Comic Sans MS", "Papyrus Serif"];
+const TEXT_FONT_STACKS: Record<TextFontFamily, string> = {
+	"Times New Roman": '"Times New Roman", Times, serif',
+	"Comic Sans MS": '"Comic Sans MS", "Comic Sans", cursive',
+	"Papyrus Serif": '"Papyrus", "Book Antiqua", "Palatino Linotype", serif',
+};
 const COLOR_SWATCHES = [
 	"#111111",
 	"#ffffff",
@@ -579,15 +692,82 @@ function ColorPickerControl({
 }) {
 	const [open, setOpen] = useState(false);
 	const [draftColor, setDraftColor] = useState(() => normalizeHexColor(value, defaultValue));
+	const [trianglePoint, setTrianglePoint] = useState({ x: 0.5, y: 0.34 });
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
-	const dragModeRef = useRef<"sv" | "hue" | null>(null);
+	const wheelRef = useRef<HTMLDivElement | null>(null);
+	const triangleRef = useRef<HTMLDivElement | null>(null);
+	const dragModeRef = useRef<"wheel" | "triangle" | null>(null);
 
 	const currentColor = normalizeHexColor(value, defaultValue);
 	const currentRgb = hexToRgb(currentColor) ?? hexToRgb(defaultValue) ?? { r: 0, g: 0, b: 0 };
 	const currentHsl = rgbToHsl(currentRgb);
 	const draftRgb = hexToRgb(draftColor) ?? currentRgb;
 	const draftHsl = rgbToHsl(draftRgb);
+	const wheelHue = draftHsl.h;
+	const triangleTopColor = hslToRgb(wheelHue, 1, 0.5);
+	const triangleVertices = {
+		top: { x: 0.5, y: 0.02 },
+		left: { x: 0.04, y: 0.92 },
+		right: { x: 0.96, y: 0.92 },
+	};
+
+	const mixRgb = (colors: Array<{ color: RgbColor; weight: number }>) => {
+		const total = colors.reduce((sum, entry) => sum + entry.weight, 0) || 1;
+		return rgbToHex({
+			r: colors.reduce((sum, entry) => sum + entry.color.r * entry.weight, 0) / total,
+			g: colors.reduce((sum, entry) => sum + entry.color.g * entry.weight, 0) / total,
+			b: colors.reduce((sum, entry) => sum + entry.color.b * entry.weight, 0) / total,
+		});
+	};
+
+	const clampPointToTriangle = (point: { x: number; y: number }) => {
+		const a = triangleVertices.top;
+		const b = triangleVertices.left;
+		const c = triangleVertices.right;
+		const denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+		const baryA = ((b.y - c.y) * (point.x - c.x) + (c.x - b.x) * (point.y - c.y)) / denominator;
+		const baryB = ((c.y - a.y) * (point.x - c.x) + (a.x - c.x) * (point.y - c.y)) / denominator;
+		const baryC = 1 - baryA - baryB;
+
+		if (baryA >= 0 && baryB >= 0 && baryC >= 0) {
+			return point;
+		}
+
+		const clampEdge = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+			const dx = end.x - start.x;
+			const dy = end.y - start.y;
+			const lengthSquared = dx * dx + dy * dy;
+			if (lengthSquared === 0) return start;
+			const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared, 0, 1);
+			return { x: start.x + dx * t, y: start.y + dy * t };
+		};
+
+		const candidates = [
+			{ point: clampEdge(a, b), distance: 0 },
+			{ point: clampEdge(b, c), distance: 0 },
+			{ point: clampEdge(c, a), distance: 0 },
+		];
+		for (const candidate of candidates) {
+			candidate.distance = Math.hypot(candidate.point.x - point.x, candidate.point.y - point.y);
+		}
+		return candidates.sort((first, second) => first.distance - second.distance)[0]!.point;
+	};
+
+	const trianglePointToColor = (point: { x: number; y: number }) => {
+		const a = triangleVertices.top;
+		const b = triangleVertices.left;
+		const c = triangleVertices.right;
+		const denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+		const baryA = ((b.y - c.y) * (point.x - c.x) + (c.x - b.x) * (point.y - c.y)) / denominator;
+		const baryB = ((c.y - a.y) * (point.x - c.x) + (a.x - c.x) * (point.y - c.y)) / denominator;
+		const baryC = 1 - baryA - baryB;
+		return mixRgb([
+			{ color: triangleTopColor, weight: baryA },
+			{ color: { r: 0, g: 0, b: 0 }, weight: baryB },
+			{ color: { r: 255, g: 255, b: 255 }, weight: baryC },
+		]);
+	};
 
 	useEffect(() => {
 		if (!open) {
@@ -616,47 +796,52 @@ function ColorPickerControl({
 		};
 	}, [open]);
 
-	const updateFromPalette = (clientX: number, clientY: number) => {
-		const palette = panelRef.current?.querySelector<HTMLElement>("[data-color-palette]");
-		if (!palette) return;
-		const rect = palette.getBoundingClientRect();
-		const saturation = clamp((clientX - rect.left) / rect.width, 0, 1);
-		const lightness = clamp(1 - (clientY - rect.top) / rect.height, 0, 1);
-		const rgb = hslToRgb(draftHsl.h, saturation, lightness);
-		setDraftColor(rgbToHex(rgb));
-	};
-
-	const updateFromHue = (clientX: number) => {
-		const hueTrack = panelRef.current?.querySelector<HTMLElement>("[data-color-hue]");
-		if (!hueTrack) return;
-		const rect = hueTrack.getBoundingClientRect();
-		const hue = clamp((clientX - rect.left) / rect.width, 0, 1) * 360;
+	const updateFromWheel = (clientX: number, clientY: number) => {
+		const wheel = wheelRef.current;
+		if (!wheel) return;
+		const rect = wheel.getBoundingClientRect();
+		const centerX = rect.left + rect.width / 2;
+		const centerY = rect.top + rect.height / 2;
+		const angle = Math.atan2(clientY - centerY, clientX - centerX);
+		const hue = ((angle * 180) / Math.PI + 360) % 360;
 		const rgb = hslToRgb(hue, draftHsl.s, draftHsl.l);
 		setDraftColor(rgbToHex(rgb));
 	};
 
-	const handlePalettePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+	const updateFromTriangle = (clientX: number, clientY: number) => {
+		const triangle = triangleRef.current;
+		if (!triangle) return;
+		const rect = triangle.getBoundingClientRect();
+		const normalizedPoint = clampPointToTriangle({
+			x: (clientX - rect.left) / rect.width,
+			y: (clientY - rect.top) / rect.height,
+		});
+		setTrianglePoint(normalizedPoint);
+		setDraftColor(trianglePointToColor(normalizedPoint));
+	};
+
+	const handleWheelPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
 		event.preventDefault();
-		dragModeRef.current = "sv";
+		dragModeRef.current = "wheel";
 		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-		updateFromPalette(event.clientX, event.clientY);
+		updateFromWheel(event.clientX, event.clientY);
 	};
 
-	const handlePalettePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-		if (dragModeRef.current !== "sv") return;
-		updateFromPalette(event.clientX, event.clientY);
+	const handleWheelPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+		if (dragModeRef.current !== "wheel") return;
+		updateFromWheel(event.clientX, event.clientY);
 	};
 
-	const handleHuePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+	const handleTrianglePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
 		event.preventDefault();
-		dragModeRef.current = "hue";
+		dragModeRef.current = "triangle";
 		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-		updateFromHue(event.clientX);
+		updateFromTriangle(event.clientX, event.clientY);
 	};
 
-	const handleHuePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-		if (dragModeRef.current !== "hue") return;
-		updateFromHue(event.clientX);
+	const handleTrianglePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+		if (dragModeRef.current !== "triangle") return;
+		updateFromTriangle(event.clientX, event.clientY);
 	};
 
 	const stopDragging = () => {
@@ -679,77 +864,106 @@ function ColorPickerControl({
 			{open ? (
 				<div ref={panelRef} className="color-picker__panel">
 					<div
-						data-color-palette
-						className="color-picker__palette"
-						style={{
-							backgroundColor: `hsl(${draftHsl.h}, 100%, 50%)`,
-							backgroundImage: `
-								linear-gradient(to right, #ffffff, rgba(255,255,255,0)),
-								linear-gradient(to top, #000000, rgba(0,0,0,0))
-							`,
-						}}
-						onPointerDown={handlePalettePointerDown}
-						onPointerMove={handlePalettePointerMove}
-						onPointerUp={stopDragging}
-						onPointerLeave={stopDragging}
+						className="color-picker__wheel-area"
+						style={{ position: "relative", width: "260px", height: "260px", margin: "0 auto" }}
 					>
+						<div
+							ref={wheelRef}
+							className="color-picker__wheel"
+							onPointerDown={handleWheelPointerDown}
+							onPointerMove={handleWheelPointerMove}
+							onPointerUp={stopDragging}
+							onPointerLeave={stopDragging}
+							style={{
+								position: "absolute",
+								inset: 0,
+								borderRadius: "50%",
+								background: "conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)",
+								boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.22)",
+								cursor: "crosshair",
+							}}
+						/>
+						<div
+							style={{
+								position: "absolute",
+								inset: "26px",
+								borderRadius: "50%",
+								background: "#2f2f2f",
+								boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+							}}
+						/>
+						<div
+							ref={triangleRef}
+							className="color-picker__triangle"
+							onPointerDown={handleTrianglePointerDown}
+							onPointerMove={handleTrianglePointerMove}
+							onPointerUp={stopDragging}
+							onPointerLeave={stopDragging}
+							style={{
+								position: "absolute",
+								left: "50%",
+								top: "calc(50% - 20px)",
+								width: "170px",
+								height: "170px",
+								transform: "translate(-50%, -50%)",
+								clipPath: "polygon(50% 2%, 4% 92%, 96% 92%)",
+								background: `
+									linear-gradient(to top right, rgba(0,0,0,1), rgba(0,0,0,0)),
+									linear-gradient(to top left, rgba(255,255,255,1), rgba(255,255,255,0)),
+									rgb(${triangleTopColor.r}, ${triangleTopColor.g}, ${triangleTopColor.b})
+								`,
+								boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.28)",
+								cursor: "crosshair",
+							}}
+						>
+							<div
+								className="color-picker__cursor"
+								style={{
+									left: `${trianglePoint.x * 100}%`,
+									top: `${trianglePoint.y * 100}%`,
+									background: currentColor,
+								}}
+							/>
+						</div>
 						<div
 							className="color-picker__cursor"
 							style={{
-								left: `${draftHsl.s * 100}%`,
-								top: `${(1 - draftHsl.l) * 100}%`,
+								left: `${50 + Math.cos((draftHsl.h - 90) * (Math.PI / 180)) * 41}%`,
+								top: `${50 + Math.sin((draftHsl.h - 90) * (Math.PI / 180)) * 41}%`,
 								background: currentColor,
 							}}
 						/>
 					</div>
-					<div className="color-picker__slider-group">
-						<div
-							data-color-hue
-							className="color-picker__hue"
-							style={{
-								background: "linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)",
+					<div className="color-picker__hex-row">
+						<input
+							type="text"
+							value={draftColor.toUpperCase()}
+							onChange={(event) => setDraftColor(normalizeHexColor(event.target.value, currentColor))}
+							className="color-picker__hex-input"
+							aria-label={`${label} hex value`}
+						/>
+						<button
+							type="button"
+							className="color-picker__apply"
+							onClick={() => {
+								onChange(draftColor);
+								setOpen(false);
 							}}
-							onPointerDown={handleHuePointerDown}
-							onPointerMove={handleHuePointerMove}
-							onPointerUp={stopDragging}
-							onPointerLeave={stopDragging}
 						>
-							<div
-								className="color-picker__cursor color-picker__cursor--hue"
-								style={{ left: `${(draftHsl.h / 360) * 100}%` }}
-							/>
-						</div>
-						<div className="color-picker__hex-row">
-							<input
-								type="text"
-								value={draftColor.toUpperCase()}
-								onChange={(event) => setDraftColor(normalizeHexColor(event.target.value, currentColor))}
-								className="color-picker__hex-input"
-								aria-label={`${label} hex value`}
-							/>
+							Apply
+						</button>
+					</div>
+					<div className="color-picker__swatches">
+						{COLOR_SWATCHES.map((swatch) => (
 							<button
+								key={swatch}
 								type="button"
-								className="color-picker__apply"
-								onClick={() => {
-									onChange(draftColor);
-									setOpen(false);
-								}}
-							>
-								Apply
-							</button>
-						</div>
-						<div className="color-picker__swatches">
-							{COLOR_SWATCHES.map((swatch) => (
-								<button
-									key={swatch}
-									type="button"
-									className="color-picker__swatch-button"
-									style={{ background: swatch }}
-									onClick={() => setDraftColor(swatch)}
-									aria-label={`Select ${swatch}`}
-								/>
-							))}
-						</div>
+								className="color-picker__swatch-button"
+								style={{ background: swatch }}
+								onClick={() => setDraftColor(swatch)}
+								aria-label={`Select ${swatch}`}
+							/>
+						))}
 					</div>
 				</div>
 			) : null}
@@ -763,11 +977,15 @@ export default function Canvas() {
 	const [tool, setTool] = useState<Tool>("cursor");
 	const [fill, setFill] = useState(false);
 	const [strokeWeight, setStrokeWeight] = useState(4);
+	const [textFontFamily, setTextFontFamily] = useState<TextFontFamily>(DEFAULT_TEXT_FONT_FAMILY);
+	const [textFontSize, setTextFontSize] = useState(DEFAULT_TEXT_FONT_SIZE);
 	const [zoomPercent, setZoomPercent] = useState(100);
 	const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+	const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
 	const [editingTextShapeId, setEditingTextShapeId] = useState<string | null>(null);
 	const [textDraftValue, setTextDraftValue] = useState("");
 	const selectedShapeIdRef = useRef<string | null>(null);
+	const selectedShapeIdsRef = useRef<Set<string>>(new Set());
 	const hoveredShapeIdRef = useRef<string | null>(null);
 	const hoveredHandleRef = useRef<AnyHandle | null>(null);
     const resizeSessionRef = useRef<{
@@ -794,6 +1012,8 @@ export default function Canvas() {
 		tool: "cursor" as Tool,
 		fill: false,
 		strokeWeight: 4,
+		textFontFamily: DEFAULT_TEXT_FONT_FAMILY as TextFontFamily,
+		textFontSize: DEFAULT_TEXT_FONT_SIZE,
 	});
 
 	const shapesRef = useRef<Shape[]>([]);
@@ -807,9 +1027,20 @@ export default function Canvas() {
 	const eraserLastPointRef = useRef<{ x: number; y: number } | null>(null);
 	const textEditorRef = useRef<HTMLTextAreaElement | null>(null);
 	const editingTextShapeIdRef = useRef<string | null>(null);
+	const textEditSessionInitialTextRef = useRef("");
+	const textEditSessionSnapshotPushedRef = useRef(false);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
 	const dotRef = useRef(true);
+
+	const applySelection = (nextSelectedIds: string[]) => {
+		const uniqueIds = Array.from(new Set(nextSelectedIds));
+		selectedShapeIdsRef.current = new Set(uniqueIds);
+		setSelectedShapeIds(uniqueIds);
+		const singleSelectedId = uniqueIds.length === 1 ? uniqueIds[0]! : null;
+		selectedShapeIdRef.current = singleSelectedId;
+		setSelectedShapeId(singleSelectedId);
+	};
 
 	const clearCanvas = () => {
 		shapesRef.current = [];
@@ -822,10 +1053,11 @@ export default function Canvas() {
 		hoveredHandleRef.current = null;
 		resizeSessionRef.current = null;
 		rotationSessionRef.current = null;
-		selectedShapeIdRef.current = null;
-		setSelectedShapeId(null);
+		applySelection([]);
 		setEditingTextShapeId(null);
 		setTextDraftValue("");
+		textEditSessionInitialTextRef.current = "";
+		textEditSessionSnapshotPushedRef.current = false;
 		eraserMarkedShapeIdsRef.current.clear();
 		eraserTouchLatchRef.current.clear();
 		eraserLastPointRef.current = null;
@@ -849,10 +1081,11 @@ export default function Canvas() {
 		if (pushHistory) {
 			pushUndoSnapshot();
 		}
-		selectedShapeIdRef.current = shapeId;
-		setSelectedShapeId(shapeId);
+		applySelection([shapeId]);
 		setEditingTextShapeId(shapeId);
 		setTextDraftValue(initialText);
+		textEditSessionInitialTextRef.current = initialText;
+		textEditSessionSnapshotPushedRef.current = false;
 		hoveredShapeIdRef.current = shapeId;
 		hoveredHandleRef.current = null;
 	};
@@ -861,6 +1094,8 @@ export default function Canvas() {
 		setEditingTextShapeId(null);
 		setTextDraftValue("");
 		editingTextShapeIdRef.current = null;
+		textEditSessionInitialTextRef.current = "";
+		textEditSessionSnapshotPushedRef.current = false;
 	};
 
 	const updateEditingTextShape = (nextText: string) => {
@@ -868,6 +1103,13 @@ export default function Canvas() {
 		if (!shape || shape.kind !== "text") return;
 		const shapeIndex = shapesRef.current.findIndex((entry) => entry.id === shape.id);
 		if (shapeIndex < 0) return;
+		if (
+			!textEditSessionSnapshotPushedRef.current &&
+			nextText !== textEditSessionInitialTextRef.current
+		) {
+			pushUndoSnapshot();
+			textEditSessionSnapshotPushedRef.current = true;
+		}
 		shapesRef.current[shapeIndex] = { ...shape, text: nextText };
 		setTextDraftValue(nextText);
 	};
@@ -886,11 +1128,14 @@ export default function Canvas() {
 	const cloneShapesState = (shapes: Shape[]) => shapes.map((shape) => cloneShape(shape));
 
 	const syncSelectionAfterStateChange = () => {
-		if (!selectedShapeIdRef.current) return;
-		const exists = shapesRef.current.some((shape) => shape.id === selectedShapeIdRef.current);
-		if (!exists) {
-			selectedShapeIdRef.current = null;
-			setSelectedShapeId(null);
+		const existingShapeIds = new Set(shapesRef.current.map((shape) => shape.id));
+		const currentSelectedIds = Array.from(selectedShapeIdsRef.current);
+		const nextSelectedIds = currentSelectedIds.filter((shapeId) => existingShapeIds.has(shapeId));
+		if (nextSelectedIds.length !== currentSelectedIds.length) {
+			applySelection(nextSelectedIds);
+		}
+
+		if (selectedShapeIdRef.current && !existingShapeIds.has(selectedShapeIdRef.current)) {
 			hoveredShapeIdRef.current = null;
 			hoveredHandleRef.current = null;
 		}
@@ -914,6 +1159,41 @@ export default function Canvas() {
 	const commitShape = (shape: Shape) => {
 		pushUndoSnapshot();
 		shapesRef.current.push(shape);
+	};
+
+	const applyTextFontFamily = (nextFontFamily: TextFontFamily) => {
+		setTextFontFamily(nextFontFamily);
+		const selectedIds = selectedShapeIdsRef.current;
+		if (selectedIds.size === 0) return;
+
+		const hasSelectedTextShapeToUpdate = shapesRef.current.some(
+			(shape) => selectedIds.has(shape.id) && shape.kind === "text" && shape.fontFamily !== nextFontFamily,
+		);
+		if (!hasSelectedTextShapeToUpdate) return;
+
+		pushUndoSnapshot();
+		shapesRef.current = shapesRef.current.map((shape) => {
+			if (!selectedIds.has(shape.id) || shape.kind !== "text") return shape;
+			return { ...shape, fontFamily: nextFontFamily };
+		});
+	};
+
+	const applyTextFontSize = (nextFontSize: number) => {
+		const clampedFontSize = Math.min(144, Math.max(8, Math.round(nextFontSize)));
+		setTextFontSize(clampedFontSize);
+		const selectedIds = selectedShapeIdsRef.current;
+		if (selectedIds.size === 0) return;
+
+		const hasSelectedTextShapeToUpdate = shapesRef.current.some(
+			(shape) => selectedIds.has(shape.id) && shape.kind === "text" && shape.fontSize !== clampedFontSize,
+		);
+		if (!hasSelectedTextShapeToUpdate) return;
+
+		pushUndoSnapshot();
+		shapesRef.current = shapesRef.current.map((shape) => {
+			if (!selectedIds.has(shape.id) || shape.kind !== "text") return shape;
+			return { ...shape, fontSize: clampedFontSize };
+		});
 	};
 
 	const applyZoomPercent = (nextPercentValue: number, anchor?: { x: number; y: number }) => {
@@ -985,12 +1265,22 @@ export default function Canvas() {
 			tool,
 			fill,
 			strokeWeight,
+			textFontFamily,
+			textFontSize,
 		};
 
-		if (tool !== "text" && tool !== "cursor" && editingTextShapeIdRef.current) {
+		if (tool !== "text" && tool !== "textbox" && tool !== "textcircle" && tool !== "cursor" && editingTextShapeIdRef.current) {
 			stopTextEditing();
 		}
-	}, [backgroundColor, lineColor, tool, fill, strokeWeight]);
+	}, [backgroundColor, lineColor, tool, fill, strokeWeight, textFontFamily, textFontSize]);
+
+	const selectedTextShapes = shapesRef.current.filter(
+		(shape): shape is TextShape => selectedShapeIdsRef.current.has(shape.id) && shape.kind === "text",
+	);
+	const selectedTextFonts = Array.from(new Set(selectedTextShapes.map((shape) => shape.fontFamily)));
+	const activeTextFontFamily = selectedTextFonts.length === 1 ? selectedTextFonts[0]! : textFontFamily;
+	const selectedTextFontSizes = Array.from(new Set(selectedTextShapes.map((shape) => shape.fontSize)));
+	const activeTextFontSize = selectedTextFontSizes.length === 1 ? selectedTextFontSizes[0]! : textFontSize;
 
 	const editingTextShape = getShapeById(editingTextShapeId);
 	const editingTextStyle =
@@ -999,8 +1289,11 @@ export default function Canvas() {
 					const bounds = getShapeBounds(editingTextShape);
 					const center = getRotationCenter(editingTextShape);
 					const { scale, offsetX, offsetY } = viewRef.current;
-					const width = Math.max(1, (bounds.maxX - bounds.minX) * scale);
-					const height = Math.max(1, (bounds.maxY - bounds.minY) * scale);
+					const baseWidth = Math.max(1, (bounds.maxX - bounds.minX) * scale);
+					const baseHeight = Math.max(1, (bounds.maxY - bounds.minY) * scale);
+					const isCircleContainer = editingTextShape.container === "circle";
+					const width = isCircleContainer ? Math.max(1, baseWidth * 0.72) : baseWidth;
+					const height = isCircleContainer ? Math.max(1, baseHeight * 0.72) : baseHeight;
 					const centerX = center.x * scale + offsetX;
 					const centerY = center.y * scale + offsetY;
 					return {
@@ -1010,17 +1303,37 @@ export default function Canvas() {
 						height: `${height}px`,
 						transform: `rotate(${editingTextShape.angle}deg)`,
 						color: editingTextShape.color,
+						borderRadius: editingTextShape.container === "circle" ? "50%" : "0px",
 						fontSize: `${Math.max(12, editingTextShape.fontSize * scale)}px`,
+						fontFamily: TEXT_FONT_STACKS[editingTextShape.fontFamily ?? DEFAULT_TEXT_FONT_FAMILY],
+						textAlign: editingTextShape.container === "circle" ? "center" : "left",
+						padding: editingTextShape.container === "circle" ? "10px" : "6px",
 					};
 				})()
 			: null;
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!(event.ctrlKey || event.metaKey)) return;
 			if (isEditableElement(event.target)) return;
 
 			const key = event.key.toLowerCase();
+			if (key === "delete" || key === "backspace") {
+				if (selectedShapeIdsRef.current.size === 0) return;
+				event.preventDefault();
+				pushUndoSnapshot();
+				const selectedIds = new Set(selectedShapeIdsRef.current);
+				shapesRef.current = shapesRef.current.filter((shape) => !selectedIds.has(shape.id));
+				if (editingTextShapeIdRef.current && selectedIds.has(editingTextShapeIdRef.current)) {
+					stopTextEditing();
+				}
+				applySelection([]);
+				hoveredShapeIdRef.current = null;
+				hoveredHandleRef.current = null;
+				return;
+			}
+
+			if (!(event.ctrlKey || event.metaKey)) return;
+
 			const shouldUndo = key === "z" && !event.shiftKey;
 			const shouldRedo = key === "y" || (key === "z" && event.shiftKey);
 			if (!shouldUndo && !shouldRedo) return;
@@ -1067,6 +1380,7 @@ export default function Canvas() {
 		if (!canvasHostRef.current || p5Ref.current || initializedSketchRef.current) return;
 		initializedSketchRef.current = true;
 		let removeWheelListener: (() => void) | null = null;
+		let removeDoubleClickListener: (() => void) | null = null;
 
     const sketch = (s: p5) => {
 			const resizeToViewport = () => {
@@ -1138,11 +1452,6 @@ export default function Canvas() {
 				pushUndoSnapshot();
 				const idsToDelete = eraserMarkedShapeIdsRef.current;
 				shapesRef.current = shapesRef.current.filter((shape) => !idsToDelete.has(shape.id));
-
-				if (selectedShapeIdRef.current && idsToDelete.has(selectedShapeIdRef.current)) {
-					selectedShapeIdRef.current = null;
-					setSelectedShapeId(null);
-				}
 
 				if (hoveredShapeIdRef.current && idsToDelete.has(hoveredShapeIdRef.current)) {
 					hoveredShapeIdRef.current = null;
@@ -1272,9 +1581,10 @@ export default function Canvas() {
 			s.strokeWeight(1 / viewRef.current.scale);
 			s.ellipseMode(s.CENTER);
 			s.ellipse(rotationHandle.x, rotationHandle.y, handleSize, handleSize);
-		};			const drawShape = (shape: Shape, options?: { isSelected?: boolean; isHovered?: boolean }) => {
+		};			const drawShape = (shape: Shape, options?: { isSelected?: boolean; isHovered?: boolean; isDraft?: boolean }) => {
 				const isSelected = options?.isSelected ?? false;
 				const isHovered = options?.isHovered ?? false;
+				const isDraft = options?.isDraft ?? false;
 				const highlightColor = isSelected ? "#2563eb" : "#60a5fa";
 				
 				// Apply rotation if angle is not 0
@@ -1350,6 +1660,22 @@ export default function Canvas() {
 					return;
 				}
 
+				if (shape.kind === "arrow") {
+					drawArrowSegment(s, shape);
+					if (isSelected || isHovered) {
+						drawArrowSegment(s, {
+							x1: shape.x1,
+							y1: shape.y1,
+							x2: shape.x2,
+							y2: shape.y2,
+							color: highlightColor,
+							strokeWeight: 2,
+						});
+					}
+					if (shape.angle !== 0) s.pop();
+					return;
+				}
+
 				if (shape.kind === "rectangle") {
 					s.stroke(shape.color);
 					s.strokeWeight(shape.strokeWeight);
@@ -1376,24 +1702,78 @@ export default function Canvas() {
 					const minY = Math.min(shape.y1, shape.y2);
 					const maxY = Math.max(shape.y1, shape.y2);
 					const padding = Math.max(6, shape.fontSize * 0.3);
-					const textX = minX + padding;
-					const textY = minY + padding;
-					const textWidth = Math.max(1, maxX - minX - padding * 2);
-					const textHeight = Math.max(1, maxY - minY - padding * 2);
+					const shapeWidth = Math.max(1, maxX - minX);
+					const shapeHeight = Math.max(1, maxY - minY);
+					const circleInsetX = Math.max(padding, shapeWidth * 0.14);
+					const circleInsetY = Math.max(padding, shapeHeight * 0.14);
+					const textX = shape.container === "circle" ? minX + circleInsetX : minX + padding;
+					const textY = shape.container === "circle" ? minY + circleInsetY : minY + padding;
+					const textWidth =
+						shape.container === "circle"
+							? Math.max(1, shapeWidth - circleInsetX * 2)
+							: Math.max(1, shapeWidth - padding * 2);
+					const textHeight =
+						shape.container === "circle"
+							? Math.max(1, shapeHeight - circleInsetY * 2)
+							: Math.max(1, shapeHeight - padding * 2);
 
 					s.noStroke();
 					s.fill(shape.color);
+						s.textFont(TEXT_FONT_STACKS[shape.fontFamily ?? DEFAULT_TEXT_FONT_FAMILY]);
 					s.textSize(shape.fontSize);
-					s.textAlign(s.LEFT, s.TOP);
-					s.textWrap(s.WORD);
+					s.textAlign(shape.container === "circle" ? s.CENTER : s.LEFT, shape.container === "circle" ? s.CENTER : s.TOP);
+					s.textWrap(s.CHAR);
+					const textContext = s.drawingContext as CanvasRenderingContext2D;
+					textContext.save();
+					textContext.beginPath();
+					if (shape.container === "circle") {
+						const centerX = (minX + maxX) / 2;
+						const centerY = (minY + maxY) / 2;
+						const radiusX = Math.max(1, (maxX - minX) / 2 - padding * 0.5);
+						const radiusY = Math.max(1, (maxY - minY) / 2 - padding * 0.5);
+						textContext.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+					} else {
+						textContext.rect(textX, textY, textWidth, textHeight);
+					}
+					textContext.clip();
 					s.text(shape.text || "", textX, textY, textWidth, textHeight);
+					textContext.restore();
 
-					if (isSelected || isHovered || editingTextShapeIdRef.current === shape.id) {
+					if (shape.showBorder) {
+						s.noFill();
+						s.stroke(shape.color);
+						s.strokeWeight(Math.max(1, shape.borderStrokeWeight));
+						if (shape.container === "circle") {
+							s.ellipseMode(s.CORNERS);
+							s.ellipse(minX, minY, maxX, maxY);
+						} else {
+							s.rectMode(s.CORNERS);
+							s.rect(minX, minY, maxX, maxY);
+						}
+					}
+
+					if (isDraft) {
+						s.noFill();
+						s.stroke("#0ea5e9");
+						s.strokeWeight(1);
+						if (shape.container === "circle") {
+							s.ellipseMode(s.CORNERS);
+							s.ellipse(minX, minY, maxX, maxY);
+						} else {
+							s.rectMode(s.CORNERS);
+							s.rect(minX, minY, maxX, maxY);
+						}
+					} else if (isSelected || isHovered || editingTextShapeIdRef.current === shape.id) {
 						s.noFill();
 						s.stroke(editingTextShapeIdRef.current === shape.id ? "#f59e0b" : highlightColor);
 						s.strokeWeight(1);
-						s.rectMode(s.CORNERS);
-						s.rect(minX, minY, maxX, maxY);
+						if (shape.container === "circle") {
+							s.ellipseMode(s.CORNERS);
+							s.ellipse(minX, minY, maxX, maxY);
+						} else {
+							s.rectMode(s.CORNERS);
+							s.rect(minX, minY, maxX, maxY);
+						}
 					}
 
 					if (shape.angle !== 0) s.pop();
@@ -1445,8 +1825,34 @@ export default function Canvas() {
 					applyZoomPercent(nextPercent, { x: pointerX, y: pointerY });
 				};
 
+				const handleDoubleClick = (event: MouseEvent) => {
+					if (
+						settingsRef.current.tool !== "cursor" &&
+						settingsRef.current.tool !== "text" &&
+						settingsRef.current.tool !== "textbox" &&
+						settingsRef.current.tool !== "textcircle"
+					)
+						return;
+					const canvasRect = renderer.elt.getBoundingClientRect();
+					const pointerX = event.clientX - canvasRect.left;
+					const pointerY = event.clientY - canvasRect.top;
+					if (pointerX < 0 || pointerX > canvasRect.width || pointerY < 0 || pointerY > canvasRect.height) return;
+
+					const worldPoint = screenToWorld(pointerX, pointerY);
+					const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
+					if (!clickedShape || clickedShape.kind !== "text") return;
+
+					event.preventDefault();
+					startTextEditing(clickedShape.id, clickedShape.text, false);
+					draggedShapeIdRef.current = null;
+					resizeSessionRef.current = null;
+					rotationSessionRef.current = null;
+				};
+
 				renderer.elt.addEventListener("wheel", handleWheel, { passive: false });
 				removeWheelListener = () => renderer.elt.removeEventListener("wheel", handleWheel);
+				renderer.elt.addEventListener("dblclick", handleDoubleClick);
+				removeDoubleClickListener = () => renderer.elt.removeEventListener("dblclick", handleDoubleClick);
 				resizeToViewport();
 			};
 
@@ -1464,7 +1870,7 @@ export default function Canvas() {
 					}
 
 					drawShape(shape, {
-						isSelected: shape.id === selectedShapeIdRef.current,
+						isSelected: selectedShapeIdsRef.current.has(shape.id),
 						isHovered: shape.id === hoveredShapeIdRef.current,
 					});
 
@@ -1473,12 +1879,16 @@ export default function Canvas() {
 					}
 				}
 				if (draftShapeRef.current) {
-					drawShape(draftShapeRef.current, { isSelected: false, isHovered: false });
+					drawShape(draftShapeRef.current, {
+						isSelected: false,
+						isHovered: false,
+						isDraft: draftShapeRef.current.kind === "text",
+					});
 				}
 				const selectedShape = selectedShapeIdRef.current
 					? shapesRef.current.find((shape) => shape.id === selectedShapeIdRef.current) ?? null
 					: null;
-				if (selectedShape && settingsRef.current.tool === "cursor") {
+				if (selectedShape && settingsRef.current.tool === "cursor" && selectedShapeIdsRef.current.size === 1) {
 					drawSelectionHandles(selectedShape);
 				}
 				s.pop();
@@ -1493,6 +1903,14 @@ export default function Canvas() {
 				if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
 				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
 
+				if (settingsRef.current.tool === "cursor" && editingTextShapeIdRef.current) {
+					dragStartRef.current = null;
+					draggedShapeIdRef.current = null;
+					resizeSessionRef.current = null;
+					rotationSessionRef.current = null;
+					return;
+				}
+
 			dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
 
 			if (settingsRef.current.tool === "eraser") {
@@ -1505,7 +1923,7 @@ export default function Canvas() {
 				return;
 			}
 
-			if (settingsRef.current.tool === "cursor" && selectedShapeIdRef.current) {
+			if (settingsRef.current.tool === "cursor" && selectedShapeIdRef.current && selectedShapeIdsRef.current.size === 1) {
 				const selectedShape = shapesRef.current.find((shape) => shape.id === selectedShapeIdRef.current) ?? null;
 				if (selectedShape) {
 					const selectedBounds = getShapeBounds(selectedShape);
@@ -1563,9 +1981,30 @@ export default function Canvas() {
 				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
 
 				if (clickedShape) {
-					// Entering drag mode: select and prepare to drag the shape
-					selectedShapeIdRef.current = clickedShape.id;
-					setSelectedShapeId(clickedShape.id);
+					if (settingsRef.current.tool === "cursor" && event.ctrlKey) {
+						const nextSelection = new Set(selectedShapeIdsRef.current);
+						if (nextSelection.has(clickedShape.id)) {
+							nextSelection.delete(clickedShape.id);
+						} else {
+							nextSelection.add(clickedShape.id);
+						}
+						applySelection(Array.from(nextSelection));
+						draggedShapeIdRef.current = null;
+						hoveredShapeIdRef.current = clickedShape.id;
+						hoveredHandleRef.current = null;
+						return;
+					}
+
+					const shouldKeepCurrentSelection =
+						settingsRef.current.tool === "cursor" &&
+						selectedShapeIdsRef.current.size > 1 &&
+						selectedShapeIdsRef.current.has(clickedShape.id);
+					if (!shouldKeepCurrentSelection) {
+						applySelection([clickedShape.id]);
+					}
+					if (settingsRef.current.tool === "cursor") {
+						pushUndoSnapshot();
+					}
 					draggedShapeIdRef.current = clickedShape.id;
 					hoveredShapeIdRef.current = clickedShape.id;
 					hoveredHandleRef.current = null;
@@ -1573,8 +2012,9 @@ export default function Canvas() {
 				}
 
 				// Clear selection if clicking on empty space
-				selectedShapeIdRef.current = null;
-				setSelectedShapeId(null);
+				if (!(settingsRef.current.tool === "cursor" && event.ctrlKey)) {
+					applySelection([]);
+				}
 				hoveredShapeIdRef.current = null;
 				hoveredHandleRef.current = null;
 				draggedShapeIdRef.current = null;
@@ -1584,7 +2024,7 @@ export default function Canvas() {
 					return;
 				}
 
-				if (settingsRef.current.tool === "text") {
+				if (settingsRef.current.tool === "text" || settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle") {
 					draftShapeRef.current = {
 						kind: "text",
 						id: generateShapeId(),
@@ -1594,7 +2034,11 @@ export default function Canvas() {
 						y2: worldPoint.y,
 						text: "",
 						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
-						fontSize: Math.max(14, Math.round(settingsRef.current.strokeWeight * 4)),
+							fontFamily: settingsRef.current.textFontFamily,
+							fontSize: settingsRef.current.textFontSize,
+						container: settingsRef.current.tool === "textcircle" ? "circle" : "rect",
+						showBorder: settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle",
+						borderStrokeWeight: settingsRef.current.strokeWeight,
 						angle: 0,
 					} as TextShape;
 					return;
@@ -1624,7 +2068,7 @@ export default function Canvas() {
 					filled: settingsRef.current.fill,
 					strokeWeight: settingsRef.current.strokeWeight,
 					angle: 0,
-				} as LineShape | RectangleShape | CircleShape;
+				} as LineShape | ArrowShape | RectangleShape | CircleShape;
 			};
 
 				s.mouseClicked = () => {
@@ -1650,6 +2094,7 @@ export default function Canvas() {
 
 			s.mouseDragged = (event: MouseEvent) => {
 				if ((event.buttons & 1) === 0) return;
+				if (settingsRef.current.tool === "cursor" && editingTextShapeIdRef.current) return;
 			if (!dragStartRef.current) return;
 			const worldPoint = screenToWorld(s.mouseX, s.mouseY);
 
@@ -1664,7 +2109,7 @@ export default function Canvas() {
 				return;
 			}
 
-			if (settingsRef.current.tool === "text" && !draftShapeRef.current) {
+			if ((settingsRef.current.tool === "text" || settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle") && !draftShapeRef.current) {
 				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
 				if (clickedShape && clickedShape.kind === "text") {
 					startTextEditing(clickedShape.id, clickedShape.text, true);
@@ -1699,7 +2144,7 @@ export default function Canvas() {
 				const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === shapeId);
 				if (shapeIndex >= 0) {
 					shapesRef.current[shapeIndex] = { ...originalShape, angle: newAngle };
-					selectedShapeIdRef.current = shapeId;
+					applySelection([shapeId]);
 					hoveredShapeIdRef.current = shapeId;
 					hoveredHandleRef.current = "rotation";
 				}
@@ -1730,18 +2175,32 @@ export default function Canvas() {
 					}
 
 					shapesRef.current[shapeIndex] = resizedShape;
-					selectedShapeIdRef.current = shapeId;
+					applySelection([shapeId]);
 					hoveredShapeIdRef.current = shapeId;
 					hoveredHandleRef.current = handle;
 				}
 				return;
 			}				// If we're dragging a shape, move it
 				if (draggedShapeIdRef.current) {
-					const shapeIndex = shapesRef.current.findIndex((s) => s.id === draggedShapeIdRef.current);
+					const deltaX = worldPoint.x - dragStartRef.current.x;
+					const deltaY = worldPoint.y - dragStartRef.current.y;
+					const shouldMoveSelectionGroup =
+						settingsRef.current.tool === "cursor" &&
+						selectedShapeIdsRef.current.size > 1 &&
+						selectedShapeIdsRef.current.has(draggedShapeIdRef.current);
+					if (shouldMoveSelectionGroup) {
+						const selectedIds = selectedShapeIdsRef.current;
+						shapesRef.current = shapesRef.current.map((shape) =>
+							selectedIds.has(shape.id) ? moveShape(shape, deltaX, deltaY) : shape,
+						);
+						hoveredShapeIdRef.current = draggedShapeIdRef.current;
+						dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
+						return;
+					}
+
+					const shapeIndex = shapesRef.current.findIndex((shapeEntry) => shapeEntry.id === draggedShapeIdRef.current);
 					if (shapeIndex >= 0) {
 						const shape = shapesRef.current[shapeIndex]!;
-						const deltaX = worldPoint.x - dragStartRef.current.x;
-						const deltaY = worldPoint.y - dragStartRef.current.y;
 						shapesRef.current[shapeIndex] = moveShape(shape, deltaX, deltaY);
 						hoveredShapeIdRef.current = draggedShapeIdRef.current;
 						dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
@@ -1760,10 +2219,17 @@ export default function Canvas() {
 					return;
 				}
 
+				const constrainedEndPoint = getConstrainedDraftEndPoint(
+					draftShapeRef.current,
+					{ x: draftShapeRef.current.x1, y: draftShapeRef.current.y1 },
+					{ x: worldPoint.x, y: worldPoint.y },
+					event.shiftKey,
+				);
+
 				draftShapeRef.current = {
 					...draftShapeRef.current,
-					x2: worldPoint.x,
-					y2: worldPoint.y,
+					x2: constrainedEndPoint.x,
+					y2: constrainedEndPoint.y,
 				};
 			};
 
@@ -1783,10 +2249,18 @@ export default function Canvas() {
 					return;
 				}
 
-				if (settingsRef.current.tool === "text") {
+				if (settingsRef.current.tool === "text" || settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle") {
 					if (draftShapeRef.current && draftShapeRef.current.kind === "text") {
-						commitShape({ ...draftShapeRef.current });
-						startTextEditing(draftShapeRef.current.id, "", false);
+						const draftBounds = getShapeBounds(draftShapeRef.current);
+						const draftWidth = draftBounds.maxX - draftBounds.minX;
+						const draftHeight = draftBounds.maxY - draftBounds.minY;
+						const minimumSize = 6;
+
+						if (draftWidth >= minimumSize && draftHeight >= minimumSize) {
+							const createdTextShape = { ...draftShapeRef.current };
+							commitShape(createdTextShape);
+							startTextEditing(createdTextShape.id, "", false);
+						}
 					}
 					dragStartRef.current = null;
 					draftShapeRef.current = null;
@@ -1836,6 +2310,7 @@ export default function Canvas() {
 
 		return () => {
 			removeWheelListener?.();
+			removeDoubleClickListener?.();
 			p5Ref.current?.remove();
 			p5Ref.current = null;
 			if (canvasHostRef.current) {
@@ -1897,7 +2372,10 @@ export default function Canvas() {
 								<option value="freehand">Free Hand</option>
 								<option value="eraser">Eraser</option>
 								<option value="text">Text</option>
+								<option value="textbox">Text Box</option>
+								<option value="textcircle">Text Circle</option>
 								<option value="line">Line</option>
+								<option value="arrow">Arrow</option>
 								<option value="rectangle">Rectangle</option>
 								<option value="circle">Circle</option>
 							</select>
@@ -1911,6 +2389,41 @@ export default function Canvas() {
 								type="checkbox"
 								checked={fill}
 								onChange={(event) => setFill(event.target.checked)}
+							/>
+						</span>
+					</label>
+
+					<label style={controlLabelStyle}>
+						<span style={controlNameStyle}>Font</span>
+						<span style={controlFieldStyle}>
+							<select
+								value={activeTextFontFamily}
+								onChange={(event) => applyTextFontFamily(event.target.value as TextFontFamily)}
+							>
+								{TEXT_FONT_OPTIONS.map((fontOption) => (
+									<option key={fontOption} value={fontOption}>
+										{fontOption}
+									</option>
+								))}
+							</select>
+						</span>
+					</label>
+
+					<label style={controlLabelStyle}>
+						<span style={controlNameStyle}>Font Size</span>
+						<span style={controlFieldStyle}>
+							<input
+								type="number"
+								min={8}
+								max={144}
+								step={1}
+								value={activeTextFontSize}
+								onChange={(event) => {
+									const parsed = Number(event.target.value);
+									if (Number.isNaN(parsed)) return;
+									applyTextFontSize(parsed);
+								}}
+								style={{ width: "64px" }}
 							/>
 						</span>
 					</label>
@@ -1976,17 +2489,19 @@ export default function Canvas() {
 							transformOrigin: "center center",
 							boxSizing: "border-box",
 							border: "1px solid #f59e0b",
+							borderRadius: editingTextStyle.borderRadius,
 							background: "rgba(255,255,255,0.92)",
 							color: editingTextStyle.color,
 							fontSize: editingTextStyle.fontSize,
 							lineHeight: 1.2,
-							padding: "6px",
+							padding: editingTextStyle.padding,
+							textAlign: editingTextStyle.textAlign,
 							resize: "none",
 							outline: "none",
 							overflow: "hidden",
 							whiteSpace: "pre-wrap",
 							wordBreak: "break-word",
-							fontFamily: "Arial, sans-serif",
+							fontFamily: editingTextStyle.fontFamily,
 						}}
 					/>
 				) : null}
