@@ -680,31 +680,36 @@ const normalizeHexColor = (value: string, fallback: string) => {
 };
 
 function ColorPickerControl({
+	pickerId,
 	label,
 	value,
 	onChange,
 	defaultValue,
+	onOpenChange,
 }: {
+	pickerId: string;
 	label: string;
 	value: string;
 	onChange: (value: string) => void;
 	defaultValue: string;
+	onOpenChange?: (pickerId: string, isOpen: boolean) => void;
 }) {
 	const [open, setOpen] = useState(false);
 	const [draftColor, setDraftColor] = useState(() => normalizeHexColor(value, defaultValue));
 	const [trianglePoint, setTrianglePoint] = useState({ x: 0.5, y: 0.34 });
+	const [wheelHue, setWheelHue] = useState(0);
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
 	const wheelRef = useRef<HTMLDivElement | null>(null);
 	const triangleRef = useRef<HTMLDivElement | null>(null);
 	const dragModeRef = useRef<"wheel" | "triangle" | null>(null);
+	const pendingDragEventRef = useRef<{ mode: "wheel" | "triangle"; clientX: number; clientY: number } | null>(null);
+	const dragFrameRef = useRef<number | null>(null);
 
 	const currentColor = normalizeHexColor(value, defaultValue);
 	const currentRgb = hexToRgb(currentColor) ?? hexToRgb(defaultValue) ?? { r: 0, g: 0, b: 0 };
-	const currentHsl = rgbToHsl(currentRgb);
 	const draftRgb = hexToRgb(draftColor) ?? currentRgb;
 	const draftHsl = rgbToHsl(draftRgb);
-	const wheelHue = draftHsl.h;
 	const triangleTopColor = hslToRgb(wheelHue, 1, 0.5);
 	const triangleVertices = {
 		top: { x: 0.5, y: 0.02 },
@@ -754,20 +759,38 @@ function ColorPickerControl({
 		return candidates.sort((first, second) => first.distance - second.distance)[0]!.point;
 	};
 
-	const trianglePointToColor = (point: { x: number; y: number }) => {
+	const trianglePointToColor = (point: { x: number; y: number }, hue = wheelHue) => {
 		const a = triangleVertices.top;
 		const b = triangleVertices.left;
 		const c = triangleVertices.right;
+		const topColor = hslToRgb(hue, 1, 0.5);
 		const denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
 		const baryA = ((b.y - c.y) * (point.x - c.x) + (c.x - b.x) * (point.y - c.y)) / denominator;
 		const baryB = ((c.y - a.y) * (point.x - c.x) + (a.x - c.x) * (point.y - c.y)) / denominator;
 		const baryC = 1 - baryA - baryB;
 		return mixRgb([
-			{ color: triangleTopColor, weight: baryA },
+			{ color: topColor, weight: baryA },
 			{ color: { r: 0, g: 0, b: 0 }, weight: baryB },
 			{ color: { r: 255, g: 255, b: 255 }, weight: baryC },
 		]);
 	};
+
+	useEffect(() => {
+		const nextHsl = rgbToHsl(currentRgb);
+		if (nextHsl.s > 0.001) {
+			setWheelHue(nextHsl.h);
+		}
+	}, [currentRgb.r, currentRgb.g, currentRgb.b]);
+
+	useEffect(() => {
+		onOpenChange?.(pickerId, open);
+	}, [open, onOpenChange, pickerId]);
+
+	useEffect(() => {
+		return () => {
+			onOpenChange?.(pickerId, false);
+		};
+	}, [onOpenChange, pickerId]);
 
 	useEffect(() => {
 		if (!open) {
@@ -803,9 +826,10 @@ function ColorPickerControl({
 		const centerX = rect.left + rect.width / 2;
 		const centerY = rect.top + rect.height / 2;
 		const angle = Math.atan2(clientY - centerY, clientX - centerX);
-		const hue = ((angle * 180) / Math.PI + 360) % 360;
-		const rgb = hslToRgb(hue, draftHsl.s, draftHsl.l);
-		setDraftColor(rgbToHex(rgb));
+		const hue = ((angle * 180) / Math.PI + 450) % 360;
+		setWheelHue((previousHue) => (Math.abs(previousHue - hue) < 0.0001 ? previousHue : hue));
+		const nextColor = trianglePointToColor(trianglePoint, hue);
+		setDraftColor((previousColor) => (previousColor === nextColor ? previousColor : nextColor));
 	};
 
 	const updateFromTriangle = (clientX: number, clientY: number) => {
@@ -817,8 +841,38 @@ function ColorPickerControl({
 			y: (clientY - rect.top) / rect.height,
 		});
 		setTrianglePoint(normalizedPoint);
-		setDraftColor(trianglePointToColor(normalizedPoint));
+		const nextColor = trianglePointToColor(normalizedPoint);
+		setDraftColor((previousColor) => (previousColor === nextColor ? previousColor : nextColor));
 	};
+
+	const flushPendingDragUpdate = () => {
+		const pending = pendingDragEventRef.current;
+		if (!pending) return;
+		if (pending.mode === "wheel") {
+			updateFromWheel(pending.clientX, pending.clientY);
+		} else {
+			updateFromTriangle(pending.clientX, pending.clientY);
+		}
+	};
+
+	const scheduleDragUpdate = (mode: "wheel" | "triangle", clientX: number, clientY: number) => {
+		pendingDragEventRef.current = { mode, clientX, clientY };
+		if (dragFrameRef.current !== null) return;
+		dragFrameRef.current = requestAnimationFrame(() => {
+			dragFrameRef.current = null;
+			flushPendingDragUpdate();
+		});
+	};
+
+	useEffect(() => {
+		return () => {
+			if (dragFrameRef.current !== null) {
+				cancelAnimationFrame(dragFrameRef.current);
+				dragFrameRef.current = null;
+			}
+			pendingDragEventRef.current = null;
+		};
+	}, []);
 
 	const handleWheelPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
 		event.preventDefault();
@@ -829,7 +883,7 @@ function ColorPickerControl({
 
 	const handleWheelPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
 		if (dragModeRef.current !== "wheel") return;
-		updateFromWheel(event.clientX, event.clientY);
+		scheduleDragUpdate("wheel", event.clientX, event.clientY);
 	};
 
 	const handleTrianglePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -841,11 +895,17 @@ function ColorPickerControl({
 
 	const handleTrianglePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
 		if (dragModeRef.current !== "triangle") return;
-		updateFromTriangle(event.clientX, event.clientY);
+		scheduleDragUpdate("triangle", event.clientX, event.clientY);
 	};
 
 	const stopDragging = () => {
 		dragModeRef.current = null;
+		if (dragFrameRef.current !== null) {
+			cancelAnimationFrame(dragFrameRef.current);
+			dragFrameRef.current = null;
+		}
+		flushPendingDragUpdate();
+		pendingDragEventRef.current = null;
 	};
 
 	return (
@@ -980,6 +1040,7 @@ export default function Canvas() {
 	const [textFontFamily, setTextFontFamily] = useState<TextFontFamily>(DEFAULT_TEXT_FONT_FAMILY);
 	const [textFontSize, setTextFontSize] = useState(DEFAULT_TEXT_FONT_SIZE);
 	const [zoomPercent, setZoomPercent] = useState(100);
+	const [openColorPickers, setOpenColorPickers] = useState<Record<string, boolean>>({});
 	const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 	const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
 	const [editingTextShapeId, setEditingTextShapeId] = useState<string | null>(null);
@@ -1029,9 +1090,13 @@ export default function Canvas() {
 	const editingTextShapeIdRef = useRef<string | null>(null);
 	const textEditSessionInitialTextRef = useRef("");
 	const textEditSessionSnapshotPushedRef = useRef(false);
+	const marqueeSelectionStartRef = useRef<{ x: number; y: number } | null>(null);
+	const marqueeSelectionCurrentRef = useRef<{ x: number; y: number } | null>(null);
+	const marqueeSelectionAdditiveRef = useRef(false);
+	const marqueeSelectionInitialIdsRef = useRef<string[]>([]);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
-	const dotRef = useRef(true);
+	const isAnyColorPickerOpen = Object.values(openColorPickers).some(Boolean);
 
 	const applySelection = (nextSelectedIds: string[]) => {
 		const uniqueIds = Array.from(new Set(nextSelectedIds));
@@ -1040,6 +1105,20 @@ export default function Canvas() {
 		const singleSelectedId = uniqueIds.length === 1 ? uniqueIds[0]! : null;
 		selectedShapeIdRef.current = singleSelectedId;
 		setSelectedShapeId(singleSelectedId);
+	};
+
+	const getShapeIdsInSelectionRect = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+		const minX = Math.min(start.x, end.x);
+		const maxX = Math.max(start.x, end.x);
+		const minY = Math.min(start.y, end.y);
+		const maxY = Math.max(start.y, end.y);
+
+		return shapesRef.current
+			.filter((shape) => {
+				const bounds = getShapeBounds(shape);
+				return bounds.maxX >= minX && bounds.minX <= maxX && bounds.maxY >= minY && bounds.minY <= maxY;
+			})
+			.map((shape) => shape.id);
 	};
 
 	const clearCanvas = () => {
@@ -1061,7 +1140,6 @@ export default function Canvas() {
 		eraserMarkedShapeIdsRef.current.clear();
 		eraserTouchLatchRef.current.clear();
 		eraserLastPointRef.current = null;
-		dotRef.current = true;
 	};
 
 	const syncEditingTextShape = () => {
@@ -1224,6 +1302,20 @@ export default function Canvas() {
 		return target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
 	};
 
+	const handleColorPickerOpenChange = (pickerId: string, isOpen: boolean) => {
+		setOpenColorPickers((previous) => {
+			if (isOpen) {
+				if (previous[pickerId]) return previous;
+				return { ...previous, [pickerId]: true };
+			}
+
+			if (!(pickerId in previous)) return previous;
+			const next = { ...previous };
+			delete next[pickerId];
+			return next;
+		});
+	};
+
 	const controlLabelStyle = {
 		display: "grid",
 		gridTemplateRows: "22px 34px",
@@ -1267,12 +1359,30 @@ export default function Canvas() {
 			strokeWeight,
 			textFontFamily,
 			textFontSize,
+			isAnyColorPickerOpen,
 		};
 
 		if (tool !== "text" && tool !== "textbox" && tool !== "textcircle" && tool !== "cursor" && editingTextShapeIdRef.current) {
 			stopTextEditing();
 		}
-	}, [backgroundColor, lineColor, tool, fill, strokeWeight, textFontFamily, textFontSize]);
+	}, [backgroundColor, lineColor, tool, fill, strokeWeight, textFontFamily, textFontSize, isAnyColorPickerOpen]);
+
+	useEffect(() => {
+		if (!isAnyColorPickerOpen) return;
+		draftShapeRef.current = null;
+		dragStartRef.current = null;
+		marqueeSelectionStartRef.current = null;
+		marqueeSelectionCurrentRef.current = null;
+		marqueeSelectionAdditiveRef.current = false;
+		marqueeSelectionInitialIdsRef.current = [];
+		draggedShapeIdRef.current = null;
+		resizeSessionRef.current = null;
+		rotationSessionRef.current = null;
+		hoveredShapeIdRef.current = null;
+		hoveredHandleRef.current = null;
+		eraserTouchLatchRef.current = new Set();
+		eraserLastPointRef.current = null;
+	}, [isAnyColorPickerOpen]);
 
 	const selectedTextShapes = shapesRef.current.filter(
 		(shape): shape is TextShape => selectedShapeIdsRef.current.has(shape.id) && shape.kind === "text",
@@ -1314,6 +1424,7 @@ export default function Canvas() {
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
+			if (settingsRef.current.isAnyColorPickerOpen) return;
 			if (isEditableElement(event.target)) return;
 
 			const key = event.key.toLowerCase();
@@ -1465,6 +1576,20 @@ export default function Canvas() {
 			};
 
 			const syncHoverFromPointer = () => {
+				if (settingsRef.current.isAnyColorPickerOpen) {
+					hoveredShapeIdRef.current = null;
+					hoveredHandleRef.current = null;
+					s.cursor(s.ARROW);
+					return;
+				}
+
+				if (marqueeSelectionStartRef.current) {
+					hoveredShapeIdRef.current = null;
+					hoveredHandleRef.current = null;
+					s.cursor(s.CROSS);
+					return;
+				}
+
 				if (settingsRef.current.tool !== "cursor") {
 					hoveredShapeIdRef.current = null;
 					hoveredHandleRef.current = null;
@@ -1618,14 +1743,16 @@ export default function Canvas() {
 						s.vertex(point.x, point.y);
 					}
 					s.endShape();
+
 					if (isSelected || isHovered) {
+						const freehandBounds = getShapeBoundsIgnoreRotation(shape);
 						s.noFill();
 						s.stroke(highlightColor);
-						s.strokeWeight(1);
-						for (const point of shape.points) {
-							s.ellipse(point.x, point.y, 2, 2);
-						}
+						s.strokeWeight(2);
+						s.rectMode(s.CORNERS);
+						s.rect(freehandBounds.minX, freehandBounds.minY, freehandBounds.maxX, freehandBounds.maxY);
 					}
+
 					if (shape.angle !== 0) s.pop();
 					return;
 				}
@@ -1805,6 +1932,7 @@ export default function Canvas() {
 				renderer.parent(canvasHostRef.current!);
 
 				const handleWheel = (event: WheelEvent) => {
+					if (settingsRef.current.isAnyColorPickerOpen) return;
 					const canvasRect = renderer.elt.getBoundingClientRect();
 					const pointerX = event.clientX - canvasRect.left;
 					const pointerY = event.clientY - canvasRect.top;
@@ -1826,6 +1954,7 @@ export default function Canvas() {
 				};
 
 				const handleDoubleClick = (event: MouseEvent) => {
+					if (settingsRef.current.isAnyColorPickerOpen) return;
 					if (
 						settingsRef.current.tool !== "cursor" &&
 						settingsRef.current.tool !== "text" &&
@@ -1885,6 +2014,19 @@ export default function Canvas() {
 						isDraft: draftShapeRef.current.kind === "text",
 					});
 				}
+				if (marqueeSelectionStartRef.current && marqueeSelectionCurrentRef.current) {
+					const start = marqueeSelectionStartRef.current;
+					const current = marqueeSelectionCurrentRef.current;
+					s.noFill();
+					s.stroke("#2563eb");
+					s.strokeWeight(1 / viewRef.current.scale);
+					const context = s.drawingContext as CanvasRenderingContext2D;
+					context.save();
+					context.setLineDash([6 / viewRef.current.scale, 4 / viewRef.current.scale]);
+					s.rectMode(s.CORNERS);
+					s.rect(start.x, start.y, current.x, current.y);
+					context.restore();
+				}
 				const selectedShape = selectedShapeIdRef.current
 					? shapesRef.current.find((shape) => shape.id === selectedShapeIdRef.current) ?? null
 					: null;
@@ -1899,12 +2041,28 @@ export default function Canvas() {
 			};
 
 			s.mousePressed = (event: MouseEvent) => {
+				if (settingsRef.current.isAnyColorPickerOpen) {
+					dragStartRef.current = null;
+					marqueeSelectionStartRef.current = null;
+					marqueeSelectionCurrentRef.current = null;
+					marqueeSelectionAdditiveRef.current = false;
+					marqueeSelectionInitialIdsRef.current = [];
+					draggedShapeIdRef.current = null;
+					resizeSessionRef.current = null;
+					rotationSessionRef.current = null;
+					draftShapeRef.current = null;
+					return;
+				}
 				if ((event.buttons & 1) === 0) return;
 				if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
 				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
 
 				if (settingsRef.current.tool === "cursor" && editingTextShapeIdRef.current) {
 					dragStartRef.current = null;
+					marqueeSelectionStartRef.current = null;
+					marqueeSelectionCurrentRef.current = null;
+					marqueeSelectionAdditiveRef.current = false;
+					marqueeSelectionInitialIdsRef.current = [];
 					draggedShapeIdRef.current = null;
 					resizeSessionRef.current = null;
 					rotationSessionRef.current = null;
@@ -2005,8 +2163,23 @@ export default function Canvas() {
 					if (settingsRef.current.tool === "cursor") {
 						pushUndoSnapshot();
 					}
+					marqueeSelectionStartRef.current = null;
+					marqueeSelectionCurrentRef.current = null;
+					marqueeSelectionAdditiveRef.current = false;
+					marqueeSelectionInitialIdsRef.current = [];
 					draggedShapeIdRef.current = clickedShape.id;
 					hoveredShapeIdRef.current = clickedShape.id;
+					hoveredHandleRef.current = null;
+					return;
+				}
+
+				if (settingsRef.current.tool === "cursor") {
+					marqueeSelectionStartRef.current = { x: worldPoint.x, y: worldPoint.y };
+					marqueeSelectionCurrentRef.current = { x: worldPoint.x, y: worldPoint.y };
+					marqueeSelectionAdditiveRef.current = event.ctrlKey || event.metaKey;
+					marqueeSelectionInitialIdsRef.current = Array.from(selectedShapeIdsRef.current);
+					draggedShapeIdRef.current = null;
+					hoveredShapeIdRef.current = null;
 					hoveredHandleRef.current = null;
 					return;
 				}
@@ -2044,10 +2217,9 @@ export default function Canvas() {
 					return;
 				}
 
-				// Drawing mode
 				if (settingsRef.current.tool === "freehand") {
 					draftShapeRef.current = {
-						kind: settingsRef.current.tool,
+						kind: "freehand",
 						id: generateShapeId(),
 						points: [{ x: worldPoint.x, y: worldPoint.y }],
 						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
@@ -2071,32 +2243,33 @@ export default function Canvas() {
 				} as LineShape | ArrowShape | RectangleShape | CircleShape;
 			};
 
-				s.mouseClicked = () => {
-					if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
-					if (settingsRef.current.tool !== "freehand") return;
-					const worldPoint = screenToWorld(s.mouseX, s.mouseY);
-					if (!dotRef.current) {
-						dotRef.current = true;
-						return;
-					}
-					commitShape({
-						kind: "dot",
-						id: generateShapeId(),
-						x: worldPoint.x,
-						y: worldPoint.y,
-						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
-						strokeWeight: settingsRef.current.strokeWeight,
-						angle: 0,
-					});
-					draftShapeRef.current = null;
-					dragStartRef.current = null;
-				};
-
 			s.mouseDragged = (event: MouseEvent) => {
+				if (settingsRef.current.isAnyColorPickerOpen) return;
 				if ((event.buttons & 1) === 0) return;
 				if (settingsRef.current.tool === "cursor" && editingTextShapeIdRef.current) return;
 			if (!dragStartRef.current) return;
 			const worldPoint = screenToWorld(s.mouseX, s.mouseY);
+
+			if (
+				settingsRef.current.tool === "cursor" &&
+				marqueeSelectionStartRef.current &&
+				marqueeSelectionCurrentRef.current &&
+				!draggedShapeIdRef.current &&
+				!resizeSessionRef.current &&
+				!rotationSessionRef.current
+			) {
+				marqueeSelectionCurrentRef.current = { x: worldPoint.x, y: worldPoint.y };
+				const boxedIds = getShapeIdsInSelectionRect(marqueeSelectionStartRef.current, marqueeSelectionCurrentRef.current);
+				if (marqueeSelectionAdditiveRef.current) {
+					const merged = new Set([...marqueeSelectionInitialIdsRef.current, ...boxedIds]);
+					applySelection(Array.from(merged));
+				} else {
+					applySelection(boxedIds);
+				}
+				hoveredShapeIdRef.current = null;
+				hoveredHandleRef.current = null;
+				return;
+			}
 
 			if (settingsRef.current.tool === "eraser") {
 				const previousPoint = eraserLastPointRef.current;
@@ -2210,7 +2383,6 @@ export default function Canvas() {
 
 				// Drawing mode
 				if (!draftShapeRef.current) return;
-				dotRef.current = false;
 				if (draftShapeRef.current.kind === "freehand") {
 					draftShapeRef.current = {
 						...draftShapeRef.current,
@@ -2234,6 +2406,48 @@ export default function Canvas() {
 			};
 
 			s.mouseReleased = () => {
+				if (settingsRef.current.isAnyColorPickerOpen) {
+					dragStartRef.current = null;
+					marqueeSelectionStartRef.current = null;
+					marqueeSelectionCurrentRef.current = null;
+					marqueeSelectionAdditiveRef.current = false;
+					marqueeSelectionInitialIdsRef.current = [];
+					draggedShapeIdRef.current = null;
+					resizeSessionRef.current = null;
+					rotationSessionRef.current = null;
+					draftShapeRef.current = null;
+					return;
+				}
+
+				if (settingsRef.current.tool === "cursor" && marqueeSelectionStartRef.current && marqueeSelectionCurrentRef.current) {
+					const start = marqueeSelectionStartRef.current;
+					const end = marqueeSelectionCurrentRef.current;
+					const dragDistance = Math.hypot(end.x - start.x, end.y - start.y);
+					const minimumDragDistance = 3 / viewRef.current.scale;
+
+					if (dragDistance < minimumDragDistance) {
+						if (!marqueeSelectionAdditiveRef.current) {
+							applySelection([]);
+						}
+					} else {
+						const boxedIds = getShapeIdsInSelectionRect(start, end);
+						if (marqueeSelectionAdditiveRef.current) {
+							const merged = new Set([...marqueeSelectionInitialIdsRef.current, ...boxedIds]);
+							applySelection(Array.from(merged));
+						} else {
+							applySelection(boxedIds);
+						}
+					}
+
+					marqueeSelectionStartRef.current = null;
+					marqueeSelectionCurrentRef.current = null;
+					marqueeSelectionAdditiveRef.current = false;
+					marqueeSelectionInitialIdsRef.current = [];
+					dragStartRef.current = null;
+					hoveredShapeIdRef.current = null;
+					hoveredHandleRef.current = null;
+					return;
+				}
 				if (rotationSessionRef.current) {
 					rotationSessionRef.current = null;
 					dragStartRef.current = null;
@@ -2296,6 +2510,10 @@ export default function Canvas() {
 			s.mouseOut = () => {
 				hoveredShapeIdRef.current = null;
 				hoveredHandleRef.current = null;
+				marqueeSelectionStartRef.current = null;
+				marqueeSelectionCurrentRef.current = null;
+				marqueeSelectionAdditiveRef.current = false;
+				marqueeSelectionInitialIdsRef.current = [];
 				eraserTouchLatchRef.current = new Set();
 				eraserLastPointRef.current = null;
 				s.cursor(settingsRef.current.tool === "cursor" ? s.ARROW : s.CROSS);
@@ -2345,19 +2563,23 @@ export default function Canvas() {
 				<div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "center", flexWrap: "wrap", alignContent: "center" }}>
 					<div style={controlLabelStyle}>
 						<ColorPickerControl
+							pickerId="background"
 							label="Background"
 							value={backgroundColor}
 							onChange={setBackgroundColor}
 							defaultValue={DEFAULT_BACKGROUND_COLOR}
+							onOpenChange={handleColorPickerOpenChange}
 						/>
 					</div>
 
 					<div style={controlLabelStyle}>
 						<ColorPickerControl
+							pickerId="line"
 							label="Line Color"
 							value={lineColor}
 							onChange={setLineColor}
 							defaultValue={DEFAULT_LINE_COLOR}
+							onOpenChange={handleColorPickerOpenChange}
 						/>
 					</div>
 
