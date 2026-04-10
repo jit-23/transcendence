@@ -43,7 +43,7 @@ function NotFound() {
                 <p style={{ color: 'var(--ink3)', margin: '12px 0 24px', fontSize: '0.85rem' }}>
                     This page doesn't exist.
                 </p>
-                <Link to="/" className="btn btn-ghost">← Go home</Link>
+                <Link to="/dashboard" className="btn btn-ghost">← Go to dashboard</Link>
             </div>
         </div>
     );
@@ -98,7 +98,9 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Home />} />
+                <Route path="/" element={
+                    <PublicRoute><Home /></PublicRoute>
+                } />
 
                 <Route path="/login" element={
                     <PublicRoute><LoginForm /></PublicRoute>
