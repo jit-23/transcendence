@@ -11,6 +11,7 @@ export function     LoginForm() {
     const [needs2FA, setNeeds2FA]   = useState(false);
     const [loading, setLoading]     = useState(false);
     const [error, setError]         = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
     const { login }                 = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
@@ -134,13 +135,23 @@ export function     LoginForm() {
                             </div>
                             <div className="form-group">
                                 <label>Password</label>
-                                <input
-                                    type="password"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                />
+                                <div className="input-with-action">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-action-btn"
+                                        onClick={() => setShowPassword(prev => !prev)}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? 'Hide' : 'Show'}
+                                    </button>
+                                </div>
                             </div>
                             <button
                                 type="submit"
@@ -166,6 +177,8 @@ export function     LoginForm() {
                             <a
                                 href="http://localhost:8081/users/auth/google"
                                 className="btn btn-ghost btn-full"
+                                aria-disabled={loading}
+                                onClick={(e) => { if (loading) e.preventDefault(); }}
                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}
                             >
                                 <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -180,6 +193,8 @@ export function     LoginForm() {
                             <a
                                 href="http://localhost:8081/users/auth/42"
                                 className="btn btn-ghost btn-full"
+                                aria-disabled={loading}
+                                onClick={(e) => { if (loading) e.preventDefault(); }}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -187,6 +202,8 @@ export function     LoginForm() {
                                     gap: 8,
                                     textDecoration: 'none',
                                     fontWeight: 700,
+                                    opacity: loading ? 0.5 : 1,
+                                    pointerEvents: loading ? 'none' : 'auto',
                                 }}
                             >
                                 <span style={{
@@ -240,6 +257,7 @@ export function     LoginForm() {
                             </div>
                             <button
                                 className="btn btn-primary btn-full"
+                                type="button"
                                 onClick={handle2FA}
                                 disabled={!tempToken || loading}
                             >
@@ -247,7 +265,9 @@ export function     LoginForm() {
                             </button>
                             <button
                                 className="btn btn-ghost btn-full"
+                                type="button"
                                 onClick={() => { setNeeds2FA(false); setError(null); setCode(''); }}
+                                disabled={loading}
                             >
                                 ← Back to login
                             </button>

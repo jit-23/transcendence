@@ -159,6 +159,35 @@ input:focus {
 }
 input:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.input-with-action {
+    position: relative;
+}
+
+.input-with-action input {
+    padding-right: 58px;
+}
+
+.input-action-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink2);
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    padding: 4px 8px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.input-action-btn:hover {
+    border-color: var(--border2);
+    color: var(--ink);
+}
+
 /* ─── Buttons ────────────────────────────────────────────────────────────────── */
 .btn {
     display: inline-flex;

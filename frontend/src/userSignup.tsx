@@ -13,6 +13,7 @@ export function SignupForm() {
     const [username, setUsername] = useState('');
     const [email, setEmail]       = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     // Step 2
     const [selected, setSelected] = useState<string>('default:1');
@@ -24,6 +25,7 @@ export function SignupForm() {
 
     const { theme, toggleTheme }  = useTheme();
     const navigate                = useNavigate();
+    const passwordTooShort = !!password && password.length < 6;
 
     // ── Step 1 → 2: validate fields then show avatar picker ──────────────────
     const handleNext = (e: React.FormEvent) => {
@@ -143,17 +145,31 @@ export function SignupForm() {
                             </div>
                             <div className="form-group">
                                 <label>Password</label>
-                                <input
-                                    type="password"
-                                    placeholder="at least 6 characters"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                />
+                                <div className="input-with-action">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="at least 6 characters"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-action-btn"
+                                        onClick={() => setShowPassword(prev => !prev)}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? 'Hide' : 'Show'}
+                                    </button>
+                                </div>
+                                {passwordTooShort && (
+                                    <p className="form-hint form-hint-error">Use at least 6 characters.</p>
+                                )}
                             </div>
                             <button
                                 type="submit"
                                 className="btn btn-primary btn-full"
+                                disabled={loading}
                                 style={{ marginTop: 6 }}
                             >
                                 Next →
@@ -174,6 +190,8 @@ export function SignupForm() {
                             <a
                                 href="http://localhost:8081/users/auth/google"
                                 className="btn btn-ghost btn-full"
+                                aria-disabled={loading}
+                                onClick={(e) => { if (loading) e.preventDefault(); }}
                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}
                             >
                                 <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -188,6 +206,8 @@ export function SignupForm() {
                             <a
                                 href="http://localhost:8081/users/auth/42"
                                 className="btn btn-ghost btn-full"
+                                aria-disabled={loading}
+                                onClick={(e) => { if (loading) e.preventDefault(); }}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -195,6 +215,8 @@ export function SignupForm() {
                                     gap: 8,
                                     textDecoration: 'none',
                                     fontWeight: 700,
+                                    opacity: loading ? 0.5 : 1,
+                                    pointerEvents: loading ? 'none' : 'auto',
                                 }}
                             >
                                 <span style={{
