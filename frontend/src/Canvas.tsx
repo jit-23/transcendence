@@ -15,6 +15,7 @@ type Tool =
 	| "cursor";
 
 type TextShapeKind = "text" | "textbox" | "rounded-textbox";
+type TextFont = "Arial" | "Georgia" | "Courier New";
 
 type LineShape = {
 	kind: "line";
@@ -89,6 +90,7 @@ type TextShape = {
 	color: string;
 	strokeWeight: number;
 	angle: number;
+	font: TextFont;
 	content: string;
 };
 
@@ -668,6 +670,8 @@ const getShapeBoundsIgnoreRotation = (shape: Shape): Bounds => {
 
 const DEFAULT_BACKGROUND_COLOR = "#ffffff";
 const DEFAULT_LINE_COLOR = "#111111";
+const DEFAULT_TEXT_FONT: TextFont = "Arial";
+const TEXT_FONT_OPTIONS: TextFont[] = ["Arial", "Georgia", "Courier New"];
 const COLOR_SWATCHES = [
 	"#111111",
 	"#ffffff",
@@ -1120,6 +1124,7 @@ export default function Canvas() {
 	const [tool, setTool] = useState<Tool>("cursor");
 	const [fill, setFill] = useState(false);
 	const [strokeWeight, setStrokeWeight] = useState(4);
+	const [textFont, setTextFont] = useState<TextFont>(DEFAULT_TEXT_FONT);
 	const [zoomPercent, setZoomPercent] = useState(100);
 	const [openColorPickers, setOpenColorPickers] = useState<Record<string, boolean>>({});
 	const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
@@ -1156,6 +1161,7 @@ export default function Canvas() {
 		tool: "cursor" as Tool,
 		fill: false,
 		strokeWeight: 4,
+		textFont: DEFAULT_TEXT_FONT,
 	});
 
 	const shapesRef = useRef<Shape[]>([]);
@@ -1381,9 +1387,26 @@ export default function Canvas() {
 			tool,
 			fill,
 			strokeWeight,
+			textFont,
 			isAnyColorPickerOpen,
 		};
-	}, [backgroundColor, lineColor, tool, fill, strokeWeight, isAnyColorPickerOpen]);
+	}, [backgroundColor, lineColor, tool, fill, strokeWeight, textFont, isAnyColorPickerOpen]);
+
+	useEffect(() => {
+		const targetShapeId = editingTextShapeIdRef.current ?? selectedShapeIdRef.current;
+		if (!targetShapeId) return;
+		const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === targetShapeId);
+		if (shapeIndex < 0) return;
+		const shape = shapesRef.current[shapeIndex];
+		if (!isTextShape(shape)) return;
+		if (shape.font === textFont) return;
+
+		pushUndoSnapshot();
+		shapesRef.current[shapeIndex] = {
+			...shape,
+			font: textFont,
+		};
+	}, [textFont]);
 
 	useEffect(() => {
 		if (!isAnyColorPickerOpen) return;
@@ -1644,6 +1667,7 @@ export default function Canvas() {
 				const layout = getTextBoxLayout(shape);
 				const clampedIndex = Math.max(0, Math.min(index, shape.content.length));
 				s.push();
+				s.textFont(shape.font || DEFAULT_TEXT_FONT);
 				s.textSize(layout.textSize);
 				const contentBeforeCaret = shape.content.slice(0, clampedIndex);
 				const lines = wrapTextToWidth(s, contentBeforeCaret, Math.max(1, layout.boxWidth - layout.padding * 2));
@@ -2047,6 +2071,7 @@ export default function Canvas() {
 					context.rect(layout.minX + 1, layout.minY + 1, layout.boxWidth - 2, layout.boxHeight - 2);
 					context.clip();
 					s.textAlign(s.LEFT, s.TOP);
+					s.textFont(shape.font || DEFAULT_TEXT_FONT);
 					s.textSize(layout.textSize);
 
 					if (hasSelection) {
@@ -2432,6 +2457,7 @@ export default function Canvas() {
 						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
 						strokeWeight: settingsRef.current.strokeWeight,
 						angle: 0,
+						font: settingsRef.current.textFont,
 						content: "",
 					} as TextShape;
 					return;
@@ -2802,17 +2828,17 @@ export default function Canvas() {
 								value={tool}
 								onChange={(event) => setTool(event.target.value as Tool)}
 							>
-								<option value="cursor">Cursor</option>
-								<option value="freehand">Free Hand</option>
-								<option value="eraser">Eraser</option>
-								<option value="line">Line</option>
-								<option value="arrow">Arrow</option>
-								<option value="rectangle">Rectangle</option>
-								<option value="rounded-rectangle">Rounded Rectangle</option>
-								<option value="circle">Circle</option>
-								<option value="text">Text</option>
-								<option value="textbox">Text Box</option>
-								<option value="rounded-textbox">Rounded Text Box</option>
+								<option value="cursor">🖱️ Cursor</option>
+								<option value="freehand">✏️ Free Hand</option>
+								<option value="eraser">🧽 Eraser</option>
+								<option value="line">📏 Line</option>
+								<option value="arrow">➡️ Arrow</option>
+								<option value="rectangle">▭ Rectangle</option>
+								<option value="rounded-rectangle">▢ Rounded Rectangle</option>
+								<option value="circle">◯ Circle</option>
+								<option value="text">🔤 Text</option>
+								<option value="textbox">📝 Text Box</option>
+								<option value="rounded-textbox">📄 Rounded Text Box</option>
 							</select>
 						</span>
 					</label>
@@ -2825,6 +2851,19 @@ export default function Canvas() {
 								checked={fill}
 								onChange={(event) => setFill(event.target.checked)}
 							/>
+						</span>
+					</label>
+
+					<label style={controlLabelStyle}>
+						<span style={controlNameStyle}>Text Font</span>
+						<span style={controlFieldStyle}>
+							<select value={textFont} onChange={(event) => setTextFont(event.target.value as TextFont)} style={{ fontFamily: textFont }}>
+								{TEXT_FONT_OPTIONS.map((fontOption) => (
+									<option key={fontOption} value={fontOption} style={{ fontFamily: fontOption }}>
+										{fontOption}
+									</option>
+								))}
+							</select>
 						</span>
 					</label>
 
