@@ -231,8 +231,16 @@ export const updateMe = async (req: Request, res: Response) => {
         // Always verify current password first
         if (!currentPassword)
             return res.status(400).json({ error: "Current password is required" });
-        if (!user.password)
-            return res.status(400).json({ error: "This account uses Google Sign-In. Password changes are not supported." });
+        if (!user.password) {
+            const providers: string[] = [];
+            if (user.googleId) providers.push("Google");
+            if (user.fortyTwoId) providers.push("42 login");
+            const providerText = providers.length ? providers.join("/") : "OAuth";
+
+            return res.status(400).json({
+                error: `This account uses ${providerText}. Password changes are not supported.`,
+            });
+        }
         const validPassword = await bcrypt.compare(currentPassword, user.password);
         if (!validPassword)
             return res.status(401).json({ error: "Current password is incorrect" });

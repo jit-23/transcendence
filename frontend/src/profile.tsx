@@ -21,7 +21,6 @@ export function ProfilePage() {
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
-    const token = sessionStorage.getItem("token");//is this safe?
     const saveAvatar = async (avatar: string) => {
         const token = sessionStorage.getItem("token");
         if (!token) throw new Error("Not authenticated");
@@ -81,11 +80,17 @@ export function ProfilePage() {
 
         setLoading(true);
         try {
+            const token = sessionStorage.getItem("token");
+            if (!token) {
+                setError("Not authenticated. Please login again.");
+                return;
+            }
+
             const res  = await fetch('http://localhost:8081/users/me', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify(body),
             });
