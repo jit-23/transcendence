@@ -8,6 +8,45 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
+type AvatarValidationResult =
+    | { valid: true; avatar: string }
+    | { valid: false; status: number; error: string };
+
+function validateAvatarValue(avatar: string): AvatarValidationResult {
+    if (avatar.startsWith("default:")) {
+        const num = parseInt(avatar.split(":")[1]);
+        if (isNaN(num) || num < 1 || num > 4) {
+            return { valid: false, status: 400, error: "Invalid default avatar (choose 1–4)" };
+        }
+        return { valid: true, avatar };
+    }
+
+    if (avatar.startsWith("data:image/")) {
+        const sizeBytes = (avatar.length * 3) / 4;
+        if (sizeBytes > 2 * 1024 * 1024) {
+            return { valid: false, status: 413, error: "Image too large (max 2MB)" };
+        }
+
+        const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
+        if (!validTypes.some(t => avatar.startsWith(t))) {
+            return { valid: false, status: 400, error: "Only JPG, PNG or WebP allowed" };
+        }
+
+        return { valid: true, avatar };
+    }
+
+    return { valid: false, status: 400, error: "Invalid avatar format" };
+}
+
+function verifyTotpCode(secret: string, code: string): boolean {
+    return speakeasy.totp.verify({
+        secret,
+        encoding: "base32",
+        token: code,
+        window: 1,
+    });
+}
+
 async function hasBlockRelation(userAId: number, userBId: number) {
     const relation = await prisma.user_block.findFirst({
         where: {
@@ -71,15 +110,10 @@ export const createUser = async (req: Request, res: Response) => {
 
         // Validate avatar if provided
         let validatedAvatar: string | null = null;
-        if (avatar) {
-            if (avatar.startsWith("default:")) {
-                const num = parseInt(avatar.split(":")[1]);
-                if (!isNaN(num) && num >= 1 && num <= 4) validatedAvatar = avatar;
-            } else if (avatar.startsWith("data:image/")) {
-                const sizeBytes = (avatar.length * 3) / 4;
-                const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
-                if (sizeBytes <= 2 * 1024 * 1024 && validTypes.some(t => avatar.startsWith(t)))
-                    validatedAvatar = avatar;
+        if (typeof avatar === "string") {
+            const avatarValidation = validateAvatarValue(avatar);
+            if (avatarValidation.valid) {
+                validatedAvatar = avatarValidation.avatar;
             }
         }
 
@@ -148,12 +182,7 @@ export const login2FA = async (req: Request, res: Response) => {
     const user = await prisma.my_users.findUnique({ where: { id: payload.userId } });
     if (!user || !user.twoFactorSecret) return res.status(400).json({ error: "2FA not configured" });
 
-    const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: "base32",
-        token: code,
-        window: 1,
-    });
+    const verified = verifyTotpCode(user.twoFactorSecret, code);
 
     if (!verified) return res.status(400).json({ error: "Invalid code" });
 
@@ -196,9 +225,7 @@ export const confirm2FA = async (req: Request, res: Response) => {
         if (user.twoFactorEnabled)
             return res.status(400).json({ error: "2FA already active" });
 
-        const valid = speakeasy.totp.verify({
-            secret: user.twoFactorSecret, encoding: "base32", token: code, window: 1,
-        });
+        const valid = verifyTotpCode(user.twoFactorSecret, code);
         if (!valid) return res.status(401).json({ error: "Invalid code — scan the QR again" });
 
         await prisma.my_users.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
@@ -222,9 +249,7 @@ export const disable2FA = async (req: Request, res: Response) => {
         if (!user.twoFactorEnabled || !user.twoFactorSecret)
             return res.status(400).json({ error: "2FA is not enabled" });
 
-        const valid = speakeasy.totp.verify({
-            secret: user.twoFactorSecret, encoding: "base32", token: code, window: 1,
-        });
+        const valid = verifyTotpCode(user.twoFactorSecret, code);
         if (!valid) return res.status(401).json({ error: "Invalid 2FA code" });
 
         await prisma.my_users.update({
@@ -469,34 +494,20 @@ export const updateAvatar = async (req: Request, res: Response) => {
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
         const { avatar } = req.body;
-        if (!avatar) return res.status(400).json({ error: "Avatar required" });
+        if (!avatar || typeof avatar !== "string")
+            return res.status(400).json({ error: "Avatar required" });
 
-        // Validate default selection
-        if (avatar.startsWith("default:")) {
-            const num = parseInt(avatar.split(":")[1]);
-            if (isNaN(num) || num < 1 || num > 4)
-                return res.status(400).json({ error: "Invalid default avatar (choose 1–4)" });
-        }
-        // Validate base64 upload
-        else if (avatar.startsWith("data:image/")) {
-            // Rough size check — base64 of 1MB image ≈ 1.37MB string
-            const sizeBytes = (avatar.length * 3) / 4;
-            if (sizeBytes > 2 * 1024 * 1024)
-                return res.status(413).json({ error: "Image too large (max 2MB)" });
-
-            const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
-            if (!validTypes.some(t => avatar.startsWith(t)))
-                return res.status(400).json({ error: "Only JPG, PNG or WebP allowed" });
-        } else {
-            return res.status(400).json({ error: "Invalid avatar format" });
+        const avatarValidation = validateAvatarValue(avatar);
+        if (avatarValidation.valid === false) {
+            return res.status(avatarValidation.status).json({ error: avatarValidation.error });
         }
 
         await prisma.my_users.update({
             where: { id: auth.userId },
-            data: { avatar },
+            data: { avatar: avatarValidation.avatar },
         });
 
-        return res.json({ message: "Avatar updated", avatar });
+        return res.json({ message: "Avatar updated", avatar: avatarValidation.avatar });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }

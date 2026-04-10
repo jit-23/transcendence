@@ -37,6 +37,92 @@ function consumeOAuthState(req: Request, res: Response, cookieName: string): str
     return expectedState;
 }
 
+function signAccessToken(userId: number): string {
+    return jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+}
+
+function signPending2FAToken(userId: number): string {
+    return jwt.sign(
+        { userId, pending2FA: true },
+        process.env.JWT_SECRET!,
+        { expiresIn: "5m" }
+    );
+}
+
+function validateOAuthCodeAndState(
+    req: Request,
+    res: Response,
+    frontendUrl: string,
+    stateCookieName: string
+): string | null {
+    const { code, state } = req.query;
+    const expectedState = consumeOAuthState(req, res, stateCookieName);
+
+    if (!state || typeof state !== "string" || !expectedState || state !== expectedState) {
+        res.redirect(`${frontendUrl}/login?error=oauth_state`);
+        return null;
+    }
+
+    if (!code || typeof code !== "string") {
+        res.redirect(`${frontendUrl}/login?error=oauth_failed`);
+        return null;
+    }
+
+    return code;
+}
+
+async function exchangeAuthCodeForAccessToken(
+    tokenUrl: string,
+    body: URLSearchParams,
+    providerLabel: string
+): Promise<string | null> {
+    const tokenRes = await fetch(tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+    });
+
+    if (!tokenRes.ok) {
+        console.error(`${providerLabel} token exchange failed:`, await tokenRes.text());
+        return null;
+    }
+
+    const tokens = await tokenRes.json() as { access_token?: string };
+    if (!tokens.access_token) {
+        console.error(`${providerLabel} token response missing access token`);
+        return null;
+    }
+
+    return tokens.access_token;
+}
+
+async function fetchOAuthProfile<T>(profileUrl: string, accessToken: string): Promise<T | null> {
+    const profileRes = await fetch(profileUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!profileRes.ok) {
+        return null;
+    }
+
+    return await profileRes.json() as T;
+}
+
+function redirectAfterOAuthLogin(
+    res: Response,
+    frontendUrl: string,
+    user: { id: number; twoFactorEnabled: boolean }
+) {
+    if (user.twoFactorEnabled) {
+        const tempToken = signPending2FAToken(user.id);
+        const hash = new URLSearchParams({ requires2FA: "true", tempToken }).toString();
+        return res.redirect(`${frontendUrl}/oauth/callback#${hash}`);
+    }
+
+    const token = signAccessToken(user.id);
+    return res.redirect(`${frontendUrl}/oauth/callback#token=${token}`);
+}
+
 async function generateUniqueUsername(baseValue: string) {
     const normalized = baseValue.replace(/\s+/g, "_").toLowerCase().slice(0, 45) || "user";
     let username = normalized;
@@ -135,51 +221,33 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
     }
 
     try {
-        const { code, state } = req.query;
-        const expectedState = consumeOAuthState(req, res, "oauth_state_google");
-        if (!state || typeof state !== "string" || !expectedState || state !== expectedState) {
-            return res.redirect(`${FRONTEND_URL}/login?error=oauth_state`);
-        }
+        const code = validateOAuthCodeAndState(req, res, FRONTEND_URL, "oauth_state_google");
+        if (!code) return;
 
-        if (!code || typeof code !== "string") {
-            return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
-        }
-
-        // Exchange the auth code for tokens
-        const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
+        const accessToken = await exchangeAuthCodeForAccessToken(
+            "https://oauth2.googleapis.com/token",
+            new URLSearchParams({
                 code,
                 client_id:     clientId,
                 client_secret: clientSecret,
                 redirect_uri:  redirectUri,
                 grant_type:    "authorization_code",
             }),
-        });
-
-        if (!tokenRes.ok) {
-            console.error("Token exchange failed:", await tokenRes.text());
+            "Google"
+        );
+        if (!accessToken) {
             return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
         }
 
-        const tokens = await tokenRes.json() as { access_token: string };
-
-        // Fetch the user's Google profile
-        const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-            headers: { Authorization: `Bearer ${tokens.access_token}` },
-        });
-
-        if (!profileRes.ok) {
-            return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
-        }
-
-        const profile = await profileRes.json() as {
+        const profile = await fetchOAuthProfile<{
             id: string;
             email: string;
             name: string;
             picture?: string;
-        };
+        }>("https://www.googleapis.com/oauth2/v2/userinfo", accessToken);
+        if (!profile) {
+            return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+        }
 
         const googleAvatar = normalizeAvatarUrl(profile.picture);
 
@@ -221,21 +289,7 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
             });
         }
 
-        if (user.twoFactorEnabled) {
-            const tempToken = jwt.sign(
-                { userId: user.id, pending2FA: true },
-                process.env.JWT_SECRET!,
-                { expiresIn: "5m" }
-            );
-            const hash = new URLSearchParams({ requires2FA: "true", tempToken }).toString();
-            return res.redirect(`${FRONTEND_URL}/oauth/callback#${hash}`);
-        }
-
-        // Issue a JWT identical to the normal login flow
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
-
-        // Redirect to frontend with the token in the URL hash (never in query string)
-        return res.redirect(`${FRONTEND_URL}/oauth/callback#token=${token}`);
+        return redirectAfterOAuthLogin(res, FRONTEND_URL, user);
     } catch (err: any) {
         console.error("Google OAuth error:", err.message);
         return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
@@ -254,50 +308,34 @@ export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
     }
 
     try {
-        const { code, state } = req.query;
-        const expectedState = consumeOAuthState(req, res, "oauth_state_42");
-        if (!state || typeof state !== "string" || !expectedState || state !== expectedState) {
-            return res.redirect(`${FRONTEND_URL}/login?error=oauth_state`);
-        }
+        const code = validateOAuthCodeAndState(req, res, FRONTEND_URL, "oauth_state_42");
+        if (!code) return;
 
-        if (!code || typeof code !== "string") {
-            return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
-        }
-
-        const tokenRes = await fetch("https://api.intra.42.fr/oauth/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
+        const accessToken = await exchangeAuthCodeForAccessToken(
+            "https://api.intra.42.fr/oauth/token",
+            new URLSearchParams({
                 code,
                 client_id:     clientId,
                 client_secret: clientSecret,
                 redirect_uri:  redirectUri,
                 grant_type:    "authorization_code",
             }),
-        });
-
-        if (!tokenRes.ok) {
-            console.error("42 token exchange failed:", await tokenRes.text());
+            "42"
+        );
+        if (!accessToken) {
             return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
         }
 
-        const tokens = await tokenRes.json() as { access_token: string };
-
-        const profileRes = await fetch("https://api.intra.42.fr/v2/me", {
-            headers: { Authorization: `Bearer ${tokens.access_token}` },
-        });
-
-        if (!profileRes.ok) {
-            return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
-        }
-
-        const profile = await profileRes.json() as {
+        const profile = await fetchOAuthProfile<{
             id: number;
             email: string | null;
             login: string;
             displayname?: string | null;
             image?: { link?: string | null };
-        };
+        }>("https://api.intra.42.fr/v2/me", accessToken);
+        if (!profile) {
+            return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+        }
 
         if (!profile.email) {
             return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
@@ -333,18 +371,7 @@ export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
             }
         }
 
-        if (user.twoFactorEnabled) {
-            const tempToken = jwt.sign(
-                { userId: user.id, pending2FA: true },
-                process.env.JWT_SECRET!,
-                { expiresIn: "5m" }
-            );
-            const hash = new URLSearchParams({ requires2FA: "true", tempToken }).toString();
-            return res.redirect(`${FRONTEND_URL}/oauth/callback#${hash}`);
-        }
-
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
-        return res.redirect(`${FRONTEND_URL}/oauth/callback#token=${token}`);
+        return redirectAfterOAuthLogin(res, FRONTEND_URL, user);
     } catch (err: any) {
         console.error("42 OAuth error:", err.message);
         return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
