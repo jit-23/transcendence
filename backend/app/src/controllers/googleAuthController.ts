@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { randomBytes } from "crypto";
 import 'dotenv/config';
 
 const prisma = new PrismaClient();
@@ -11,6 +12,29 @@ function getRequiredEnv(name: string): string | null {
         return null;
     }
     return value;
+}
+
+function createOAuthState(): string {
+    return randomBytes(24).toString("hex");
+}
+
+function setOAuthStateCookie(res: Response, cookieName: string, state: string) {
+    res.cookie(cookieName, state, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 10 * 60 * 1000,
+        path: "/users/auth",
+    });
+}
+
+function consumeOAuthState(req: Request, res: Response, cookieName: string): string | null {
+    const expectedState = (req as any).cookies?.[cookieName];
+    res.clearCookie(cookieName, { path: "/users/auth" });
+    if (!expectedState || typeof expectedState !== "string") {
+        return null;
+    }
+    return expectedState;
 }
 
 async function generateUniqueUsername(baseValue: string) {
@@ -53,13 +77,25 @@ function normalizeAvatarUrl(value?: string | null): string | null {
 
 // ─── Step 1: Redirect the browser to Google's OAuth consent screen ───────────
 export const googleAuthRedirect = (_req: Request, res: Response) => {
+    const clientId = getRequiredEnv("GOOGLE_CLIENT_ID");
+    const redirectUri = getRequiredEnv("GOOGLE_REDIRECT_URI");
+
+    if (!clientId || !redirectUri) {
+        console.error("Google OAuth configuration missing. Check GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI.");
+        return res.status(500).send("Google OAuth is not configured");
+    }
+
+    const state = createOAuthState();
+    setOAuthStateCookie(res, "oauth_state_google", state);
+
     const params = new URLSearchParams({
-        client_id:     process.env.GOOGLE_CLIENT_ID!,
-        redirect_uri:  process.env.GOOGLE_REDIRECT_URI!,
+        client_id:     clientId,
+        redirect_uri:  redirectUri,
         response_type: "code",
         scope:         "openid email profile",
         access_type:   "offline",
         prompt:        "select_account",
+        state,
     });
     res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 };
@@ -73,11 +109,15 @@ export const fortyTwoAuthRedirect = (_req: Request, res: Response) => {
         return res.status(500).send("42 OAuth is not configured");
     }
 
+    const state = createOAuthState();
+    setOAuthStateCookie(res, "oauth_state_42", state);
+
     const params = new URLSearchParams({
         client_id:     clientId,
         redirect_uri:  redirectUri,
         response_type: "code",
         scope:         "public",
+        state,
     });
     res.redirect(`https://api.intra.42.fr/oauth/authorize?${params}`);
 };
@@ -85,9 +125,22 @@ export const fortyTwoAuthRedirect = (_req: Request, res: Response) => {
 // ─── Step 2: Google redirects back here with ?code=… ─────────────────────────
 export const googleAuthCallback = async (req: Request, res: Response) => {
     const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const clientId = getRequiredEnv("GOOGLE_CLIENT_ID");
+    const clientSecret = getRequiredEnv("GOOGLE_CLIENT_SECRET");
+    const redirectUri = getRequiredEnv("GOOGLE_REDIRECT_URI");
+
+    if (!clientId || !clientSecret || !redirectUri) {
+        console.error("Google OAuth configuration missing. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URI.");
+        return res.redirect(`${FRONTEND_URL}/login?error=oauth_misconfigured`);
+    }
 
     try {
-        const { code } = req.query;
+        const { code, state } = req.query;
+        const expectedState = consumeOAuthState(req, res, "oauth_state_google");
+        if (!state || typeof state !== "string" || !expectedState || state !== expectedState) {
+            return res.redirect(`${FRONTEND_URL}/login?error=oauth_state`);
+        }
+
         if (!code || typeof code !== "string") {
             return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
         }
@@ -98,9 +151,9 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
                 code,
-                client_id:     process.env.GOOGLE_CLIENT_ID!,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-                redirect_uri:  process.env.GOOGLE_REDIRECT_URI!,
+                client_id:     clientId,
+                client_secret: clientSecret,
+                redirect_uri:  redirectUri,
                 grant_type:    "authorization_code",
             }),
         });
@@ -201,7 +254,12 @@ export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
     }
 
     try {
-        const { code } = req.query;
+        const { code, state } = req.query;
+        const expectedState = consumeOAuthState(req, res, "oauth_state_42");
+        if (!state || typeof state !== "string" || !expectedState || state !== expectedState) {
+            return res.redirect(`${FRONTEND_URL}/login?error=oauth_state`);
+        }
+
         if (!code || typeof code !== "string") {
             return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
         }

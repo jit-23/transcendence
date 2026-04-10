@@ -19,8 +19,6 @@ export function ProfilePage() {
     const [success, setSuccess]                 = useState<string | null>(null);
     const [error, setError]                     = useState<string | null>(null);
 
-    const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
-
     const saveAvatar = async (avatar: string) => {
         const token = sessionStorage.getItem("token");
         if (!token) throw new Error("Not authenticated");
@@ -41,23 +39,6 @@ export function ProfilePage() {
         setShowPicker(false);
         setSuccess("Avatar updated!");
     };
-    // const saveAvatar = async (avatar: string) => {
-    //     const res = await fetch("http://localhost:8081/users/me/avatar", {
-    //         method: "PUT",
-    //         headers: {
-    //             "Content-Type": "application/json",
-    //             Authorization: `Bearer ${token}`,
-    //         },
-    //         body: JSON.stringify({ avatar }),
-    //     });
-    //
-    //     const data = await res.json();
-    //     if (!res.ok) throw new Error(data.error || "Failed to save avatar");
-    //
-    //     await refreshUser();
-    //     setShowPicker(false);
-    //     setSuccess("Avatar updated!");
-    // };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
