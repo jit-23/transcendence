@@ -217,6 +217,33 @@ export const getMe = async (req: Request, res: Response) => {
     }
 };
 
+export const getUserProfile = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const userId = Number(req.params.id);
+        if (!userId) return res.status(400).json({ error: "Invalid user id" });
+
+        const profile = await prisma.my_users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                createdAt: true,
+            },
+        });
+
+        if (!profile) return res.status(404).json({ error: "User not found" });
+
+        return res.json(profile);
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 // ─── UPDATE MY PROFILE ────────────────────────────────────────────────────────
 export const updateMe = async (req: Request, res: Response) => {
     try {

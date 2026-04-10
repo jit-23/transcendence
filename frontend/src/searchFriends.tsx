@@ -195,13 +195,21 @@ export function SearchFriends() {
                                             {result.email}
                                         </p>
                                     </div>
-                                    <button
-                                        className="btn btn-primary btn-sm"
-                                        onClick={() => handleSendRequest(result.id)}
-                                        disabled={pendingRequests.has(result.id)}
-                                    >
-                                        {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
-                                    </button>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => navigate(`/users/${result.id}`)}
+                                        >
+                                            Profile
+                                        </button>
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => handleSendRequest(result.id)}
+                                            disabled={pendingRequests.has(result.id)}
+                                        >
+                                            {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

@@ -15,6 +15,7 @@ import { GroupChatsPage } from "./groupChats.tsx";
 import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
 import { OAuthCallback } from "./OAuthCallback.tsx";
+import { UserPublicProfilePage } from "./userPublicProfile.tsx";
 import '../css/App.css'
 
 function PublicRoute({ children }) {
@@ -112,6 +113,10 @@ function App() {
 
                 <Route path="/profile" element={
                     <PrivateRoute><ProfilePage /></PrivateRoute>
+                } />
+
+                <Route path="/users/:id" element={
+                    <PrivateRoute><UserPublicProfilePage /></PrivateRoute>
                 } />
 
                 <Route path="/search" element={

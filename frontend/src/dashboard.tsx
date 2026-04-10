@@ -457,6 +457,7 @@ export function Dashboard() {
                             error={friendsError}
                             unfriendingId={unfriendingId}
                             onRefresh={fetchFriends}
+                            onViewProfile={(friendId) => navigate(`/users/${friendId}`)}
                             onChat={(friend) => navigate(`/chat?friendId=${friend.id}&name=${encodeURIComponent(friend.name)}`)}
                             onUnfriend={handleUnfriend}
                         />
@@ -501,13 +502,21 @@ export function Dashboard() {
                                             <p style={{ fontWeight: 600, marginBottom: 4 }}>{result.name}</p>
                                             <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{result.email}</p>
                                         </div>
-                                        <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() => handleSendRequest(result.id)}
-                                            disabled={pendingRequests.has(result.id)}
-                                        >
-                                            {pendingRequests.has(result.id) ? "Requested" : "Invite"}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                                className="btn btn-ghost btn-sm"
+                                                onClick={() => navigate(`/users/${result.id}`)}
+                                            >
+                                                Profile
+                                            </button>
+                                            <button
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() => handleSendRequest(result.id)}
+                                                disabled={pendingRequests.has(result.id)}
+                                            >
+                                                {pendingRequests.has(result.id) ? "Requested" : "Invite"}
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

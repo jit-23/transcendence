@@ -10,6 +10,7 @@ import {
     getUser,
     updateUser,
     getMe,
+    getUserProfile,
     updateMe,
     updateAvatar,
     searchUsers,
@@ -51,6 +52,7 @@ router.get('/auth/42/callback', fortyTwoAuthCallback);
 
 // Profile
 router.get('/me', getMe);
+router.get('/:id/profile', getUserProfile);
 router.put('/me', updateMe);
 router.put('/me/avatar', updateAvatar);
 
