@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import p5 from "p5";
 
-type Tool = "line" | "arrow" | "rectangle" | "circle" | "freehand" | "eraser" | "text" | "textbox" | "textcircle" | "cursor";
-type TextFontFamily = "Times New Roman" | "Comic Sans MS" | "Papyrus Serif";
+type Tool =
+	| "line"
+	| "arrow"
+	| "rectangle"
+	| "rounded-rectangle"
+	| "circle"
+	| "freehand"
+	| "eraser"
+	| "text"
+	| "textbox"
+	| "rounded-textbox"
+	| "cursor";
+
+type TextShapeKind = "text" | "textbox" | "rounded-textbox";
 
 type LineShape = {
 	kind: "line";
@@ -41,6 +53,19 @@ type RectangleShape = {
 	angle: number;
 };
 
+type RoundedRectangleShape = {
+	kind: "rounded-rectangle";
+	id: string;
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+	color: string;
+	filled: boolean;
+	strokeWeight: number;
+	angle: number;
+};
+
 type CircleShape = {
 	kind: "circle";
 	id: string;
@@ -52,6 +77,19 @@ type CircleShape = {
 	filled: boolean;
 	strokeWeight: number;
 	angle: number;
+};
+
+type TextShape = {
+	kind: TextShapeKind;
+	id: string;
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+	color: string;
+	strokeWeight: number;
+	angle: number;
+	content: string;
 };
 
 type FreeHandShape = {
@@ -81,24 +119,7 @@ type EraserShape = {
 	angle: number;
 };
 
-type TextShape = {
-	kind: "text";
-	id: string;
-	x1: number;
-	y1: number;
-	x2: number;
-	y2: number;
-	text: string;
-	color: string;
-	fontFamily: TextFontFamily;
-	fontSize: number;
-	container: "rect" | "circle";
-	showBorder: boolean;
-	borderStrokeWeight: number;
-	angle: number;
-};
-
-type Shape = LineShape | ArrowShape | RectangleShape | CircleShape | FreeHandShape | DotShape | EraserShape | TextShape;
+type Shape = LineShape | ArrowShape | RectangleShape | RoundedRectangleShape | CircleShape | TextShape | FreeHandShape | DotShape | EraserShape;
 const HISTORY_LIMIT = 50;
 
 type RgbColor = {
@@ -127,6 +148,11 @@ type HandlePoint = {
 let shapeIdCounter = 0;
 
 const generateShapeId = () => `shape-${++shapeIdCounter}`;
+
+const isTextShape = (shape: Shape | null | undefined): shape is TextShape => {
+	if (!shape) return false;
+	return shape.kind === "text" || shape.kind === "textbox" || shape.kind === "rounded-textbox";
+};
 
 const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6): boolean => {
 	// Unrotate the point if shape is rotated
@@ -181,6 +207,32 @@ const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6):
 			);
 		}
 
+		case "rounded-rectangle": {
+			const minX = Math.min(shape.x1, shape.x2);
+			const maxX = Math.max(shape.x1, shape.x2);
+			const minY = Math.min(shape.y1, shape.y2);
+			const maxY = Math.max(shape.y1, shape.y2);
+			if (shape.filled) {
+				return testX >= minX && testX <= maxX && testY >= minY && testY <= maxY;
+			}
+			return (
+				(testX >= minX - hitTolerance && testX <= maxX + hitTolerance && Math.abs(testY - minY) <= hitTolerance) ||
+				(testX >= minX - hitTolerance && testX <= maxX + hitTolerance && Math.abs(testY - maxY) <= hitTolerance) ||
+				(testY >= minY - hitTolerance && testY <= maxY + hitTolerance && Math.abs(testX - minX) <= hitTolerance) ||
+				(testY >= minY - hitTolerance && testY <= maxY + hitTolerance && Math.abs(testX - maxX) <= hitTolerance)
+			);
+		}
+
+		case "text":
+		case "textbox":
+		case "rounded-textbox": {
+			const minX = Math.min(shape.x1, shape.x2);
+			const maxX = Math.max(shape.x1, shape.x2);
+			const minY = Math.min(shape.y1, shape.y2);
+			const maxY = Math.max(shape.y1, shape.y2);
+			return testX >= minX && testX <= maxX && testY >= minY && testY <= maxY;
+		}
+
 		case "circle": {
 			const centerX = (shape.x1 + shape.x2) / 2;
 			const centerY = (shape.y1 + shape.y2) / 2;
@@ -193,14 +245,6 @@ const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6):
 				return normalized <= 1;
 			}
 			return Math.abs(normalized - 1) <= 0.15;
-		}
-
-		case "text": {
-			const minX = Math.min(shape.x1, shape.x2);
-			const maxX = Math.max(shape.x1, shape.x2);
-			const minY = Math.min(shape.y1, shape.y2);
-			const maxY = Math.max(shape.y1, shape.y2);
-			return testX >= minX - hitTolerance && testX <= maxX + hitTolerance && testY >= minY - hitTolerance && testY <= maxY + hitTolerance;
 		}
 
 		default:
@@ -263,8 +307,11 @@ const getConstrainedDraftEndPoint = (
 		case "arrow":
 			return getAngleSnappedEndPoint(start, end, 45);
 		case "rectangle":
+		case "rounded-rectangle":
 		case "circle":
 		case "text":
+		case "textbox":
+		case "rounded-textbox":
 			return getEqualSizeEndPoint(start, end);
 		default:
 			return end;
@@ -299,6 +346,44 @@ const drawArrowSegment = (s: p5, shape: { x1: number; y1: number; x2: number; y2
 	s.triangle(shape.x2, shape.y2, leftX, leftY, rightX, rightY);
 };
 
+const wrapTextToWidth = (s: p5, text: string, maxWidth: number) => {
+	const width = Math.max(1, maxWidth);
+	const lines: string[] = [];
+	let currentLine = "";
+
+	for (const character of text) {
+		if (character === "\n") {
+			lines.push(currentLine);
+			currentLine = "";
+			continue;
+		}
+
+		const candidate = `${currentLine}${character}`;
+		if (currentLine.length === 0 || s.textWidth(candidate) <= width) {
+			currentLine = candidate;
+			continue;
+		}
+
+		lines.push(currentLine);
+		currentLine = character;
+	}
+
+	lines.push(currentLine);
+
+	if (lines.length === 0) {
+		lines.push("");
+	}
+
+	return lines;
+};
+
+const getCornerRadius = (shape: { x1: number; y1: number; x2: number; y2: number; strokeWeight: number }) => {
+	const width = Math.abs(shape.x2 - shape.x1);
+	const height = Math.abs(shape.y2 - shape.y1);
+	const maxRadius = Math.max(2, Math.min(width, height) / 2);
+	return Math.min(maxRadius, Math.max(8, shape.strokeWeight * 2.2));
+};
+
 const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 	switch (shape.kind) {
 		case "dot":
@@ -313,8 +398,11 @@ const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 			return { ...shape, x1: shape.x1 + deltaX, y1: shape.y1 + deltaY, x2: shape.x2 + deltaX, y2: shape.y2 + deltaY };
 
 		case "rectangle":
+		case "rounded-rectangle":
 		case "circle":
 		case "text":
+		case "textbox":
+		case "rounded-textbox":
 			return { ...shape, x1: shape.x1 + deltaX, y1: shape.y1 + deltaY, x2: shape.x2 + deltaX, y2: shape.y2 + deltaY };
 
 		default:
@@ -350,7 +438,6 @@ const getShapeBounds = (shape: Shape): Bounds => {
 			}
 			return { minX, minY, maxX, maxY };
 		}
-		case "text":
 		default:
 			return {
 				minX: Math.min(shape.x1, shape.x2),
@@ -462,7 +549,9 @@ const resizeShapeFromBounds = (shape: Shape, sourceBounds: Bounds, targetBounds:
 				...shape,
 				points: shape.points.map((point) => map(point.x, point.y)),
 			};
-		case "text": {
+		case "text":
+		case "textbox":
+		case "rounded-textbox": {
 			const p1 = map(shape.x1, shape.y1);
 			const p2 = map(shape.x2, shape.y2);
 			return {
@@ -579,14 +668,6 @@ const getShapeBoundsIgnoreRotation = (shape: Shape): Bounds => {
 
 const DEFAULT_BACKGROUND_COLOR = "#ffffff";
 const DEFAULT_LINE_COLOR = "#111111";
-const DEFAULT_TEXT_FONT_FAMILY: TextFontFamily = "Times New Roman";
-const DEFAULT_TEXT_FONT_SIZE = 16;
-const TEXT_FONT_OPTIONS: TextFontFamily[] = ["Times New Roman", "Comic Sans MS", "Papyrus Serif"];
-const TEXT_FONT_STACKS: Record<TextFontFamily, string> = {
-	"Times New Roman": '"Times New Roman", Times, serif',
-	"Comic Sans MS": '"Comic Sans MS", "Comic Sans", cursive',
-	"Papyrus Serif": '"Papyrus", "Book Antiqua", "Palatino Linotype", serif',
-};
 const COLOR_SWATCHES = [
 	"#111111",
 	"#ffffff",
@@ -1039,14 +1120,10 @@ export default function Canvas() {
 	const [tool, setTool] = useState<Tool>("cursor");
 	const [fill, setFill] = useState(false);
 	const [strokeWeight, setStrokeWeight] = useState(4);
-	const [textFontFamily, setTextFontFamily] = useState<TextFontFamily>(DEFAULT_TEXT_FONT_FAMILY);
-	const [textFontSize, setTextFontSize] = useState(DEFAULT_TEXT_FONT_SIZE);
 	const [zoomPercent, setZoomPercent] = useState(100);
 	const [openColorPickers, setOpenColorPickers] = useState<Record<string, boolean>>({});
 	const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 	const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
-	const [editingTextShapeId, setEditingTextShapeId] = useState<string | null>(null);
-	const [textDraftValue, setTextDraftValue] = useState("");
 	const selectedShapeIdRef = useRef<string | null>(null);
 	const selectedShapeIdsRef = useRef<Set<string>>(new Set());
 	const hoveredShapeIdRef = useRef<string | null>(null);
@@ -1064,6 +1141,10 @@ export default function Canvas() {
 		originalShape: Shape;
 		startAngle: number;
 	} | null>(null);
+	const editingTextShapeIdRef = useRef<string | null>(null);
+	const textEditSnapshotTakenRef = useRef(false);
+	const textCaretIndexRef = useRef(0);
+	const textSelectionRangeRef = useRef<{ start: number; end: number } | null>(null);
 
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
@@ -1075,8 +1156,6 @@ export default function Canvas() {
 		tool: "cursor" as Tool,
 		fill: false,
 		strokeWeight: 4,
-		textFontFamily: DEFAULT_TEXT_FONT_FAMILY as TextFontFamily,
-		textFontSize: DEFAULT_TEXT_FONT_SIZE,
 	});
 
 	const shapesRef = useRef<Shape[]>([]);
@@ -1088,10 +1167,6 @@ export default function Canvas() {
 	const eraserMarkedShapeIdsRef = useRef<Set<string>>(new Set());
 	const eraserTouchLatchRef = useRef<Set<string>>(new Set());
 	const eraserLastPointRef = useRef<{ x: number; y: number } | null>(null);
-	const textEditorRef = useRef<HTMLTextAreaElement | null>(null);
-	const editingTextShapeIdRef = useRef<string | null>(null);
-	const textEditSessionInitialTextRef = useRef("");
-	const textEditSessionSnapshotPushedRef = useRef(false);
 	const marqueeSelectionStartRef = useRef<{ x: number; y: number } | null>(null);
 	const marqueeSelectionCurrentRef = useRef<{ x: number; y: number } | null>(null);
 	const marqueeSelectionAdditiveRef = useRef(false);
@@ -1134,64 +1209,54 @@ export default function Canvas() {
 		hoveredHandleRef.current = null;
 		resizeSessionRef.current = null;
 		rotationSessionRef.current = null;
+		editingTextShapeIdRef.current = null;
+		textEditSnapshotTakenRef.current = false;
+		textCaretIndexRef.current = 0;
+		textSelectionRangeRef.current = null;
 		applySelection([]);
-		setEditingTextShapeId(null);
-		setTextDraftValue("");
-		textEditSessionInitialTextRef.current = "";
-		textEditSessionSnapshotPushedRef.current = false;
 		eraserMarkedShapeIdsRef.current.clear();
 		eraserTouchLatchRef.current.clear();
 		eraserLastPointRef.current = null;
 	};
-
-	const syncEditingTextShape = () => {
-		editingTextShapeIdRef.current = editingTextShapeId;
-	};
-
-	useEffect(() => {
-		syncEditingTextShape();
-	}, [editingTextShapeId]);
 
 	const getShapeById = (shapeId: string | null) => {
 		if (!shapeId) return null;
 		return shapesRef.current.find((shape) => shape.id === shapeId) ?? null;
 	};
 
-	const startTextEditing = (shapeId: string, initialText: string, pushHistory: boolean) => {
-		if (pushHistory) {
-			pushUndoSnapshot();
-		}
-		applySelection([shapeId]);
-		setEditingTextShapeId(shapeId);
-		setTextDraftValue(initialText);
-		textEditSessionInitialTextRef.current = initialText;
-		textEditSessionSnapshotPushedRef.current = false;
-		hoveredShapeIdRef.current = shapeId;
-		hoveredHandleRef.current = null;
+	const startTextEditing = (shapeId: string, caretIndex?: number, selectAll?: boolean) => {
+		const shape = getShapeById(shapeId);
+		const maxCaret = isTextShape(shape) ? shape.content.length : 0;
+		editingTextShapeIdRef.current = shapeId;
+		const nextCaretIndex = Math.max(0, Math.min(caretIndex ?? maxCaret, maxCaret));
+		textCaretIndexRef.current = nextCaretIndex;
+		textSelectionRangeRef.current = selectAll ? { start: 0, end: maxCaret } : null;
+		textEditSnapshotTakenRef.current = false;
 	};
 
 	const stopTextEditing = () => {
-		setEditingTextShapeId(null);
-		setTextDraftValue("");
 		editingTextShapeIdRef.current = null;
-		textEditSessionInitialTextRef.current = "";
-		textEditSessionSnapshotPushedRef.current = false;
+		textCaretIndexRef.current = 0;
+		textSelectionRangeRef.current = null;
+		textEditSnapshotTakenRef.current = false;
 	};
 
-	const updateEditingTextShape = (nextText: string) => {
-		const shape = getShapeById(editingTextShapeIdRef.current);
-		if (!shape || shape.kind !== "text") return;
-		const shapeIndex = shapesRef.current.findIndex((entry) => entry.id === shape.id);
+	const updateTextShapeContent = (shapeId: string, nextContent: string) => {
+		const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === shapeId);
 		if (shapeIndex < 0) return;
-		if (
-			!textEditSessionSnapshotPushedRef.current &&
-			nextText !== textEditSessionInitialTextRef.current
-		) {
+		const shape = shapesRef.current[shapeIndex];
+		if (!isTextShape(shape)) return;
+		if (shape.content === nextContent) return;
+
+		if (!textEditSnapshotTakenRef.current) {
 			pushUndoSnapshot();
-			textEditSessionSnapshotPushedRef.current = true;
+			textEditSnapshotTakenRef.current = true;
 		}
-		shapesRef.current[shapeIndex] = { ...shape, text: nextText };
-		setTextDraftValue(nextText);
+
+		shapesRef.current[shapeIndex] = {
+			...shape,
+			content: nextContent,
+		};
 	};
 
 	const cloneShape = (shape: Shape): Shape => {
@@ -1220,11 +1285,8 @@ export default function Canvas() {
 			hoveredHandleRef.current = null;
 		}
 
-		if (editingTextShapeIdRef.current) {
-			const editingExists = shapesRef.current.some((shape) => shape.id === editingTextShapeIdRef.current);
-			if (!editingExists) {
-				stopTextEditing();
-			}
+		if (editingTextShapeIdRef.current && !existingShapeIds.has(editingTextShapeIdRef.current)) {
+			stopTextEditing();
 		}
 	};
 
@@ -1239,41 +1301,6 @@ export default function Canvas() {
 	const commitShape = (shape: Shape) => {
 		pushUndoSnapshot();
 		shapesRef.current.push(shape);
-	};
-
-	const applyTextFontFamily = (nextFontFamily: TextFontFamily) => {
-		setTextFontFamily(nextFontFamily);
-		const selectedIds = selectedShapeIdsRef.current;
-		if (selectedIds.size === 0) return;
-
-		const hasSelectedTextShapeToUpdate = shapesRef.current.some(
-			(shape) => selectedIds.has(shape.id) && shape.kind === "text" && shape.fontFamily !== nextFontFamily,
-		);
-		if (!hasSelectedTextShapeToUpdate) return;
-
-		pushUndoSnapshot();
-		shapesRef.current = shapesRef.current.map((shape) => {
-			if (!selectedIds.has(shape.id) || shape.kind !== "text") return shape;
-			return { ...shape, fontFamily: nextFontFamily };
-		});
-	};
-
-	const applyTextFontSize = (nextFontSize: number) => {
-		const clampedFontSize = Math.min(144, Math.max(8, Math.round(nextFontSize)));
-		setTextFontSize(clampedFontSize);
-		const selectedIds = selectedShapeIdsRef.current;
-		if (selectedIds.size === 0) return;
-
-		const hasSelectedTextShapeToUpdate = shapesRef.current.some(
-			(shape) => selectedIds.has(shape.id) && shape.kind === "text" && shape.fontSize !== clampedFontSize,
-		);
-		if (!hasSelectedTextShapeToUpdate) return;
-
-		pushUndoSnapshot();
-		shapesRef.current = shapesRef.current.map((shape) => {
-			if (!selectedIds.has(shape.id) || shape.kind !== "text") return shape;
-			return { ...shape, fontSize: clampedFontSize };
-		});
 	};
 
 	const applyZoomPercent = (nextPercentValue: number, anchor?: { x: number; y: number }) => {
@@ -1348,27 +1375,15 @@ export default function Canvas() {
 	}, [selectedShapeId]);
 
 	useEffect(() => {
-		if (editingTextShapeId && textEditorRef.current) {
-			textEditorRef.current.focus();
-		}
-	}, [editingTextShapeId]);
-
-	useEffect(() => {
 		settingsRef.current = {
 			backgroundColor: normalizeHexColor(backgroundColor, DEFAULT_BACKGROUND_COLOR),
 			lineColor: normalizeHexColor(lineColor, DEFAULT_LINE_COLOR),
 			tool,
 			fill,
 			strokeWeight,
-			textFontFamily,
-			textFontSize,
 			isAnyColorPickerOpen,
 		};
-
-		if (tool !== "text" && tool !== "textbox" && tool !== "textcircle" && tool !== "cursor" && editingTextShapeIdRef.current) {
-			stopTextEditing();
-		}
-	}, [backgroundColor, lineColor, tool, fill, strokeWeight, textFontFamily, textFontSize, isAnyColorPickerOpen]);
+	}, [backgroundColor, lineColor, tool, fill, strokeWeight, isAnyColorPickerOpen]);
 
 	useEffect(() => {
 		if (!isAnyColorPickerOpen) return;
@@ -1383,52 +1398,135 @@ export default function Canvas() {
 		rotationSessionRef.current = null;
 		hoveredShapeIdRef.current = null;
 		hoveredHandleRef.current = null;
+		stopTextEditing();
 		eraserTouchLatchRef.current = new Set();
 		eraserLastPointRef.current = null;
 	}, [isAnyColorPickerOpen]);
-
-	const selectedTextShapes = shapesRef.current.filter(
-		(shape): shape is TextShape => selectedShapeIdsRef.current.has(shape.id) && shape.kind === "text",
-	);
-	const selectedTextFonts = Array.from(new Set(selectedTextShapes.map((shape) => shape.fontFamily)));
-	const activeTextFontFamily = selectedTextFonts.length === 1 ? selectedTextFonts[0]! : textFontFamily;
-	const selectedTextFontSizes = Array.from(new Set(selectedTextShapes.map((shape) => shape.fontSize)));
-	const activeTextFontSize = selectedTextFontSizes.length === 1 ? selectedTextFontSizes[0]! : textFontSize;
-
-	const editingTextShape = getShapeById(editingTextShapeId);
-	const editingTextStyle =
-		editingTextShape && editingTextShape.kind === "text"
-			? (() => {
-					const bounds = getShapeBounds(editingTextShape);
-					const center = getRotationCenter(editingTextShape);
-					const { scale, offsetX, offsetY } = viewRef.current;
-					const baseWidth = Math.max(1, (bounds.maxX - bounds.minX) * scale);
-					const baseHeight = Math.max(1, (bounds.maxY - bounds.minY) * scale);
-					const isCircleContainer = editingTextShape.container === "circle";
-					const width = isCircleContainer ? Math.max(1, baseWidth * 0.72) : baseWidth;
-					const height = isCircleContainer ? Math.max(1, baseHeight * 0.72) : baseHeight;
-					const centerX = center.x * scale + offsetX;
-					const centerY = center.y * scale + offsetY;
-					return {
-						left: `${centerX - width / 2}px`,
-						top: `${centerY - height / 2}px`,
-						width: `${width}px`,
-						height: `${height}px`,
-						transform: `rotate(${editingTextShape.angle}deg)`,
-						color: editingTextShape.color,
-						borderRadius: editingTextShape.container === "circle" ? "50%" : "0px",
-						fontSize: `${Math.max(12, editingTextShape.fontSize * scale)}px`,
-						fontFamily: TEXT_FONT_STACKS[editingTextShape.fontFamily ?? DEFAULT_TEXT_FONT_FAMILY],
-						textAlign: editingTextShape.container === "circle" ? "center" : "left",
-						padding: editingTextShape.container === "circle" ? "10px" : "6px",
-					};
-				})()
-			: null;
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (settingsRef.current.isAnyColorPickerOpen) return;
 			if (isEditableElement(event.target)) return;
+
+			const editingShapeId = editingTextShapeIdRef.current;
+			if (editingShapeId) {
+				const editingShape = getShapeById(editingShapeId);
+				if (!isTextShape(editingShape)) {
+					stopTextEditing();
+					return;
+				}
+
+				const content = editingShape.content;
+				const contentLength = content.length;
+				const caretIndex = Math.max(0, Math.min(textCaretIndexRef.current, contentLength));
+				textCaretIndexRef.current = caretIndex;
+				const selection = textSelectionRangeRef.current;
+				const normalizedSelection = selection
+					? {
+						start: Math.max(0, Math.min(selection.start, selection.end, contentLength)),
+						end: Math.max(0, Math.min(Math.max(selection.start, selection.end), contentLength)),
+					}
+					: null;
+				const hasSelection = !!normalizedSelection && normalizedSelection.end > normalizedSelection.start;
+
+				const replaceSelectionOrInsert = (insertValue: string) => {
+					const start = hasSelection ? normalizedSelection!.start : caretIndex;
+					const end = hasSelection ? normalizedSelection!.end : caretIndex;
+					updateTextShapeContent(editingShapeId, `${content.slice(0, start)}${insertValue}${content.slice(end)}`);
+					textCaretIndexRef.current = start + insertValue.length;
+					textSelectionRangeRef.current = null;
+				};
+
+				if (event.key === "Escape") {
+					event.preventDefault();
+					stopTextEditing();
+					return;
+				}
+
+				if (event.altKey) {
+					return;
+				}
+
+				if (event.key === "ArrowLeft") {
+					event.preventDefault();
+					textCaretIndexRef.current = hasSelection ? normalizedSelection!.start : Math.max(0, caretIndex - 1);
+					textSelectionRangeRef.current = null;
+					return;
+				}
+
+				if (event.key === "ArrowRight") {
+					event.preventDefault();
+					textCaretIndexRef.current = hasSelection ? normalizedSelection!.end : Math.min(contentLength, caretIndex + 1);
+					textSelectionRangeRef.current = null;
+					return;
+				}
+
+				if (event.key === "Home") {
+					event.preventDefault();
+					textCaretIndexRef.current = 0;
+					textSelectionRangeRef.current = null;
+					return;
+				}
+
+				if (event.key === "End") {
+					event.preventDefault();
+					textCaretIndexRef.current = contentLength;
+					textSelectionRangeRef.current = null;
+					return;
+				}
+
+				if (event.ctrlKey || event.metaKey) {
+					if (event.key.toLowerCase() === "a") {
+						event.preventDefault();
+						textSelectionRangeRef.current = { start: 0, end: contentLength };
+						textCaretIndexRef.current = contentLength;
+					}
+					return;
+				}
+
+				if (event.key === "Backspace") {
+					event.preventDefault();
+					if (hasSelection) {
+						replaceSelectionOrInsert("");
+						return;
+					}
+					if (caretIndex === 0) return;
+					updateTextShapeContent(editingShapeId, `${content.slice(0, caretIndex - 1)}${content.slice(caretIndex)}`);
+					textCaretIndexRef.current = caretIndex - 1;
+					textSelectionRangeRef.current = null;
+					return;
+				}
+
+				if (event.key === "Delete") {
+					event.preventDefault();
+					if (hasSelection) {
+						replaceSelectionOrInsert("");
+						return;
+					}
+					if (caretIndex >= contentLength) return;
+					updateTextShapeContent(editingShapeId, `${content.slice(0, caretIndex)}${content.slice(caretIndex + 1)}`);
+					textSelectionRangeRef.current = null;
+					return;
+				}
+
+				if (event.key === "Enter") {
+					event.preventDefault();
+					replaceSelectionOrInsert("\n");
+					return;
+				}
+
+				if (event.key === "Tab") {
+					event.preventDefault();
+					replaceSelectionOrInsert("\t");
+					return;
+				}
+
+				if (event.key.length === 1) {
+					event.preventDefault();
+					replaceSelectionOrInsert(event.key);
+				}
+				return;
+			}
 
 			const key = event.key.toLowerCase();
 			if (key === "delete" || key === "backspace") {
@@ -1437,9 +1535,6 @@ export default function Canvas() {
 				pushUndoSnapshot();
 				const selectedIds = new Set(selectedShapeIdsRef.current);
 				shapesRef.current = shapesRef.current.filter((shape) => !selectedIds.has(shape.id));
-				if (editingTextShapeIdRef.current && selectedIds.has(editingTextShapeIdRef.current)) {
-					stopTextEditing();
-				}
 				applySelection([]);
 				hoveredShapeIdRef.current = null;
 				hoveredHandleRef.current = null;
@@ -1463,6 +1558,7 @@ export default function Canvas() {
 				}
 				shapesRef.current = cloneShapesState(previousState);
 				syncSelectionAfterStateChange();
+				stopTextEditing();
 				draftShapeRef.current = null;
 				dragStartRef.current = null;
 				resizeSessionRef.current = null;
@@ -1478,6 +1574,7 @@ export default function Canvas() {
 			}
 			shapesRef.current = cloneShapesState(nextState);
 			syncSelectionAfterStateChange();
+			stopTextEditing();
 			draftShapeRef.current = null;
 			dragStartRef.current = null;
 			resizeSessionRef.current = null;
@@ -1518,6 +1615,64 @@ export default function Canvas() {
 					if (isPointInShape(x, y, shape)) return shape;
 				}
 				return null;
+			};
+
+			const getTextBoxLayout = (shape: TextShape) => {
+				const minX = Math.min(shape.x1, shape.x2);
+				const maxX = Math.max(shape.x1, shape.x2);
+				const minY = Math.min(shape.y1, shape.y2);
+				const maxY = Math.max(shape.y1, shape.y2);
+				const boxWidth = Math.max(1, maxX - minX);
+				const boxHeight = Math.max(1, maxY - minY);
+				const padding = Math.max(4, Math.min(12, boxWidth * 0.05));
+				const textSize = Math.max(12, shape.strokeWeight * 4);
+				const lineHeight = textSize * 1.25;
+				return {
+					minX,
+					maxX,
+					minY,
+					maxY,
+					boxWidth,
+					boxHeight,
+					padding,
+					textSize,
+					lineHeight,
+				};
+			};
+
+			const getTextCaretPosition = (shape: TextShape, index: number) => {
+				const layout = getTextBoxLayout(shape);
+				const clampedIndex = Math.max(0, Math.min(index, shape.content.length));
+				s.push();
+				s.textSize(layout.textSize);
+				const contentBeforeCaret = shape.content.slice(0, clampedIndex);
+				const lines = wrapTextToWidth(s, contentBeforeCaret, Math.max(1, layout.boxWidth - layout.padding * 2));
+				const lineIndex = Math.max(0, lines.length - 1);
+				const lineText = lines[lineIndex] ?? "";
+				const x = layout.minX + layout.padding + s.textWidth(lineText);
+				s.pop();
+
+				return {
+					x: Math.min(layout.maxX - layout.padding, Math.max(layout.minX + layout.padding, x)),
+					y: layout.minY + layout.padding + lineIndex * layout.lineHeight,
+					textSize: layout.textSize,
+				};
+			};
+
+			const getClosestTextCaretIndex = (shape: TextShape, point: { x: number; y: number }) => {
+				let bestIndex = 0;
+				let bestDistance = Number.POSITIVE_INFINITY;
+				for (let index = 0; index <= shape.content.length; index += 1) {
+					const caretPosition = getTextCaretPosition(shape, index);
+					const dx = point.x - caretPosition.x;
+					const dy = point.y - (caretPosition.y + caretPosition.textSize / 2);
+					const distance = dx * dx + dy * dy;
+					if (distance < bestDistance) {
+						bestDistance = distance;
+						bestIndex = index;
+					}
+				}
+				return bestIndex;
 			};
 
 			const getTouchedShapeIdsAtPoint = (x: number, y: number) => {
@@ -1658,6 +1813,10 @@ export default function Canvas() {
 			const hoveredShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
 			hoveredHandleRef.current = null;
 			hoveredShapeIdRef.current = hoveredShape?.id ?? null;
+			if (isTextShape(hoveredShape)) {
+				s.cursor("text");
+				return;
+			}
 			s.cursor(hoveredShape ? s.HAND : s.ARROW);
 		};		const drawSelectionHandles = (shape: Shape) => {
 			const bounds = getShapeBounds(shape);
@@ -1826,84 +1985,110 @@ export default function Canvas() {
 					return;
 				}
 
-				if (shape.kind === "text") {
-					const minX = Math.min(shape.x1, shape.x2);
-					const maxX = Math.max(shape.x1, shape.x2);
-					const minY = Math.min(shape.y1, shape.y2);
-					const maxY = Math.max(shape.y1, shape.y2);
-					const padding = Math.max(6, shape.fontSize * 0.3);
-					const shapeWidth = Math.max(1, maxX - minX);
-					const shapeHeight = Math.max(1, maxY - minY);
-					const circleInsetX = Math.max(padding, shapeWidth * 0.14);
-					const circleInsetY = Math.max(padding, shapeHeight * 0.14);
-					const textX = shape.container === "circle" ? minX + circleInsetX : minX + padding;
-					const textY = shape.container === "circle" ? minY + circleInsetY : minY + padding;
-					const textWidth =
-						shape.container === "circle"
-							? Math.max(1, shapeWidth - circleInsetX * 2)
-							: Math.max(1, shapeWidth - padding * 2);
-					const textHeight =
-						shape.container === "circle"
-							? Math.max(1, shapeHeight - circleInsetY * 2)
-							: Math.max(1, shapeHeight - padding * 2);
-
-					s.noStroke();
-					s.fill(shape.color);
-						s.textFont(TEXT_FONT_STACKS[shape.fontFamily ?? DEFAULT_TEXT_FONT_FAMILY]);
-					s.textSize(shape.fontSize);
-					s.textAlign(shape.container === "circle" ? s.CENTER : s.LEFT, shape.container === "circle" ? s.CENTER : s.TOP);
-					s.textWrap(s.CHAR);
-					const textContext = s.drawingContext as CanvasRenderingContext2D;
-					textContext.save();
-					textContext.beginPath();
-					if (shape.container === "circle") {
-						const centerX = (minX + maxX) / 2;
-						const centerY = (minY + maxY) / 2;
-						const radiusX = Math.max(1, (maxX - minX) / 2 - padding * 0.5);
-						const radiusY = Math.max(1, (maxY - minY) / 2 - padding * 0.5);
-						textContext.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+				if (shape.kind === "rounded-rectangle") {
+					s.stroke(shape.color);
+					s.strokeWeight(shape.strokeWeight);
+					if (shape.filled) {
+						s.fill(shape.color);
 					} else {
-						textContext.rect(textX, textY, textWidth, textHeight);
+						s.noFill();
 					}
-					textContext.clip();
-					s.text(shape.text || "", textX, textY, textWidth, textHeight);
-					textContext.restore();
-
-					if (shape.showBorder) {
+					s.rectMode(s.CORNERS);
+					s.rect(shape.x1, shape.y1, shape.x2, shape.y2, getCornerRadius(shape));
+					if (isSelected || isHovered) {
 						s.noFill();
-						s.stroke(shape.color);
-						s.strokeWeight(Math.max(1, shape.borderStrokeWeight));
-						if (shape.container === "circle") {
-							s.ellipseMode(s.CORNERS);
-							s.ellipse(minX, minY, maxX, maxY);
-						} else {
-							s.rectMode(s.CORNERS);
-							s.rect(minX, minY, maxX, maxY);
-						}
+						s.stroke(highlightColor);
+						s.strokeWeight(2);
+						s.rect(shape.x1, shape.y1, shape.x2, shape.y2, getCornerRadius(shape));
+					}
+					if (shape.angle !== 0) s.pop();
+					return;
+				}
+
+				if (shape.kind === "text" || shape.kind === "textbox" || shape.kind === "rounded-textbox") {
+					const layout = getTextBoxLayout(shape);
+					const isEditing = editingTextShapeIdRef.current === shape.id;
+					const selection = textSelectionRangeRef.current;
+					const hasSelection =
+						isEditing &&
+						selection !== null &&
+						Math.max(selection.start, selection.end) > Math.min(selection.start, selection.end);
+
+					if (shape.kind === "text" && isDraft) {
+						const guideContext = s.drawingContext as CanvasRenderingContext2D;
+						guideContext.save();
+						guideContext.setLineDash([6 / viewRef.current.scale, 4 / viewRef.current.scale]);
+						s.noFill();
+						s.stroke(isEditing ? "#f59e0b" : "rgba(107,114,128,0.8)");
+						s.strokeWeight(Math.max(1 / viewRef.current.scale, 1));
+						s.rectMode(s.CORNERS);
+						s.rect(layout.minX, layout.minY, layout.maxX, layout.maxY);
+						guideContext.restore();
 					}
 
-					if (isDraft) {
+					if (shape.kind === "textbox" || shape.kind === "rounded-textbox") {
 						s.noFill();
-						s.stroke("#0ea5e9");
-						s.strokeWeight(1);
-						if (shape.container === "circle") {
-							s.ellipseMode(s.CORNERS);
-							s.ellipse(minX, minY, maxX, maxY);
-						} else {
-							s.rectMode(s.CORNERS);
-							s.rect(minX, minY, maxX, maxY);
+						s.stroke(isEditing ? "#f59e0b" : shape.color);
+						s.strokeWeight(Math.max(1, shape.strokeWeight));
+						s.rectMode(s.CORNERS);
+						s.rect(
+							layout.minX,
+							layout.minY,
+							layout.maxX,
+							layout.maxY,
+							shape.kind === "rounded-textbox" ? getCornerRadius(shape) : undefined,
+						);
+					}
+
+					s.push();
+					const context = s.drawingContext as CanvasRenderingContext2D;
+					context.save();
+					context.beginPath();
+					context.rect(layout.minX + 1, layout.minY + 1, layout.boxWidth - 2, layout.boxHeight - 2);
+					context.clip();
+					s.textAlign(s.LEFT, s.TOP);
+					s.textSize(layout.textSize);
+
+					if (hasSelection) {
+						s.noStroke();
+						s.fill("rgba(59,130,246,0.25)");
+						s.rectMode(s.CORNERS);
+						s.rect(
+							layout.minX + layout.padding,
+							layout.minY + layout.padding,
+							layout.maxX - layout.padding,
+							layout.maxY - layout.padding,
+						);
+					}
+
+					s.fill(shape.color);
+					s.noStroke();
+
+					const displayText = shape.content.length > 0 ? shape.content : isEditing || isDraft ? "Type here..." : "";
+					const lines = wrapTextToWidth(s, displayText, Math.max(1, layout.boxWidth - layout.padding * 2));
+					for (let index = 0; index < lines.length; index += 1) {
+						const lineY = layout.minY + layout.padding + index * layout.lineHeight;
+						if (lineY > layout.maxY - layout.padding) break;
+						s.text(lines[index]!, layout.minX + layout.padding, lineY);
+					}
+
+					if (isEditing && !hasSelection && Math.floor(s.millis() / 500) % 2 === 0) {
+						const caretPosition = getTextCaretPosition(shape, textCaretIndexRef.current);
+						if (caretPosition.y <= layout.maxY - layout.padding) {
+							s.stroke("#111111");
+							s.strokeWeight(Math.max(1 / viewRef.current.scale, 1));
+							s.line(caretPosition.x, caretPosition.y, caretPosition.x, caretPosition.y + caretPosition.textSize);
 						}
-					} else if (isSelected || isHovered || editingTextShapeIdRef.current === shape.id) {
+					}
+					context.restore();
+					s.pop();
+
+					if (isSelected || isHovered) {
 						s.noFill();
-						s.stroke(editingTextShapeIdRef.current === shape.id ? "#f59e0b" : highlightColor);
-						s.strokeWeight(1);
-						if (shape.container === "circle") {
-							s.ellipseMode(s.CORNERS);
-							s.ellipse(minX, minY, maxX, maxY);
-						} else {
-							s.rectMode(s.CORNERS);
-							s.rect(minX, minY, maxX, maxY);
-						}
+						s.stroke(highlightColor);
+						s.strokeWeight(2);
+						s.rectMode(s.CORNERS);
+						s.rect(layout.minX, layout.minY, layout.maxX, layout.maxY);
 					}
 
 					if (shape.angle !== 0) s.pop();
@@ -1958,27 +2143,22 @@ export default function Canvas() {
 
 				const handleDoubleClick = (event: MouseEvent) => {
 					if (settingsRef.current.isAnyColorPickerOpen) return;
-					if (
-						settingsRef.current.tool !== "cursor" &&
-						settingsRef.current.tool !== "text" &&
-						settingsRef.current.tool !== "textbox" &&
-						settingsRef.current.tool !== "textcircle"
-					)
-						return;
+					const canEditText =
+						settingsRef.current.tool === "cursor" ||
+						settingsRef.current.tool === "text" ||
+						settingsRef.current.tool === "textbox" ||
+						settingsRef.current.tool === "rounded-textbox";
+					if (!canEditText) return;
 					const canvasRect = renderer.elt.getBoundingClientRect();
-					const pointerX = event.clientX - canvasRect.left;
-					const pointerY = event.clientY - canvasRect.top;
-					if (pointerX < 0 || pointerX > canvasRect.width || pointerY < 0 || pointerY > canvasRect.height) return;
-
-					const worldPoint = screenToWorld(pointerX, pointerY);
+					const worldPoint = screenToWorld(event.clientX - canvasRect.left, event.clientY - canvasRect.top);
 					const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
-					if (!clickedShape || clickedShape.kind !== "text") return;
+						if (!isTextShape(clickedShape)) {
+						stopTextEditing();
+						return;
+					}
 
-					event.preventDefault();
-					startTextEditing(clickedShape.id, clickedShape.text, false);
-					draggedShapeIdRef.current = null;
-					resizeSessionRef.current = null;
-					rotationSessionRef.current = null;
+					applySelection([clickedShape.id]);
+						startTextEditing(clickedShape.id, clickedShape.content.length, true);
 				};
 
 				renderer.elt.addEventListener("wheel", handleWheel, { passive: false });
@@ -2014,7 +2194,7 @@ export default function Canvas() {
 					drawShape(draftShapeRef.current, {
 						isSelected: false,
 						isHovered: false,
-						isDraft: draftShapeRef.current.kind === "text",
+						isDraft: true,
 					});
 				}
 				if (marqueeSelectionStartRef.current && marqueeSelectionCurrentRef.current) {
@@ -2059,20 +2239,46 @@ export default function Canvas() {
 				if ((event.buttons & 1) === 0) return;
 				if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
 				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
+				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
+				const isEditingText =
+					isTextShape(clickedShape) &&
+					(
+						settingsRef.current.tool === "cursor" ||
+						settingsRef.current.tool === "text" ||
+						settingsRef.current.tool === "textbox" ||
+						settingsRef.current.tool === "rounded-textbox"
+					);
 
-				if (settingsRef.current.tool === "cursor" && editingTextShapeIdRef.current) {
+				if (!isEditingText) {
+					stopTextEditing();
+				}
+
+				dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
+
+				if (
+					clickedShape &&
+					isTextShape(clickedShape) &&
+					editingTextShapeIdRef.current === clickedShape.id &&
+					(
+						settingsRef.current.tool === "cursor" ||
+						settingsRef.current.tool === "text" ||
+						settingsRef.current.tool === "textbox" ||
+						settingsRef.current.tool === "rounded-textbox"
+					)
+				) {
+					textCaretIndexRef.current = getClosestTextCaretIndex(clickedShape, worldPoint);
+					textSelectionRangeRef.current = null;
+					applySelection([clickedShape.id]);
 					dragStartRef.current = null;
+					draggedShapeIdRef.current = null;
 					marqueeSelectionStartRef.current = null;
 					marqueeSelectionCurrentRef.current = null;
 					marqueeSelectionAdditiveRef.current = false;
 					marqueeSelectionInitialIdsRef.current = [];
-					draggedShapeIdRef.current = null;
-					resizeSessionRef.current = null;
-					rotationSessionRef.current = null;
+					hoveredShapeIdRef.current = clickedShape.id;
+					hoveredHandleRef.current = null;
 					return;
 				}
-
-			dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
 
 			if (settingsRef.current.tool === "eraser") {
 				eraserTouchLatchRef.current = new Set();
@@ -2139,7 +2345,6 @@ export default function Canvas() {
 					}
 				}
 			}				// Check if clicking on an existing shape (for drag mode)
-				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
 
 				if (clickedShape) {
 					if (settingsRef.current.tool === "cursor" && event.ctrlKey) {
@@ -2200,26 +2405,6 @@ export default function Canvas() {
 					return;
 				}
 
-				if (settingsRef.current.tool === "text" || settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle") {
-					draftShapeRef.current = {
-						kind: "text",
-						id: generateShapeId(),
-						x1: worldPoint.x,
-						y1: worldPoint.y,
-						x2: worldPoint.x,
-						y2: worldPoint.y,
-						text: "",
-						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
-							fontFamily: settingsRef.current.textFontFamily,
-							fontSize: settingsRef.current.textFontSize,
-						container: settingsRef.current.tool === "textcircle" ? "circle" : "rect",
-						showBorder: settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle",
-						borderStrokeWeight: settingsRef.current.strokeWeight,
-						angle: 0,
-					} as TextShape;
-					return;
-				}
-
 				if (settingsRef.current.tool === "freehand") {
 					draftShapeRef.current = {
 						kind: "freehand",
@@ -2229,6 +2414,26 @@ export default function Canvas() {
 						strokeWeight: settingsRef.current.strokeWeight,
 						angle: 0,
 					} as FreeHandShape;
+					return;
+				}
+
+				if (
+					settingsRef.current.tool === "text" ||
+					settingsRef.current.tool === "textbox" ||
+					settingsRef.current.tool === "rounded-textbox"
+				) {
+					draftShapeRef.current = {
+						kind: settingsRef.current.tool,
+						id: generateShapeId(),
+						x1: worldPoint.x,
+						y1: worldPoint.y,
+						x2: worldPoint.x,
+						y2: worldPoint.y,
+						color: normalizeHexColor(settingsRef.current.lineColor, DEFAULT_LINE_COLOR),
+						strokeWeight: settingsRef.current.strokeWeight,
+						angle: 0,
+						content: "",
+					} as TextShape;
 					return;
 				}
 
@@ -2243,13 +2448,12 @@ export default function Canvas() {
 					filled: settingsRef.current.fill,
 					strokeWeight: settingsRef.current.strokeWeight,
 					angle: 0,
-				} as LineShape | ArrowShape | RectangleShape | CircleShape;
+				} as LineShape | ArrowShape | RectangleShape | RoundedRectangleShape | CircleShape;
 			};
 
-			s.mouseDragged = (event: MouseEvent) => {
-				if (settingsRef.current.isAnyColorPickerOpen) return;
-				if ((event.buttons & 1) === 0) return;
-				if (settingsRef.current.tool === "cursor" && editingTextShapeIdRef.current) return;
+				s.mouseDragged = (event: MouseEvent) => {
+					if (settingsRef.current.isAnyColorPickerOpen) return;
+					if ((event.buttons & 1) === 0) return;
 			if (!dragStartRef.current) return;
 			const worldPoint = screenToWorld(s.mouseX, s.mouseY);
 
@@ -2283,18 +2487,6 @@ export default function Canvas() {
 				}
 				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
 				return;
-			}
-
-			if ((settingsRef.current.tool === "text" || settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle") && !draftShapeRef.current) {
-				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
-				if (clickedShape && clickedShape.kind === "text") {
-					startTextEditing(clickedShape.id, clickedShape.text, true);
-					draftShapeRef.current = null;
-					draggedShapeIdRef.current = null;
-					resizeSessionRef.current = null;
-					rotationSessionRef.current = null;
-					return;
-				}
 			}
 
 			if (rotationSessionRef.current) {
@@ -2466,24 +2658,6 @@ export default function Canvas() {
 					return;
 				}
 
-				if (settingsRef.current.tool === "text" || settingsRef.current.tool === "textbox" || settingsRef.current.tool === "textcircle") {
-					if (draftShapeRef.current && draftShapeRef.current.kind === "text") {
-						const draftBounds = getShapeBounds(draftShapeRef.current);
-						const draftWidth = draftBounds.maxX - draftBounds.minX;
-						const draftHeight = draftBounds.maxY - draftBounds.minY;
-						const minimumSize = 6;
-
-						if (draftWidth >= minimumSize && draftHeight >= minimumSize) {
-							const createdTextShape = { ...draftShapeRef.current };
-							commitShape(createdTextShape);
-							startTextEditing(createdTextShape.id, "", false);
-						}
-					}
-					dragStartRef.current = null;
-					draftShapeRef.current = null;
-					return;
-				}
-
 				if (resizeSessionRef.current) {
 					resizeSessionRef.current = null;
 					dragStartRef.current = null;
@@ -2505,7 +2679,34 @@ export default function Canvas() {
 					dragStartRef.current = null;
 					return;
 				}
-				commitShape({ ...draftShapeRef.current });
+
+				const shapeToCommit = { ...draftShapeRef.current };
+				if (isTextShape(shapeToCommit)) {
+					const dragDistance = Math.hypot(shapeToCommit.x2 - shapeToCommit.x1, shapeToCommit.y2 - shapeToCommit.y1);
+					const minimumTextDragDistance = 3 / viewRef.current.scale;
+					if (dragDistance < minimumTextDragDistance) {
+						draftShapeRef.current = null;
+						dragStartRef.current = null;
+						return;
+					}
+
+					const minimumWidth = 140;
+					const minimumHeight = 56;
+					const width = shapeToCommit.x2 - shapeToCommit.x1;
+					const height = shapeToCommit.y2 - shapeToCommit.y1;
+					const widthDirection = Math.sign(width) || 1;
+					const heightDirection = Math.sign(height) || 1;
+					const nextWidth = Math.abs(width) < minimumWidth ? minimumWidth * widthDirection : width;
+					const nextHeight = Math.abs(height) < minimumHeight ? minimumHeight * heightDirection : height;
+					shapeToCommit.x2 = shapeToCommit.x1 + nextWidth;
+					shapeToCommit.y2 = shapeToCommit.y1 + nextHeight;
+				}
+
+				commitShape(shapeToCommit);
+				if (isTextShape(shapeToCommit)) {
+					applySelection([shapeToCommit.id]);
+					startTextEditing(shapeToCommit.id);
+				}
 				dragStartRef.current = null;
 				draftShapeRef.current = null;
 			};
@@ -2604,13 +2805,14 @@ export default function Canvas() {
 								<option value="cursor">Cursor</option>
 								<option value="freehand">Free Hand</option>
 								<option value="eraser">Eraser</option>
-								<option value="text">Text</option>
-								<option value="textbox">Text Box</option>
-								<option value="textcircle">Text Circle</option>
 								<option value="line">Line</option>
 								<option value="arrow">Arrow</option>
 								<option value="rectangle">Rectangle</option>
+								<option value="rounded-rectangle">Rounded Rectangle</option>
 								<option value="circle">Circle</option>
+								<option value="text">Text</option>
+								<option value="textbox">Text Box</option>
+								<option value="rounded-textbox">Rounded Text Box</option>
 							</select>
 						</span>
 					</label>
@@ -2622,41 +2824,6 @@ export default function Canvas() {
 								type="checkbox"
 								checked={fill}
 								onChange={(event) => setFill(event.target.checked)}
-							/>
-						</span>
-					</label>
-
-					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Font</span>
-						<span style={controlFieldStyle}>
-							<select
-								value={activeTextFontFamily}
-								onChange={(event) => applyTextFontFamily(event.target.value as TextFontFamily)}
-							>
-								{TEXT_FONT_OPTIONS.map((fontOption) => (
-									<option key={fontOption} value={fontOption}>
-										{fontOption}
-									</option>
-								))}
-							</select>
-						</span>
-					</label>
-
-					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Font Size</span>
-						<span style={controlFieldStyle}>
-							<input
-								type="number"
-								min={8}
-								max={144}
-								step={1}
-								value={activeTextFontSize}
-								onChange={(event) => {
-									const parsed = Number(event.target.value);
-									if (Number.isNaN(parsed)) return;
-									applyTextFontSize(parsed);
-								}}
-								style={{ width: "64px" }}
 							/>
 						</span>
 					</label>
@@ -2698,46 +2865,6 @@ export default function Canvas() {
 			</div>
 			<div style={{ position: "relative", width: "100%" }}>
 				<div ref={canvasHostRef} />
-				{editingTextStyle ? (
-					<textarea
-						ref={textEditorRef}
-						value={textDraftValue}
-						onChange={(event) => updateEditingTextShape(event.target.value)}
-						onBlur={stopTextEditing}
-						onKeyDown={(event) => {
-							if (event.key === "Escape") {
-								event.preventDefault();
-								stopTextEditing();
-							}
-						}}
-						placeholder="Type here..."
-						style={{
-							position: "absolute",
-							zIndex: 20,
-							left: editingTextStyle.left,
-							top: editingTextStyle.top,
-							width: editingTextStyle.width,
-							height: editingTextStyle.height,
-							transform: editingTextStyle.transform,
-							transformOrigin: "center center",
-							boxSizing: "border-box",
-							border: "1px solid #f59e0b",
-							borderRadius: editingTextStyle.borderRadius,
-							background: "rgba(255,255,255,0.92)",
-							color: editingTextStyle.color,
-							fontSize: editingTextStyle.fontSize,
-							lineHeight: 1.2,
-							padding: editingTextStyle.padding,
-							textAlign: editingTextStyle.textAlign,
-							resize: "none",
-							outline: "none",
-							overflow: "hidden",
-							whiteSpace: "pre-wrap",
-							wordBreak: "break-word",
-							fontFamily: editingTextStyle.fontFamily,
-						}}
-					/>
-				) : null}
 			</div>
     </div>
   );
