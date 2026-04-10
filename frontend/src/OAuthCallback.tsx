@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 
 /**
- * The backend redirects here after a successful Google OAuth flow:
+ * The backend redirects here after a successful OAuth flow (Google or 42):
  *   /oauth/callback#token=<jwt>
  *
  * We read the token from the hash, call login(), then forward to /dashboard.

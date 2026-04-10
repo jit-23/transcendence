@@ -22,6 +22,7 @@ model my_users{
 	twoFactorSecret String?
 	avatar           String?
 	googleId         String? @unique
+	fortyTwoId       String? @unique
 
 	conversations conversation_participants[]
 	messages message[]

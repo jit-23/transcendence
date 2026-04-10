@@ -74,7 +74,7 @@ export const login = async (req: Request, res: Response) => {
         if (!user) return res.status(404).json({ error: "User not found" });
 
         if (!user.password)
-            return res.status(401).json({ error: "This account uses Google Sign-In. Please sign in with Google." });
+            return res.status(401).json({ error: "This account uses OAuth Sign-In (Google/42). Please sign in with your provider." });
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: "Invalid password" });

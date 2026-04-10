@@ -20,7 +20,12 @@ import {
     getFriends,
     unfriend,
 } from '../controllers/userController';
-import { googleAuthRedirect, googleAuthCallback } from '../controllers/googleAuthController';
+import {
+    googleAuthRedirect,
+    googleAuthCallback,
+    fortyTwoAuthRedirect,
+    fortyTwoAuthCallback,
+} from '../controllers/googleAuthController';
 
 const router = Router();
 
@@ -39,6 +44,10 @@ router.post('/login2FA', twoFALimiter, login2FA);
 // Google OAuth
 router.get('/auth/google',          googleAuthRedirect);
 router.get('/auth/google/callback', googleAuthCallback);
+
+// 42 OAuth
+router.get('/auth/42',          fortyTwoAuthRedirect);
+router.get('/auth/42/callback', fortyTwoAuthCallback);
 
 // Profile
 router.get('/me', getMe);

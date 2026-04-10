@@ -159,6 +159,34 @@ export function     LoginForm() {
                                 </svg>
                                 Continue with Google
                             </a>
+
+                            <a
+                                href="http://localhost:8081/users/auth/42"
+                                className="btn btn-ghost btn-full"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    textDecoration: 'none',
+                                    fontWeight: 700,
+                                }}
+                            >
+                                <span style={{
+                                    display: 'inline-flex',
+                                    width: 18,
+                                    height: 18,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '1px solid var(--border2)',
+                                    borderRadius: 4,
+                                    fontSize: '0.65rem',
+                                    letterSpacing: '-0.02em',
+                                }}>
+                                    42
+                                </span>
+                                Continue with 42
+                            </a>
                         </form>
                     ) : (
                         <div className="form-stack">
