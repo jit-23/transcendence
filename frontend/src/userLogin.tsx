@@ -16,6 +16,8 @@ export function     LoginForm() {
     const navigate                  = useNavigate();
     const location                  = useLocation();
 
+    const sanitizeCode = (value: string) => value.replace(/\D/g, '').slice(0, 6);
+
     useEffect(() => {
         const state = location.state as { needs2FA?: boolean; tempToken?: string } | null;
         if (state?.needs2FA && state.tempToken) {
@@ -25,6 +27,21 @@ export function     LoginForm() {
             navigate('/login', { replace: true });
         }
     }, [location.state, navigate]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const oauthError = params.get('error');
+
+        const messageByError: Record<string, string> = {
+            oauth_state: 'Login session expired. Please try signing in again.',
+            oauth_failed: 'OAuth sign-in failed. Please try again.',
+            oauth_misconfigured: 'OAuth is currently unavailable. Please try email/password or contact support.',
+        };
+
+        if (oauthError && messageByError[oauthError]) {
+            setError(messageByError[oauthError]);
+        }
+    }, [location.search]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -201,11 +218,25 @@ export function     LoginForm() {
                                     maxLength={6}
                                     placeholder="000 000"
                                     value={code}
-                                    onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                                    onChange={e => setCode(sanitizeCode(e.target.value))}
+                                    onPaste={(e) => {
+                                        const pasted = sanitizeCode(e.clipboardData.getData('text'));
+                                        if (pasted) {
+                                            e.preventDefault();
+                                            setCode(pasted);
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && code.length === 6 && !loading) {
+                                            e.preventDefault();
+                                            void handle2FA();
+                                        }
+                                    }}
                                     autoFocus
                                     className="code-input"
                                     style={{ maxWidth: '100%' }}
                                 />
+                                <p className="form-hint">Tip: you can paste the full 6-digit code.</p>
                             </div>
                             <button
                                 className="btn btn-primary btn-full"

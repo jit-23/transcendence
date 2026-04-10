@@ -39,6 +39,19 @@ export function TwoFactorCard({
   onConfirm,
   onDisable,
 }: TwoFactorCardProps) {
+  const sanitizeCode = (value: string) => value.replace(/\D/g, "").slice(0, 6);
+
+  const handlePasteCode = (
+    event: any,
+    setCode: (value: string) => void
+  ) => {
+    const pasted = sanitizeCode(event.clipboardData.getData("text"));
+    if (pasted) {
+      event.preventDefault();
+      setCode(pasted);
+    }
+  };
+
   return (
     <div className="section-card fade-up fade-up-2">
       <div className="section-card-header">
@@ -83,7 +96,8 @@ export function TwoFactorCard({
               maxLength={6}
               placeholder="000000"
               value={confirmCode}
-              onChange={(event) => setConfirmCode(event.target.value.replace(/\D/g, ""))}
+              onChange={(event) => setConfirmCode(sanitizeCode(event.target.value))}
+              onPaste={(event) => handlePasteCode(event, setConfirmCode)}
               className="code-input"
               autoFocus
             />
@@ -135,7 +149,8 @@ export function TwoFactorCard({
               maxLength={6}
               placeholder="000000"
               value={disableCode}
-              onChange={(event) => setDisableCode(event.target.value.replace(/\D/g, ""))}
+              onChange={(event) => setDisableCode(sanitizeCode(event.target.value))}
+              onPaste={(event) => handlePasteCode(event, setDisableCode)}
               className="code-input"
               autoFocus
             />

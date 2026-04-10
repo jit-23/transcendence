@@ -19,6 +19,13 @@ export function ProfilePage() {
     const [success, setSuccess]                 = useState<string | null>(null);
     const [error, setError]                     = useState<string | null>(null);
 
+    const hasIdentityChanges = username !== (user?.name ?? '') || email !== (user?.email ?? '');
+    const hasPasswordChange = newPassword.length > 0 || confirmNew.length > 0;
+    const hasChanges = hasIdentityChanges || hasPasswordChange;
+    const passwordMismatch = !!newPassword && newPassword !== confirmNew;
+    const passwordTooShort = !!newPassword && newPassword.length < 6;
+    const canSubmit = hasChanges && !passwordMismatch && !passwordTooShort && !!currentPassword.trim() && !loading;
+
     const saveAvatar = async (avatar: string) => {
         const token = sessionStorage.getItem("token");
         if (!token) throw new Error("Not authenticated");
@@ -44,8 +51,18 @@ export function ProfilePage() {
         e.preventDefault();
         setSuccess(null); setError(null);
 
+        if (!hasChanges) {
+            setError('No changes to save');
+            return;
+        }
+
         if (newPassword && newPassword !== confirmNew) {
             setError("New passwords don't match");
+            return;
+        }
+
+        if (newPassword && newPassword.length < 6) {
+            setError('New password must be at least 6 characters');
             return;
         }
 
@@ -107,30 +124,42 @@ export function ProfilePage() {
 
             <main className="dashboard-body">
                 <div className="page-title fade-up">
-                    <h1>Edit Profile</h1>
-                    <p>Update your account information and avatar.</p>
+                    <h1>Profile Settings</h1>
+                    <p>Manage your account details, avatar, and security preferences.</p>
                 </div>
+
+                <section className="section-card dashboard-actions-card fade-up fade-up-1">
+                    <div className="section-card-header" style={{ marginBottom: 12 }}>
+                        <h3>Quick actions</h3>
+                    </div>
+                    <div className="dashboard-actions-grid">
+                        <button className="btn btn-primary" type="button" onClick={() => setShowPicker(true)}>
+                            Change avatar
+                        </button>
+                        <button className="btn btn-ghost" type="button" onClick={() => navigate('/profile/blocked')}>
+                            Blocked users
+                        </button>
+                        <button className="btn btn-ghost" type="button" onClick={() => navigate('/dashboard')}>
+                            Dashboard
+                        </button>
+                    </div>
+                </section>
 
                 {/* Avatar row */}
                 <div className="section-card fade-up fade-up-1">
                     {!showPicker ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div className="profile-overview-row">
                             <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={60} />
-                            <div style={{ flex: 1 }}>
-                                <p style={{
-                                    fontFamily: "'Syne', sans-serif",
-                                    fontWeight: 700,
-                                    fontSize: '1rem',
-                                    letterSpacing: '-0.02em',
-                                    marginBottom: 2,
-                                }}>
+                            <div className="profile-overview-meta">
+                                <p className="profile-meta-title">
                                     {user?.name}
                                 </p>
-                                <p style={{ color: 'var(--ink3)', fontSize: '0.78rem', marginBottom: 10 }}>
+                                <p className="profile-meta-email">
                                     {user?.email}
                                 </p>
                                 <button
                                     className="btn btn-ghost btn-sm"
+                                    type="button"
                                     onClick={() => setShowPicker(true)}
                                 >
                                     Change avatar
@@ -151,15 +180,13 @@ export function ProfilePage() {
                 <div className="section-card fade-up fade-up-2">
                     <div className="section-card-header">
                         <h3>Account Details</h3>
-                        <button className="btn btn-ghost btn-sm" type="button" onClick={() => navigate('/profile/blocked')}>
-                            Blocked users
-                        </button>
                     </div>
 
                     {success && <div className="msg msg-success" style={{ marginBottom: 18 }}>{success}</div>}
                     {error   && <div className="msg msg-error"   style={{ marginBottom: 18 }}>{error}</div>}
 
                     <form onSubmit={handleSubmit} className="form-stack">
+                        <div className="dashboard-section-label" style={{ margin: '0 0 8px 0' }}>Identity</div>
                         <div className="form-group">
                             <label>Username</label>
                             <input type="text" value={username} onChange={e => setUsername(e.target.value)} />
@@ -171,6 +198,7 @@ export function ProfilePage() {
 
                         <div className="divider" />
 
+                        <div className="dashboard-section-label" style={{ margin: '0 0 8px 0' }}>Password</div>
                         <div className="form-group">
                             <label>New Password</label>
                             <input
@@ -188,14 +216,21 @@ export function ProfilePage() {
                                 value={confirmNew}
                                 onChange={e => setConfirmNew(e.target.value)}
                             />
+                            {passwordMismatch && (
+                                <p className="form-hint form-hint-error">Passwords do not match.</p>
+                            )}
+                            {passwordTooShort && (
+                                <p className="form-hint form-hint-error">Use at least 6 characters.</p>
+                            )}
                         </div>
 
                         <div className="divider" />
 
+                        <div className="dashboard-section-label" style={{ margin: '0 0 8px 0' }}>Verification</div>
                         <div className="form-group">
                             <label>
                                 Current Password{' '}
-                                <span style={{ color: 'var(--danger)', fontSize: '0.72rem' }}>required</span>
+                                <span className="profile-required">required</span>
                             </label>
                             <input
                                 type="password"
@@ -206,14 +241,17 @@ export function ProfilePage() {
                             />
                         </div>
 
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                            <button type="submit" className="btn btn-primary" disabled={loading}>
+                        <div className="profile-form-actions">
+                            <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
                                 {loading ? 'Saving...' : 'Save Changes'}
                             </button>
                             <button type="button" className="btn btn-ghost" onClick={() => navigate('/dashboard')}>
                                 Cancel
                             </button>
                         </div>
+                        {!hasChanges && (
+                            <p className="form-hint">Make a change to enable saving.</p>
+                        )}
                     </form>
                 </div>
             </main>
