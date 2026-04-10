@@ -26,7 +26,7 @@ async function generateUniqueUsername(baseValue: string) {
     return username;
 }
 
-function normalizeGoogleAvatarUrl(value?: string | null): string | null {
+function normalizeAvatarUrl(value?: string | null): string | null {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
@@ -128,7 +128,7 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
             picture?: string;
         };
 
-        const googleAvatar = normalizeGoogleAvatarUrl(profile.picture);
+        const googleAvatar = normalizeAvatarUrl(profile.picture);
 
         // Find or create the user in the DB
         let user = await prisma.my_users.findUnique({ where: { googleId: profile.id } });
@@ -142,7 +142,7 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
                     where: { id: existing.id },
                     data: {
                         googleId: profile.id,
-                        avatar: existing.avatar ?? googleAvatar,
+                        avatar: existing.avatar || googleAvatar,
                     },
                 });
             } else {
@@ -246,6 +246,7 @@ export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
         }
 
         const fortyTwoId = String(profile.id);
+        const fortyTwoAvatar = normalizeAvatarUrl(profile.image?.link);
         let user = await prisma.my_users.findUnique({ where: { fortyTwoId } });
 
         if (!user) {
@@ -253,7 +254,10 @@ export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
             if (existing) {
                 user = await prisma.my_users.update({
                     where: { id: existing.id },
-                    data:  { fortyTwoId },
+                    data:  {
+                        fortyTwoId,
+                        avatar: existing.avatar || fortyTwoAvatar,
+                    },
                 });
             } else {
                 const username = await generateUniqueUsername(profile.login || profile.displayname || "user");
@@ -265,7 +269,7 @@ export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
                         password:        null,
                         twoFactorEnabled: false,
                         twoFactorSecret: null,
-                        avatar:          profile.image?.link ?? null,
+                        avatar:          fortyTwoAvatar,
                     },
                 });
             }

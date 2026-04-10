@@ -14,7 +14,7 @@ enum ConversationType {
 
 model my_users{
 	id Int @id @default(autoincrement())
-	name String @db.VarChar(50) @unique @map("Name")
+	name String @db.VarChar(100) @unique @map("Name")
 	email String @db.VarChar(100) @unique @map("Email")
 	password String? @map("Password")
 	createdAt DateTime @default(now())
