@@ -170,6 +170,9 @@ export function ProfilePage() {
                 <div className="section-card fade-up fade-up-2">
                     <div className="section-card-header">
                         <h3>Account Details</h3>
+                        <button className="btn btn-ghost btn-sm" type="button" onClick={() => navigate('/profile/blocked')}>
+                            Blocked users
+                        </button>
                     </div>
 
                     {success && <div className="msg msg-success" style={{ marginBottom: 18 }}>{success}</div>}

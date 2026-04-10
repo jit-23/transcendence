@@ -16,6 +16,7 @@ import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
 import { OAuthCallback } from "./OAuthCallback.tsx";
 import { UserPublicProfilePage } from "./userPublicProfile.tsx";
+import { BlockedUsersPage } from "./blockedUsers.tsx";
 import '../css/App.css'
 
 function PublicRoute({ children }) {
@@ -113,6 +114,10 @@ function App() {
 
                 <Route path="/profile" element={
                     <PrivateRoute><ProfilePage /></PrivateRoute>
+                } />
+
+                <Route path="/profile/blocked" element={
+                    <PrivateRoute><BlockedUsersPage /></PrivateRoute>
                 } />
 
                 <Route path="/users/:id" element={

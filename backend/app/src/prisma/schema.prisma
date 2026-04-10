@@ -28,6 +28,8 @@ model my_users{
 	messages message[]
 	sentRequests friend_request[] @relation("SentRequests")
 	receivedRequests friend_request[] @relation("ReceivedRequests")
+	blockedUsers user_block[] @relation("UserBlocksSent")
+	blockedByUsers user_block[] @relation("UserBlocksReceived")
 	canvases canvas[]
 	canvasCollaborations canvas_collaborator[]
 
@@ -70,6 +72,18 @@ model friend_request {
 	receiver my_users @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
 
 	@@unique([senderId, receiverId])
+}
+
+model user_block {
+	id Int @id @default(autoincrement())
+	blockerId Int
+	blockedId Int
+	createdAt DateTime @default(now())
+
+	blocker my_users @relation("UserBlocksSent", fields: [blockerId], references: [id], onDelete: Cascade)
+	blocked my_users @relation("UserBlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+	@@unique([blockerId, blockedId])
 }
 
 model message {

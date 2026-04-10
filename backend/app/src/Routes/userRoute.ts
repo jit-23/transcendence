@@ -11,6 +11,9 @@ import {
     updateUser,
     getMe,
     getUserProfile,
+    getBlockedUsers,
+    blockUser,
+    unblockUser,
     updateMe,
     updateAvatar,
     searchUsers,
@@ -52,7 +55,10 @@ router.get('/auth/42/callback', fortyTwoAuthCallback);
 
 // Profile
 router.get('/me', getMe);
+router.get('/blocks', getBlockedUsers);
 router.get('/:id/profile', getUserProfile);
+router.post('/:id/block', blockUser);
+router.post('/:id/unblock', unblockUser);
 router.put('/me', updateMe);
 router.put('/me/avatar', updateAvatar);
 

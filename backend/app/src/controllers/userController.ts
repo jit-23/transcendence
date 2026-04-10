@@ -8,6 +8,42 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
+async function hasBlockRelation(userAId: number, userBId: number) {
+    const relation = await prisma.user_block.findFirst({
+        where: {
+            OR: [
+                { blockerId: userAId, blockedId: userBId },
+                { blockerId: userBId, blockedId: userAId },
+            ],
+        },
+    });
+
+    return !!relation;
+}
+
+async function getBlockedUserIdsFor(userId: number): Promise<number[]> {
+    const blockRelations = await prisma.user_block.findMany({
+        where: {
+            OR: [
+                { blockerId: userId },
+                { blockedId: userId },
+            ],
+        },
+        select: {
+            blockerId: true,
+            blockedId: true,
+        },
+    });
+
+    const blockedUserIds = new Set<number>();
+    for (const relation of blockRelations) {
+        if (relation.blockerId === userId) blockedUserIds.add(relation.blockedId);
+        if (relation.blockedId === userId) blockedUserIds.add(relation.blockerId);
+    }
+
+    return Array.from(blockedUserIds);
+}
+
 // ─── helper: extract & verify JWT from Authorization header ───────────────────
 function getAuthUser(req: Request): { userId: number } | null {
     try {
@@ -238,7 +274,126 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
         if (!profile) return res.status(404).json({ error: "User not found" });
 
-        return res.json(profile);
+        const isBlocked = !!(await prisma.user_block.findUnique({
+            where: {
+                blockerId_blockedId: {
+                    blockerId: auth.userId,
+                    blockedId: userId,
+                },
+            },
+        }));
+
+        const blockedByUser = !!(await prisma.user_block.findUnique({
+            where: {
+                blockerId_blockedId: {
+                    blockerId: userId,
+                    blockedId: auth.userId,
+                },
+            },
+        }));
+
+        return res.json({
+            ...profile,
+            isBlocked,
+            blockedByUser,
+        });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const blockUser = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const targetUserId = Number(req.params.id);
+        if (!targetUserId) return res.status(400).json({ error: "Invalid user id" });
+        if (targetUserId === auth.userId)
+            return res.status(400).json({ error: "Cannot block yourself" });
+
+        const target = await prisma.my_users.findUnique({ where: { id: targetUserId } });
+        if (!target) return res.status(404).json({ error: "User not found" });
+
+        await prisma.user_block.upsert({
+            where: {
+                blockerId_blockedId: {
+                    blockerId: auth.userId,
+                    blockedId: targetUserId,
+                },
+            },
+            create: {
+                blockerId: auth.userId,
+                blockedId: targetUserId,
+            },
+            update: {},
+        });
+
+        await prisma.friend_request.deleteMany({
+            where: {
+                OR: [
+                    { senderId: auth.userId, receiverId: targetUserId },
+                    { senderId: targetUserId, receiverId: auth.userId },
+                ],
+            },
+        });
+
+        return res.json({ message: "User blocked" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const unblockUser = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const targetUserId = Number(req.params.id);
+        if (!targetUserId) return res.status(400).json({ error: "Invalid user id" });
+        if (targetUserId === auth.userId)
+            return res.status(400).json({ error: "Cannot unblock yourself" });
+
+        await prisma.user_block.deleteMany({
+            where: {
+                blockerId: auth.userId,
+                blockedId: targetUserId,
+            },
+        });
+
+        return res.json({ message: "User unblocked" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const getBlockedUsers = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const blockedUsers = await prisma.user_block.findMany({
+            where: { blockerId: auth.userId },
+            include: {
+                blocked: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        avatar: true,
+                        createdAt: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return res.json(
+            blockedUsers.map((entry: any) => ({
+                blockedAt: entry.createdAt,
+                ...entry.blocked,
+            }))
+        );
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
@@ -359,13 +514,19 @@ export const searchUsers = async (req: Request, res: Response) => {
         if (query.trim().length < 1)
             return res.status(400).json({ error: "Search query too short" });
 
+        const blockedUserIds = await getBlockedUserIdsFor(auth.userId);
+
         const users = await prisma.my_users.findMany({
             where: {
                 OR: [
                     { name: { contains: query, mode: 'insensitive' } },
                     { email: { contains: query, mode: 'insensitive' } },
                 ],
-                NOT: { id: auth.userId }, // Exclude self
+                NOT: {
+                    id: {
+                        in: [auth.userId, ...blockedUserIds],
+                    },
+                },
             },
             select: { id: true, name: true, email: true, createdAt: true },
             take: 20, // Limit results
@@ -391,6 +552,10 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
 
         const receiver = await prisma.my_users.findUnique({ where: { id: receiverId } });
         if (!receiver) return res.status(404).json({ error: "User not found" });
+
+        const blocked = await hasBlockRelation(auth.userId, receiverId);
+        if (blocked)
+            return res.status(400).json({ error: "Cannot send request because one user has blocked the other" });
 
         // Check any existing relation in either direction.
         const existing = await prisma.friend_request.findFirst({
