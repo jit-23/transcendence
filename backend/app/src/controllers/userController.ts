@@ -329,6 +329,7 @@ export const blockUser = async (req: Request, res: Response) => {
             update: {},
         });
 
+        // Delete all friend requests (pending and accepted) on both sides
         await prisma.friend_request.deleteMany({
             where: {
                 OR: [

@@ -245,6 +245,9 @@ export function UserPublicProfilePage() {
             }
 
             setProfile((prev: PublicProfile | null) => prev ? { ...prev, isBlocked: false } : prev);
+            // Reset friendship state after unblock
+            setIsFriend(false);
+            setRequestPending(false);
         } catch {
             setActionError('Network error while unblocking user');
         } finally {
