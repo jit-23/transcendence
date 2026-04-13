@@ -1,0 +1,32 @@
+File: dashboard.tsx
+
+O dashboard tem todas as acoes do nosso projeto: 
+
+const authHeader = () => ({
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+        "Content-Type": "application/json",
+    });
+            |
+            V
+
+ funcao simples que devolve o header para enviar requests
+
+o dashboard tem:
+
+definicoes do perfil,
+lista e procura de amigos,
+lista de canvas,
+group chats,
+Two-Factor Authentication,
+
+etc...
+
+para aceder a tudo isso temos files como: 
+    - chat.tsx
+    - canvas.tsx
+    - Profile
+    - searchFriends
+    etc
+
+O dashboard somente chama esses ficheiros para poder dar display da info
+

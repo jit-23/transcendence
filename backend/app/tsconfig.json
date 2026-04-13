@@ -1,0 +1,18 @@
+{
+    "compilerOptions":{
+        "target": "es2024",
+        "module" : "commonjs",
+        "moduleResolution": "node",
+        "baseUrl": "src",
+        "outDir": "dist",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "sourceMap": true,
+        "skipLibCheck": true, // take this off if there is a possible problem in node modules
+        "noImplicitAny": true,
+    },
+
+    "include": [ "src/**/*.ts"]
+    }
+
+    // "src/Routes/**/*.ts", "src/controllers/**/*.ts",
