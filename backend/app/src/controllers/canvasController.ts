@@ -49,7 +49,7 @@ async function isFriend(userId: number, friendId: number) {
 
 export async function createCanvas(req: Request, res: Response) {
     try {
-		console.log("Received request to create canvas with body:", req.body);
+        
         const auth = getAuthUser(req);
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
@@ -59,11 +59,29 @@ export async function createCanvas(req: Request, res: Response) {
             return res.status(400).json({ error: "Canvas name is required" });
         }
 
+        // 1. Create a group conversation for this canvas
+        const conversation = await prisma.conversation.create({
+            data: {
+                type: "GROUP",
+                name: name.trim(),
+            },
+        });
+
+        await prisma.conversation_participants.create({
+            data: {
+                conversation_id: conversation.id,
+                user_id: auth.userId,
+                role: "owner",
+            },
+        });
+
+        // 2. Create the canvas and link the conversationId
         const canvas = await prisma.canvas.create({
             data: {
                 userId: auth.userId,
                 name: name.trim(),
                 content: content || null,
+                conversationId: conversation.id,
             },
         });
 
@@ -348,6 +366,19 @@ export async function addCanvasCollaborator(req: Request, res: Response) {
             data: { canvasId, userId: friendId },
         });
 
+        if (canvas.conversationId) {
+            await prisma.conversation_participants.createMany({
+                data: [
+                    {
+                        conversation_id: canvas.conversationId,
+                        user_id: friendId,
+                        role: "member",
+                    },
+                ],
+                skipDuplicates: true,
+            });
+        }
+
         return res.status(201).json({
             message: "Collaborator added",
             collaborator: {
@@ -386,6 +417,15 @@ export async function removeCanvasCollaborator(req: Request, res: Response) {
 
         if (removed.count === 0) {
             return res.status(404).json({ error: "Collaborator not found" });
+        }
+
+        if (canvas.conversationId) {
+            await prisma.conversation_participants.deleteMany({
+                where: {
+                    conversation_id: canvas.conversationId,
+                    user_id: collaboratorId,
+                },
+            });
         }
 
         return res.json({ message: "Collaborator removed" });

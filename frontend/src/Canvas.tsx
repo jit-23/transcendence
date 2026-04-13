@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import p5 from "p5";
+import { useSearchParams } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
+import CanvasChatSidebar, { CanvasChatMessage, CanvasMember } from "./components/canvas/CanvasChatSidebar";
 
 type Tool =
 	| "line"
@@ -122,6 +125,26 @@ type EraserShape = {
 };
 
 type Shape = LineShape | ArrowShape | RectangleShape | RoundedRectangleShape | CircleShape | TextShape | FreeHandShape | DotShape | EraserShape;
+
+type ConversationSummary = {
+	id: number;
+	type: "DIRECT" | "GROUP";
+	name: string | null;
+	members: Array<{ id: number; name: string; email: string }>;
+	role?: string;
+};
+
+type CanvasSnapshot = {
+	version: 1;
+	backgroundColor: string;
+	lineColor: string;
+	tool: Tool;
+	fill: boolean;
+	strokeWeight: number;
+	zoomPercent: number;
+	view: { scale: number; offsetX: number; offsetY: number };
+	shapes: Shape[];
+};
 const HISTORY_LIMIT = 50;
 
 type RgbColor = {
@@ -1119,6 +1142,10 @@ function ColorPickerControl({
 }
 
 export default function Canvas() {
+	const [searchParams] = useSearchParams();
+	const canvasIdParam = searchParams.get("id");
+	const canvasId = canvasIdParam ? Number(canvasIdParam) : null;
+
 	const [backgroundColor, setBackgroundColor] = useState(DEFAULT_BACKGROUND_COLOR);
 	const [lineColor, setLineColor] = useState(DEFAULT_LINE_COLOR);
 	const [tool, setTool] = useState<Tool>("cursor");
@@ -1126,6 +1153,16 @@ export default function Canvas() {
 	const [strokeWeight, setStrokeWeight] = useState(4);
 	const [textFont, setTextFont] = useState<TextFont>(DEFAULT_TEXT_FONT);
 	const [zoomPercent, setZoomPercent] = useState(100);
+	const [saveStatus, setSaveStatus] = useState("");
+	const [saving, setSaving] = useState(false);
+	const [canvasName, setCanvasName] = useState("");
+	const [members, setMembers] = useState<CanvasMember[]>([]);
+	const [conversationId, setConversationId] = useState<number | null>(null);
+	const [chatInput, setChatInput] = useState("");
+	const [chatMessages, setChatMessages] = useState<CanvasChatMessage[]>([]);
+	const [chatStatus, setChatStatus] = useState<string | null>(null);
+	const [peerTyping, setPeerTyping] = useState<string | null>(null);
+	const [sendingMessage, setSendingMessage] = useState(false);
 	const [openColorPickers, setOpenColorPickers] = useState<Record<string, boolean>>({});
 	const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 	const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
@@ -1179,6 +1216,89 @@ export default function Canvas() {
 	const marqueeSelectionInitialIdsRef = useRef<string[]>([]);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
+	const dotRef = useRef(true);
+	const dirtyRef = useRef(false);
+	const hydratingRef = useRef(false);
+	const chatSocketRef = useRef<Socket | null>(null);
+	const chatTypingTimeoutRef = useRef<number | null>(null);
+
+	const authHeader = () => ({
+		Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+		"Content-Type": "application/json",
+	});
+
+	const markDirty = () => {
+		if (hydratingRef.current) return;
+		dirtyRef.current = true;
+	};
+
+	const buildSnapshot = (): CanvasSnapshot => ({
+		version: 1,
+		backgroundColor,
+		lineColor,
+		tool,
+		fill,
+		strokeWeight,
+		zoomPercent,
+		view: {
+			scale: viewRef.current.scale,
+			offsetX: viewRef.current.offsetX,
+			offsetY: viewRef.current.offsetY,
+		},
+		shapes: shapesRef.current,
+	});
+
+	const applySnapshot = (snapshot: CanvasSnapshot) => {
+		hydratingRef.current = true;
+
+		setBackgroundColor(snapshot.backgroundColor ?? "#ffffff");
+		setLineColor(snapshot.lineColor ?? "#111111");
+		setTool(snapshot.tool ?? "freehand");
+		setFill(Boolean(snapshot.fill));
+		setStrokeWeight(typeof snapshot.strokeWeight === "number" ? Math.min(30, Math.max(1, snapshot.strokeWeight)) : 4);
+		setZoomPercent(typeof snapshot.zoomPercent === "number" ? Math.min(500, Math.max(20, snapshot.zoomPercent)) : 100);
+
+		viewRef.current = snapshot.view ?? { scale: 1, offsetX: 0, offsetY: 0 };
+		shapesRef.current = Array.isArray(snapshot.shapes) ? snapshot.shapes : [];
+		redoShapesRef.current = [];
+		undoDepthRef.current = Math.min(HISTORY_LIMIT, shapesRef.current.length);
+		draftShapeRef.current = null;
+		dragStartRef.current = null;
+		dotRef.current = true;
+
+		dirtyRef.current = false;
+		hydratingRef.current = false;
+	};
+
+	const saveCanvas = async () => {
+		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) {
+			setSaveStatus("No canvas id found in URL");
+			return;
+		}
+
+		setSaving(true);
+		setSaveStatus("Saving...");
+
+		try {
+			const res = await fetch(`http://localhost:8081/canvases/${canvasId}/content`, {
+				method: "PUT",
+				headers: authHeader(),
+				body: JSON.stringify({ content: JSON.stringify(buildSnapshot()) }),
+			});
+			const data = await res.json();
+
+			if (!res.ok) {
+				setSaveStatus(data.error || "Failed to save canvas");
+				return;
+			}
+
+			dirtyRef.current = false;
+			setSaveStatus("Saved");
+		} catch {
+			setSaveStatus("Network error while saving");
+		} finally {
+			setSaving(false);
+		}
 	const isAnyColorPickerOpen = Object.values(openColorPickers).some(Boolean);
 
 	const applySelection = (nextSelectedIds: string[]) => {
@@ -1210,6 +1330,8 @@ export default function Canvas() {
 		undoStatesRef.current = [];
 		draftShapeRef.current = null;
 		dragStartRef.current = null;
+		dotRef.current = true;
+		markDirty();
 		draggedShapeIdRef.current = null;
 		hoveredShapeIdRef.current = null;
 		hoveredHandleRef.current = null;
@@ -1307,6 +1429,9 @@ export default function Canvas() {
 	const commitShape = (shape: Shape) => {
 		pushUndoSnapshot();
 		shapesRef.current.push(shape);
+		undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+		redoShapesRef.current = [];
+		markDirty();
 	};
 
 	const applyZoomPercent = (nextPercentValue: number, anchor?: { x: number; y: number }) => {
@@ -1330,6 +1455,7 @@ export default function Canvas() {
 		viewRef.current.offsetX = anchorX - worldX * nextScale;
 		viewRef.current.offsetY = anchorY - worldY * nextScale;
 		setZoomPercent(clampedPercent);
+		markDirty();
 	};
 
 	const isEditableElement = (target: EventTarget | null) => {
@@ -1375,6 +1501,8 @@ export default function Canvas() {
 		width: "100%",
 		height: "100%",
 	};
+
+
 
 	useEffect(() => {
 		selectedShapeIdRef.current = selectedShapeId;
@@ -1425,6 +1553,188 @@ export default function Canvas() {
 		eraserTouchLatchRef.current = new Set();
 		eraserLastPointRef.current = null;
 	}, [isAnyColorPickerOpen]);
+
+	useEffect(() => {
+		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) return;
+
+		let cancelled = false;
+
+		const loadCanvas = async () => {
+			setSaveStatus("Loading...");
+			try {
+				const res = await fetch(`http://localhost:8081/canvases/${canvasId}`, {
+					headers: authHeader(),
+				});
+				const data = await res.json();
+				console.log("Loaded canvas data:", data);
+				if (!res.ok) {
+					if (!cancelled) setSaveStatus(data.error || "Failed to load canvas");
+					return;
+				}
+
+				if (cancelled) return;
+
+				setCanvasName(data.name ?? "Shared Canvas");
+				const owner = data.user ? [{ id: data.user.id, name: data.user.name, email: data.user.email, role: "owner" as const }] : [];
+				const collaborators = Array.isArray(data.collaborators)
+					? data.collaborators.map((entry: any) => ({
+						id: entry.user?.id ?? entry.id,
+						name: entry.user?.name ?? entry.name,
+						email: entry.user?.email ?? entry.email,
+						role: "collaborator" as const,
+					}))
+					: [];
+				setMembers([...owner, ...collaborators].filter((member) => member.id && member.name));
+
+				if (data.content) {
+					try {
+						applySnapshot(JSON.parse(data.content) as CanvasSnapshot);
+					} catch {
+						setSaveStatus("Saved data is invalid JSON");
+					}
+				} else {
+					dirtyRef.current = false;
+				}
+
+				// Use conversationId directly from backend
+				if (!cancelled) {
+					setConversationId(data.conversationId ?? null);
+					setChatStatus(data.conversationId ? null : "No linked group chat found for this canvas yet");
+				}
+
+				if (!cancelled) setSaveStatus("Loaded");
+			} catch {
+				if (!cancelled) setSaveStatus("Network error while loading");
+			}
+		};
+
+		void loadCanvas();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [canvasIdParam]);
+
+	useEffect(() => {
+		if (!conversationId) {
+			setChatMessages([]);
+			return;
+		}
+
+		let cancelled = false;
+
+		const loadMessages = async () => {
+			try {
+				const res = await fetch(`http://localhost:8081/conversations/${conversationId}/messages`, {
+					headers: authHeader(),
+				});
+				const data = await res.json();
+				if (!res.ok) {
+					if (!cancelled) setChatStatus(data.error || "Failed to load chat messages");
+					return;
+				}
+
+				if (cancelled) return;
+				setChatMessages(
+					(data as any[]).map((message) => ({
+						from: message.sender?.name ?? "Unknown",
+						text: message.content,
+						self: Boolean(message.sender?.name && message.sender.name === sessionStorage.getItem("username")),
+					}))
+				);
+			} catch {
+				if (!cancelled) setChatStatus("Network error while loading chat");
+			}
+		};
+
+		void loadMessages();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [conversationId]);
+
+	useEffect(() => {
+		const username = sessionStorage.getItem("username");
+		if (!username) return;
+
+		const socket = io("http://localhost:8081", {
+			auth: { username },
+			withCredentials: true,
+		});
+
+		chatSocketRef.current = socket;
+
+		socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
+			if (!conversationId || Number(incomingConversationId) !== conversationId) return;
+			setChatMessages((prev) => [
+				...prev,
+				{
+					from: message.sender?.name ?? "Unknown",
+					text: message.content,
+					self: message.sender?.name === username,
+				},
+			]);
+		});
+
+		socket.on("conversation-typing", ({ conversationId: incomingConversationId, from, isTyping }) => {
+			if (!conversationId || Number(incomingConversationId) !== conversationId) return;
+			setPeerTyping(isTyping ? from : null);
+		});
+
+		socket.on("connect", () => setChatStatus(null));
+		socket.on("disconnect", () => setChatStatus("Chat disconnected"));
+
+		return () => {
+			if (chatTypingTimeoutRef.current) {
+				window.clearTimeout(chatTypingTimeoutRef.current);
+				chatTypingTimeoutRef.current = null;
+			}
+			socket.disconnect();
+			chatSocketRef.current = null;
+		};
+	}, [conversationId]);
+
+	const handleChatInputChange = (value: string) => {
+		setChatInput(value);
+		if (!conversationId || !chatSocketRef.current) return;
+
+		chatSocketRef.current.emit("conversation-typing", {
+			conversationId,
+			isTyping: true,
+		});
+
+		if (chatTypingTimeoutRef.current) {
+			window.clearTimeout(chatTypingTimeoutRef.current);
+		}
+
+		chatTypingTimeoutRef.current = window.setTimeout(() => {
+			if (!chatSocketRef.current) return;
+			chatSocketRef.current.emit("conversation-typing", {
+				conversationId,
+				isTyping: false,
+			});
+			chatTypingTimeoutRef.current = null;
+		}, 900);
+	};
+
+	const handleSendChat = () => {
+		if (!conversationId || !chatSocketRef.current) return;
+		const clean = chatInput.trim();
+		if (!clean) return;
+
+		setSendingMessage(true);
+		chatSocketRef.current.emit("conversation-message", {
+			conversationId,
+			text: clean,
+		});
+		chatSocketRef.current.emit("conversation-typing", {
+			conversationId,
+			isTyping: false,
+		});
+		setChatInput("");
+		setSendingMessage(false);
+	};
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -1579,6 +1889,50 @@ export default function Canvas() {
 				if (redoShapesRef.current.length > HISTORY_LIMIT) {
 					redoShapesRef.current.shift();
 				}
+				undoDepthRef.current -= 1;
+				draftShapeRef.current = null;
+				dragStartRef.current = null;
+				markDirty();
+				return;
+			}
+
+			const restoredShape = redoShapesRef.current.pop();
+			if (!restoredShape) return;
+			shapesRef.current.push(restoredShape);
+			undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+			markDirty();
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) return;
+		const interval = window.setInterval(() => {
+			if (!dirtyRef.current || saving) return;
+			void saveCanvas();
+		}, 8000);
+
+		return () => {
+			window.clearInterval(interval);
+		};
+	}, [canvasIdParam, saving, backgroundColor, lineColor, tool, fill, strokeWeight, zoomPercent]);
+
+  useEffect(() => {
+		if (!canvasHostRef.current || p5Ref.current || initializedSketchRef.current) return;
+		initializedSketchRef.current = true;
+		let removeWheelListener: (() => void) | null = null;
+
+    const sketch = (s: p5) => {
+			const resizeToViewport = () => {
+				const controlsHeight = controlsRef.current?.offsetHeight ?? 56;
+				const nextHeight = Math.max(s.windowHeight - controlsHeight - 24, 200);
+				const nextWidth = Math.max(canvasHostRef.current?.clientWidth ?? s.windowWidth, 320);
+				s.resizeCanvas(nextWidth, nextHeight);
+			};
 				shapesRef.current = cloneShapesState(previousState);
 				syncSelectionAfterStateChange();
 				stopTextEditing();
@@ -2767,7 +3121,7 @@ export default function Canvas() {
 		};
   }, []);
 
-  return (
+	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 			<div
 				ref={controlsRef}
@@ -2783,9 +3137,19 @@ export default function Canvas() {
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Canvas</span>
 						<span style={controlFieldStyle}>
-							<button type="button" onClick={clearCanvas} style={{ width: "80px" }}>
-								Clear
-							</button>
+							<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+								<button type="button" onClick={clearCanvas} style={{ width: "70px" }}>
+									Clear
+								</button>
+								<button
+									type="button"
+									onClick={() => void saveCanvas()}
+									style={{ width: "56px", padding: "4px 6px", fontSize: "0.75rem" }}
+									disabled={saving}
+								>
+									{saving ? "..." : "Save"}
+								</button>
+							</div>
 						</span>
 					</label>
 				</div>
@@ -2900,11 +3264,25 @@ export default function Canvas() {
 					</label>
 				</div>
 
-				<div />
+				<div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", color: "var(--ink3)", fontSize: "0.8rem" }}>
+					{saveStatus}
+				</div>
 			</div>
-			<div style={{ position: "relative", width: "100%" }}>
-				<div ref={canvasHostRef} />
-			</div>
+				<div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "10px", alignItems: "stretch" }}>
+					<div ref={canvasHostRef} style={{ minHeight: "320px", border: "1px solid var(--border)", borderRadius: 8 }} />
+					<CanvasChatSidebar
+						canvasName={canvasName}
+						members={members}
+						chatStatus={chatStatus}
+						messages={chatMessages}
+						peerTyping={peerTyping}
+						chatInput={chatInput}
+						conversationLinked={Boolean(conversationId)}
+						sendingMessage={sendingMessage}
+						onChatInputChange={handleChatInputChange}
+						onSend={handleSendChat}
+					/>
+				</div>
     </div>
   );
 }
