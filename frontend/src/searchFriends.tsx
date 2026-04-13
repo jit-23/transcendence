@@ -23,7 +23,7 @@ export function SearchFriends() {
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
 
     const authHeader = () => ({
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
         "Content-Type": "application/json",
     });
 
@@ -33,11 +33,9 @@ export function SearchFriends() {
             setError("Enter a username or email to search");
             return;
         }
-
         setLoading(true);
         setError(null);
         setSearched(true);
-
         try {
             const res = await fetch(
                 `http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`,

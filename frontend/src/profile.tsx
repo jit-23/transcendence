@@ -2,12 +2,14 @@ import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
+import { Avatar, AvatarPicker } from './Avatar';
 
 export function ProfilePage() {
     const { user, refreshUser }  = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
 
+    const [showPicker, setShowPicker]           = useState(false);
     const [username, setUsername]               = useState(user?.name  ?? '');
     const [email, setEmail]                     = useState(user?.email ?? '');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -18,6 +20,22 @@ export function ProfilePage() {
     const [error, setError]                     = useState<string | null>(null);
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
+
+    const saveAvatar = async (avatar: string) => {
+        const res  = await fetch('http://localhost:8081/users/me/avatar', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify({ avatar }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save avatar');
+        await refreshUser();
+        setShowPicker(false);
+        setSuccess('Avatar updated!');
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,25 +99,43 @@ export function ProfilePage() {
             <main className="dashboard-body">
                 <div className="page-title fade-up">
                     <h1>Edit Profile</h1>
-                    <p>Update your account information.</p>
+                    <p>Update your account information and avatar.</p>
                 </div>
 
                 {/* Avatar row */}
-                <div className="section-card fade-up fade-up-1"
-                     style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div className="profile-avatar">{initials}</div>
-                    <div>
-                        <p style={{
-                            fontFamily: "'Syne', sans-serif",
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                            letterSpacing: '-0.02em',
-                            marginBottom: 2,
-                        }}>
-                            {user?.name}
-                        </p>
-                        <p style={{ color: 'var(--ink3)', fontSize: '0.78rem' }}>{user?.email}</p>
-                    </div>
+                <div className="section-card fade-up fade-up-1">
+                    {!showPicker ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                            <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={60} />
+                            <div style={{ flex: 1 }}>
+                                <p style={{
+                                    fontFamily: "'Syne', sans-serif",
+                                    fontWeight: 700,
+                                    fontSize: '1rem',
+                                    letterSpacing: '-0.02em',
+                                    marginBottom: 2,
+                                }}>
+                                    {user?.name}
+                                </p>
+                                <p style={{ color: 'var(--ink3)', fontSize: '0.78rem', marginBottom: 10 }}>
+                                    {user?.email}
+                                </p>
+                                <button
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => setShowPicker(true)}
+                                >
+                                    Change avatar
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <AvatarPicker
+                            current={user?.avatar}
+                            name={user?.name ?? '?'}
+                            onSave={saveAvatar}
+                            onCancel={() => setShowPicker(false)}
+                        />
+                    )}
                 </div>
 
                 {/* Edit form */}
@@ -114,19 +150,11 @@ export function ProfilePage() {
                     <form onSubmit={handleSubmit} className="form-stack">
                         <div className="form-group">
                             <label>Username</label>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={e => setUsername(e.target.value)}
-                            />
+                            <input type="text" value={username} onChange={e => setUsername(e.target.value)} />
                         </div>
                         <div className="form-group">
                             <label>Email</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                            />
+                            <input type="email" value={email} onChange={e => setEmail(e.target.value)} />
                         </div>
 
                         <div className="divider" />
@@ -155,7 +183,7 @@ export function ProfilePage() {
                         <div className="form-group">
                             <label>
                                 Current Password{' '}
-                                <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>required</span>
+                                <span style={{ color: 'var(--danger)', fontSize: '0.72rem' }}>required</span>
                             </label>
                             <input
                                 type="password"
@@ -170,8 +198,7 @@ export function ProfilePage() {
                             <button type="submit" className="btn btn-primary" disabled={loading}>
                                 {loading ? 'Saving...' : 'Save Changes'}
                             </button>
-                            <button type="button" className="btn btn-ghost"
-                                    onClick={() => navigate('/dashboard')}>
+                            <button type="button" className="btn btn-ghost" onClick={() => navigate('/dashboard')}>
                                 Cancel
                             </button>
                         </div>

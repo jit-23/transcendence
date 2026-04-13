@@ -20,19 +20,25 @@ model my_users{
 	createdAt DateTime @default(now())
 	twoFactorEnabled Boolean @default(false)
 	twoFactorSecret String?
+	avatar           String?
 
 	conversations conversation_participants[]
+	messages message[]
 	sentRequests friend_request[] @relation("SentRequests")
 	receivedRequests friend_request[] @relation("ReceivedRequests")
+	canvases canvas[]
+	canvasCollaborations canvas_collaborator[]
 
 }
 
 model conversation {
 	id 			Int 			@id @default(autoincrement())
 	type 		ConversationType @default(DIRECT)
+	name        String?
 	created_at	DateTime 	@default(now())
 
 	participants conversation_participants[]
+	messages    message[]
 
 }
 
@@ -62,4 +68,38 @@ model friend_request {
 	receiver my_users @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
 
 	@@unique([senderId, receiverId])
+}
+
+model message {
+	id Int @id @default(autoincrement())
+	conversation_id Int
+	sender_id Int
+	content String
+	created_at DateTime @default(now())
+
+	conversation conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+	sender my_users @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+}
+
+model canvas {
+	id Int @id @default(autoincrement())
+	userId Int
+	name String @db.VarChar(100)
+	content String? @db.Text
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+
+	user my_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+	collaborators canvas_collaborator[]
+}
+
+model canvas_collaborator {
+	canvasId Int
+	userId Int
+	addedAt DateTime @default(now())
+
+	canvas canvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+	user my_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+	@@id([canvasId, userId])
 }

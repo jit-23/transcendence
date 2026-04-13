@@ -2,210 +2,252 @@ import { FormEvent, useContext, useEffect, useMemo, useRef, useState } from "rea
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
-
-type ChatMessage = {
-  from: string;
-  text: string;
-};
 
 export function ChatPage() {
-  const { user } = useContext(AuthContext);
-  const { theme, toggleTheme } = useTheme();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const friendIdParam = searchParams.get("friendId");
+    const friendNameParam = searchParams.get("name") ?? "";
+    const initialTarget = friendNameParam || (searchParams.get("to") ?? "");
 
-  const to = (searchParams.get("to") || "").trim();
-  const [text, setText] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isFriendTyping, setIsFriendTyping] = useState(false);
-  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [target, setTarget] = useState(initialTarget);
+    const [draftTarget, setDraftTarget] = useState(initialTarget);
+    const [text, setText] = useState("");
+    const [status, setStatus] = useState<string | null>(null);
+    const [messages, setMessages] = useState<Array<{ from: string; text: string; self: boolean }>>([]);
+    const [peerTyping, setPeerTyping] = useState<string | null>(null);
+    const [conversationLoading, setConversationLoading] = useState(false);
 
-  const myName = useMemo(() => user?.name || "", [user?.name]);
+    const socketRef = useRef<Socket | null>(null);
+    const typingTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (!myName || !to) return;
-
-    const s = io("http://localhost:8081", {
-      auth: { username: myName },
+    const authHeader = () => ({
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+        "Content-Type": "application/json",
     });
 
-    s.on("connect", () => {
-      setConnected(true);
-      setError(null);
-    });
+    const canSend = useMemo(() => {
+        return Boolean(target.trim() && text.trim() && socketRef.current && !conversationLoading);
+    }, [target, text, conversationLoading]);
 
-    s.on("disconnect", () => {
-      setConnected(false);
-    });
+    useEffect(() => {
+        if (!friendIdParam) return;
+        if (!user?.name) return;
 
-    s.on("private-message", (msg: ChatMessage) => {
-      if (msg.from === to || msg.from === myName) {
-        setMessages((prev) => [...prev, msg]);
-      }
-    });
+        const friendId = Number(friendIdParam);
+        if (!Number.isInteger(friendId) || friendId <= 0) {
+            setStatus("Invalid friendId in URL");
+            return;
+        }
 
-    s.on("typing", ({ from, isTyping }: { from: string; isTyping: boolean }) => {
-      if (from === to) {
-        setIsFriendTyping(isTyping);
-      }
-    });
+        let cancelled = false;
 
-    s.on("user-not-found", () => {
-      setError(`User ${to} is offline or not found.`);
-    });
+        const openDirectConversation = async () => {
+            setConversationLoading(true);
+            setStatus("Opening conversation...");
 
-    setSocket(s);
+            try {
+                const res = await fetch("http://localhost:8081/conversations/direct", {
+                    method: "POST",
+                    headers: authHeader(),
+                    body: JSON.stringify({ friendId }),
+                });
+                const data = await res.json();
 
-    return () => {
-      s.emit("typing", { to, isTyping: false });
-      s.disconnect();
-      setSocket(null);
-      setIsFriendTyping(false);
+                if (!res.ok) {
+                    setStatus(data.error || "Failed to open conversation");
+                    return;
+                }
+
+                if (cancelled) return;
+
+                const displayName = friendNameParam || data.name || `User ${friendId}`;
+                setTarget(displayName);
+                setDraftTarget(displayName);
+                setMessages([]);
+                setPeerTyping(null);
+                setStatus(`Chatting with ${displayName}`);
+            } catch {
+                if (!cancelled) {
+                    setStatus("Network error while opening conversation");
+                }
+            } finally {
+                if (!cancelled) {
+                    setConversationLoading(false);
+                }
+            }
+        };
+
+        void openDirectConversation();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [friendIdParam, friendNameParam, user?.name]);
+
+    useEffect(() => {
+        if (!user?.name) return;
+
+        const socket = io("http://localhost:8081", {
+            auth: { username: user.name },
+            withCredentials: true,
+        });
+
+        socketRef.current = socket;
+
+        socket.on("connect", () => setStatus("Connected"));
+        socket.on("disconnect", () => setStatus("Disconnected"));
+
+        socket.on("private-message", ({ from, text: incomingText }) => {
+            setMessages((prev) => [...prev, { from, text: incomingText, self: false }]);
+        });
+
+        socket.on("user-not-found", ({ to }) => {
+            setStatus(`User ${to} is offline or not connected`);
+        });
+
+        socket.on("typing", ({ from, isTyping }) => {
+            if (from !== target.trim()) return;
+            setPeerTyping(isTyping ? from : null);
+        });
+
+        return () => {
+            if (typingTimeoutRef.current) {
+                window.clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, [user?.name, target]);
+
+    const handleSelectTarget = (event: FormEvent) => {
+        event.preventDefault();
+        const clean = draftTarget.trim();
+        if (!clean) return;
+        setTarget(clean);
+        setStatus(`Chatting with ${clean}`);
+        setMessages([]);
+        setPeerTyping(null);
+        navigate(`/chat?to=${encodeURIComponent(clean)}`, { replace: true });
     };
-  }, [myName, to]);
 
-  const sendMessage = (e: FormEvent) => {
-    e.preventDefault();
-    if (!socket || !connected) {
-      setError("Not connected to chat server.");
-      return;
-    }
+    const handleTextChange = (value: string) => {
+        setText(value);
 
-    const clean = text.trim();
-    if (!clean) return;
+        const cleanTarget = target.trim();
+        if (!cleanTarget || !socketRef.current) return;
 
-    socket.emit("private-message", {
-      payload: { to, text: clean },
-    });
+        socketRef.current.emit("typing", { to: cleanTarget, isTyping: true });
 
-    socket.emit("typing", { to, isTyping: false });
-    if (typingTimeout.current) {
-      clearTimeout(typingTimeout.current);
-      typingTimeout.current = null;
-    }
+        if (typingTimeoutRef.current) {
+            window.clearTimeout(typingTimeoutRef.current);
+        }
 
-    setMessages((prev) => [...prev, { from: myName, text: clean }]);
-    setText("");
-  };
+        typingTimeoutRef.current = window.setTimeout(() => {
+            if (!socketRef.current) return;
+            socketRef.current.emit("typing", { to: cleanTarget, isTyping: false });
+            typingTimeoutRef.current = null;
+        }, 900);
+    };
 
-  const onTypingChange = (value: string) => {
-    setText(value);
-    if (!socket || !connected || !to) return;
+    const handleSend = (event: FormEvent) => {
+        event.preventDefault();
+        const cleanTarget = target.trim();
+        const cleanText = text.trim();
+        if (!cleanTarget || !cleanText || !socketRef.current) return;
 
-    const hasText = value.trim().length > 0;
-    socket.emit("typing", { to, isTyping: hasText });
+        socketRef.current.emit("private-message", {
+            payload: { to: cleanTarget, text: cleanText },
+        });
 
-    if (typingTimeout.current) {
-      clearTimeout(typingTimeout.current);
-    }
+        socketRef.current.emit("typing", { to: cleanTarget, isTyping: false });
 
-    if (hasText) {
-      typingTimeout.current = setTimeout(() => {
-        socket.emit("typing", { to, isTyping: false });
-      }, 900);
-    }
-  };
+        setMessages((prev) => [...prev, { from: user?.name ?? "me", text: cleanText, self: true }]);
+        setText("");
+    };
 
-  return (
-    <div className="dashboard-shell">
-      <header className="topbar">
-        <div className="logo">
-          <div className="logo-mark">W</div>
-          whiteboard
-        </div>
-        <div className="topbar-right">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-            {theme === "dark" ? "☀" : "☾"}
-          </button>
-        </div>
-      </header>
+    return (
+        <div id="center">
+            <div className="card" style={{ maxWidth: 700 }}>
+                <h2 style={{ marginBottom: 10 }}>Direct Chat</h2>
 
-      <main className="dashboard-body">
-        <div className="page-title fade-up">
-          <h1>Chat with {to || "..."}</h1>
-          <p>{connected ? "Connected" : "Connecting..."}</p>
-        </div>
+                {!target && (
+                    <form onSubmit={handleSelectTarget} style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                        <input
+                            value={draftTarget}
+                            onChange={(event) => setDraftTarget(event.target.value)}
+                            placeholder="Friend username"
+                        />
+                        <button className="btn btn-ghost" type="submit">Open</button>
+                    </form>
+                )}
 
-        {!to && (
-          <div className="section-card fade-up">
-            <div className="msg msg-error">Missing chat target. Open chat from your friends list.</div>
-          </div>
-        )}
+                <p style={{ color: "var(--ink3)", marginBottom: 12 }}>
+                    {target ? `Talking to: ${target}` : "Select a username to start chatting."}
+                </p>
 
-        {to && (
-          <div className="section-card fade-up fade-up-1">
-            {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
+                {status && (
+                    <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>
+                        {status}
+                    </p>
+                )}
 
-            <div
-              style={{
-                minHeight: 300,
-                maxHeight: 420,
-                overflowY: "auto",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 12,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              {messages.length === 0 && (
-                <p style={{ color: "var(--ink3)", fontSize: "0.85rem" }}>No messages yet.</p>
-              )}
-              {messages.map((msg, index) => {
-                const mine = msg.from === myName;
-                return (
-                  <div
-                    key={`${msg.from}-${index}`}
+                <div
                     style={{
-                      alignSelf: mine ? "flex-end" : "flex-start",
-                      background: mine ? "var(--ink)" : "var(--bg2)",
-                      color: mine ? "var(--bg)" : "var(--ink)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 10,
-                      padding: "8px 10px",
-                      maxWidth: "75%",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        padding: 12,
+                        minHeight: 220,
+                        maxHeight: 320,
+                        overflowY: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        marginBottom: 14,
+                        background: "var(--surface2)",
                     }}
-                  >
-                    <div style={{ fontSize: "0.72rem", opacity: 0.7, marginBottom: 2 }}>
-                      {msg.from}
-                    </div>
-                    <div>{msg.text}</div>
-                  </div>
-                );
-              })}
+                >
+                    {messages.length === 0 && (
+                        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>No messages yet.</p>
+                    )}
+
+                    {messages.map((message, index) => (
+                        <div
+                            key={`${message.from}-${index}`}
+                            style={{
+                                alignSelf: message.self ? "flex-end" : "flex-start",
+                                maxWidth: "75%",
+                                border: "1px solid var(--border)",
+                                borderRadius: 10,
+                                padding: "8px 10px",
+                                background: message.self ? "var(--surface)" : "var(--bg)",
+                            }}
+                        >
+                            <p style={{ fontSize: "0.7rem", color: "var(--ink3)", marginBottom: 4 }}>{message.from}</p>
+                            <p>{message.text}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <form onSubmit={handleSend} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    <input
+                        value={text}
+                        onChange={(event) => handleTextChange(event.target.value)}
+                        placeholder="Type a message"
+                        disabled={!target}
+                    />
+                    <button className="btn btn-primary" type="submit" disabled={!canSend}>Send</button>
+                </form>
+
+                {peerTyping && (
+                    <p style={{ color: "var(--ink3)", fontSize: "0.78rem", marginBottom: 12 }}>
+                        {peerTyping} is typing...
+                    </p>
+                )}
+
             </div>
-
-            <form onSubmit={sendMessage} style={{ display: "flex", gap: 8 }}>
-              <input
-                type="text"
-                value={text}
-                onChange={(e) => onTypingChange(e.target.value)}
-                placeholder="Type a message..."
-                className="code-input"
-                style={{ flex: 1 }}
-              />
-              <button className="btn btn-primary" type="submit" disabled={!connected || !text.trim()}>
-                Send
-              </button>
-            </form>
-
-            {isFriendTyping && (
-              <p style={{ marginTop: 8, color: "var(--ink3)", fontSize: "0.8rem" }}>
-                {to} is typing...
-              </p>
-            )}
-          </div>
-        )}
-      </main>
-    </div>
-  );
+        </div>
+    );
 }
-
-

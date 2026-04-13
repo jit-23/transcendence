@@ -5,6 +5,7 @@ import { useTheme } from "./ThemeContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Avatar } from "./Avatar";
+import { CanvasesCard } from "./components/dashboard/CanvasesCard";
 
 type EnableStep = "idle" | "scanning";
 
@@ -284,9 +285,81 @@ export function Dashboard() {
             });
         }
     };
+
+    const fetchCanvases = async () => {
+        setCanvasesLoading(true);
+        setCanvasesError(null);
+        try {
+            const res = await fetch("http://localhost:8081/canvases", {
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCanvasesError(data.error || "Failed to load canvases");
+                setCanvases([]);
+            } else {
+                setCanvases(data);
+            }
+        } catch {
+            setCanvasesError("Network error while loading canvases");
+            setCanvases([]);
+        } finally {
+            setCanvasesLoading(false);
+        }
+    };
+
+    const handleAddCanvas = async (name: string): Promise<boolean> => {
+        setCanvasesError(null);
+        try {
+            const res = await fetchWithTimeout("http://localhost:8081/canvases", {
+                method: "POST",
+                headers: authHeader(),
+                body: JSON.stringify({ name: name.trim() || `Canvas ${canvases.length + 1}` }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                setCanvasesError(data.error || "Failed to create canvas");
+                return false;
+            }
+            setCanvases(prev => [...prev, data]);
+            return true;
+        } catch (error: any) {
+            if (error?.name === "AbortError") {
+                setCanvasesError("Server timeout while creating canvas");
+            } else {
+                setCanvasesError("Network error while creating canvas");
+            }
+            return false;
+        }
+    };
+
+    const handleDeleteCanvas = async (canvasId: number) => {
+        setCanvasesError(null);
+        try {
+            const res = await fetch(`http://localhost:8081/canvases/${canvasId}`, {
+                method: "DELETE",
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setCanvasesError(data.error || "Failed to delete canvas");
+                return;
+            }
+            setCanvases(prev => prev.filter(canvas => canvas.id !== canvasId));
+        } catch {
+            setCanvasesError("Network error while deleting canvas");
+        }
+    };
+
+    const handleOpenCanvas = (canvasId: number) => {
+        navigate(`/canvas?id=${canvasId}`);
+    };
+
     useEffect(() => {
         fetchRequests();
         fetchFriends();
+        fetchCanvases();
     }, []);
 
     useEffect(() => {
@@ -420,14 +493,14 @@ export function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="section-card fade-up fade-up-2">
-                            <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Plan Your Projects</h3>
-                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/Canvases')}>
-                                    Open
-                                </button>
-                            </div>
-                        </div>
+                        <CanvasesCard
+                            canvases={canvases}
+                            canvasesLoading={canvasesLoading}
+                            canvasesError={canvasesError}
+                            onAddCanvas={handleAddCanvas}
+                            onDeleteCanvas={handleDeleteCanvas}
+                            onOpenCanvas={handleOpenCanvas}
+                        />
 
                         <TwoFactorCard
                             twoFAEnabled={twoFAEnabled}
