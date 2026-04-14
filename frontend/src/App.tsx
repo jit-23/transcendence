@@ -15,6 +15,8 @@ import { GroupChatsPage } from "./groupChats.tsx";
 import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
 import '../css/App.css'
+import { useTranslation } from "react-i18next";
+import { changeLanguage } from "./components/i18n.tsx";
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
@@ -47,6 +49,7 @@ function NotFound() {
 }
 
 function Home() {
+    const {t} = useTranslation()
     const { theme, toggleTheme } = useTheme();
 
     return (
@@ -60,6 +63,14 @@ function Home() {
             >
                 {theme === 'dark' ? '☀' : '☾'}
             </button>
+            <button
+                className="theme-toggle"//change classname
+                onClick={changeLanguage}//onClick LANGUAGECHANGE
+                title="Toggle theme"//change title
+                style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
+            >
+                ☾
+            </button>
 
             <div style={{ textAlign: 'center', maxWidth: 440 }}>
                 <div className="logo" style={{ justifyContent: 'center', marginBottom: 32, fontSize: '1.1rem' }}>
@@ -68,8 +79,8 @@ function Home() {
                 </div>
 
                 <h1 style={{ fontSize: '2.8rem', marginBottom: 16, lineHeight: 1.1 }}>
-                    Think together,<br />
-                    <span style={{ color: 'var(--ink2)' }}>in real time.</span>
+                    {t("think_together")},<br />
+                    <span style={{ color: 'var(--ink2)' }}>{t("in_real_time")}.</span>
                 </h1>
 
                 <p style={{
