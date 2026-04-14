@@ -63,7 +63,6 @@ export function CanvasesPage() {
       }
     }
 
-    console.log("CanvasesPage: entered");
     const fetchCanvases = async () => {
         setCanvasesLoading(true);
         setCanvasesError(null);
@@ -117,6 +116,7 @@ export function CanvasesPage() {
                 body: JSON.stringify({ name: name.trim() || `Canvas ${canvases.length + 1}` }),
             });
             const data = await res.json();
+			console.log("Create canvas response:", data);
             if (!res.ok) {
 				setCanvasesError(data.error || "Failed to create canvas");
           return false;

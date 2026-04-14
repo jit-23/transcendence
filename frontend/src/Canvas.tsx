@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import p5 from "p5";
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import CanvasChatSidebar, { CanvasChatMessage, CanvasMember } from "./components/canvas/CanvasChatSidebar";
+import { AuthContext } from "./AuthContext";
+import { emitCanvasEvent, joinCanvasRoom, registerCanvasRealtimeHandlers } from "./utils/canvasRealtime";
 
 type Tool = "line" | "rectangle" | "circle" | "freehand" | "eraser";
 
@@ -80,9 +82,18 @@ type CanvasSnapshot = {
 	view: { scale: number; offsetX: number; offsetY: number };
 	shapes: Shape[];
 };
+
+type RemoteCursor = {
+	x: number;
+	y: number;
+	username: string;
+	lastSeen: number;
+};
+
 const HISTORY_LIMIT = 50;
 
 export default function Canvas() {
+	const { user } = useContext(AuthContext);
 	const [searchParams] = useSearchParams();
 	const canvasIdParam = searchParams.get("id");
 	const canvasId = canvasIdParam ? Number(canvasIdParam) : null;
@@ -103,6 +114,7 @@ export default function Canvas() {
 	const [chatStatus, setChatStatus] = useState<string | null>(null);
 	const [peerTyping, setPeerTyping] = useState<string | null>(null);
 	const [sendingMessage, setSendingMessage] = useState(false);
+	const [activeMemberIds, setActiveMemberIds] = useState<number[]>([]);
 
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
@@ -120,6 +132,10 @@ export default function Canvas() {
 	const redoShapesRef = useRef<Shape[]>([]);
 	const undoDepthRef = useRef(0);
 	const draftShapeRef = useRef<Shape | null>(null);
+	const remoteDraftsRef = useRef<Map<number, Shape>>(new Map());
+	const remoteCursorsRef = useRef<Map<number, RemoteCursor>>(new Map());
+	const lastDraftEmitAtRef = useRef(0);
+	const lastCursorEmitAtRef = useRef(0);
 	const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
@@ -137,6 +153,11 @@ export default function Canvas() {
 	const markDirty = () => {
 		if (hydratingRef.current) return;
 		dirtyRef.current = true;
+	};
+
+	const colorFromUserId = (userId: number) => {
+		const hue = (userId * 47) % 360;
+		return `hsl(${hue}, 78%, 46%)`;
 	};
 
 	const buildSnapshot = (): CanvasSnapshot => ({
@@ -210,6 +231,7 @@ export default function Canvas() {
 
 	const clearCanvas = () => {
 		shapesRef.current = [];
+		remoteDraftsRef.current.clear();
 		redoShapesRef.current = [];
 		undoDepthRef.current = 0;
 		draftShapeRef.current = null;
@@ -224,6 +246,64 @@ export default function Canvas() {
 		redoShapesRef.current = [];
 		markDirty();
 	};
+
+/**
+ * parte do nando
+ */
+
+
+	const clearCanvasAndBroadcast = () => {
+		clearCanvas();
+		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-clear");
+	};
+
+	const commitShapeAndBroadcast = (shape: Shape) => {
+		commitShape(shape);
+		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-commit", { shape });
+		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-draft", { shape: null });
+	};
+
+	const emitDraftShape = (shape: Shape | null) => {
+		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-draft", { shape });
+	};
+
+	const emitCursor = (x?: number, y?: number, visible = true) => {
+		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-cursor", {
+			x,
+			y,
+			visible,
+		});
+	};
+
+	const undoCanvas = (broadcast: boolean) => {
+		if (undoDepthRef.current <= 0) return;
+		const removedShape = shapesRef.current.pop();
+		if (!removedShape) return;
+		redoShapesRef.current.push(removedShape);
+		if (redoShapesRef.current.length > HISTORY_LIMIT) {
+			redoShapesRef.current.shift();
+		}
+		undoDepthRef.current -= 1;
+		draftShapeRef.current = null;
+		dragStartRef.current = null;
+		markDirty();
+		if (broadcast) emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-undo");
+	};
+
+	const redoCanvas = (broadcast: boolean) => {
+		const restoredShape = redoShapesRef.current.pop();
+		if (!restoredShape) return;
+		shapesRef.current.push(restoredShape);
+		undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+		markDirty();
+		if (broadcast) emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-redo", { shape: restoredShape });
+	};
+
+
+/**
+ * parte do nando
+ */
+
 
 	const applyZoomPercent = (nextPercentValue: number, anchor?: { x: number; y: number }) => {
 		const clampedPercent = Math.min(500, Math.max(20, nextPercentValue));
@@ -286,6 +366,7 @@ export default function Canvas() {
 
 	useEffect(() => {
 		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) return;
+		setActiveMemberIds([]);
 
 		let cancelled = false;
 
@@ -369,7 +450,7 @@ export default function Canvas() {
 					(data as any[]).map((message) => ({
 						from: message.sender?.name ?? "Unknown",
 						text: message.content,
-						self: Boolean(message.sender?.name && message.sender.name === sessionStorage.getItem("username")),
+						self: message.sender?.id === user?.id,
 					}))
 				);
 			} catch {
@@ -382,18 +463,67 @@ export default function Canvas() {
 		return () => {
 			cancelled = true;
 		};
-	}, [conversationId]);
+	}, [conversationId, user?.id]);
 
 	useEffect(() => {
-		const username = sessionStorage.getItem("username");
-		if (!username) return;
+		if (!user?.name) return;
 
 		const socket = io("http://localhost:8081", {
-			auth: { username },
+			auth: { username: user.name },
 			withCredentials: true,
 		});
 
 		chatSocketRef.current = socket;
+		const detachCanvasHandlers = registerCanvasRealtimeHandlers<Shape>(socket, canvasId, {
+			onShapeCommit: (shape) => commitShape(shape),
+			onClear: () => clearCanvas(),
+			onUndo: () => {
+				if (undoDepthRef.current <= 0) return;
+				shapesRef.current.pop();
+				redoShapesRef.current = [];
+				undoDepthRef.current = Math.max(0, undoDepthRef.current - 1);
+				markDirty();
+			},
+			onRedo: (shape) => {
+				shapesRef.current.push(shape);
+				redoShapesRef.current = [];
+				undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
+				markDirty();
+			},
+			onBackground: (color) => {
+				setBackgroundColor(color);
+				markDirty();
+			},
+			onPresence: (users) => {
+				setActiveMemberIds(users.map((member) => member.userId));
+				const activeSet = new Set(users.map((member) => member.userId));
+				for (const userId of remoteDraftsRef.current.keys()) {
+					if (!activeSet.has(userId)) remoteDraftsRef.current.delete(userId);
+				}
+				for (const userId of remoteCursorsRef.current.keys()) {
+					if (!activeSet.has(userId)) remoteCursorsRef.current.delete(userId);
+				}
+			},
+			onDraft: (userId, shape) => {
+				if (!shape) {
+					remoteDraftsRef.current.delete(userId);
+					return;
+				}
+				remoteDraftsRef.current.set(userId, shape);
+			},
+			onCursor: ({ userId, username, x, y, visible }) => {
+				if (!visible) {
+					remoteCursorsRef.current.delete(userId);
+					return;
+				}
+				remoteCursorsRef.current.set(userId, {
+					x,
+					y,
+					username,
+					lastSeen: Date.now(),
+				});
+			},
+		});
 
 		socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
 			if (!conversationId || Number(incomingConversationId) !== conversationId) return;
@@ -402,7 +532,7 @@ export default function Canvas() {
 				{
 					from: message.sender?.name ?? "Unknown",
 					text: message.content,
-					self: message.sender?.name === username,
+					self: message.sender?.id === user.id,
 				},
 			]);
 		});
@@ -412,18 +542,32 @@ export default function Canvas() {
 			setPeerTyping(isTyping ? from : null);
 		});
 
-		socket.on("connect", () => setChatStatus(null));
-		socket.on("disconnect", () => setChatStatus("Chat disconnected"));
+		socket.on("connect", () => {
+			setChatStatus(null);
+			joinCanvasRoom(socket, canvasId);
+		});
+		socket.on("disconnect", () => {
+			setChatStatus("Chat disconnected");
+			setActiveMemberIds([]);
+			remoteDraftsRef.current.clear();
+			remoteCursorsRef.current.clear();
+		});
+
+		joinCanvasRoom(socket, canvasId);
 
 		return () => {
+			detachCanvasHandlers();
 			if (chatTypingTimeoutRef.current) {
 				window.clearTimeout(chatTypingTimeoutRef.current);
 				chatTypingTimeoutRef.current = null;
 			}
 			socket.disconnect();
 			chatSocketRef.current = null;
+			setActiveMemberIds([]);
+			remoteDraftsRef.current.clear();
+			remoteCursorsRef.current.clear();
 		};
-	}, [conversationId]);
+	}, [canvasId, conversationId, user?.id, user?.name]);
 
 	const handleChatInputChange = (value: string) => {
 		setChatInput(value);
@@ -479,25 +623,11 @@ export default function Canvas() {
 			event.preventDefault();
 
 			if (shouldUndo) {
-				if (undoDepthRef.current <= 0) return;
-				const removedShape = shapesRef.current.pop();
-				if (!removedShape) return;
-				redoShapesRef.current.push(removedShape);
-				if (redoShapesRef.current.length > HISTORY_LIMIT) {
-					redoShapesRef.current.shift();
-				}
-				undoDepthRef.current -= 1;
-				draftShapeRef.current = null;
-				dragStartRef.current = null;
-				markDirty();
+				undoCanvas(true);
 				return;
 			}
 
-			const restoredShape = redoShapesRef.current.pop();
-			if (!restoredShape) return;
-			shapesRef.current.push(restoredShape);
-			undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
-			markDirty();
+			redoCanvas(true);
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
@@ -606,6 +736,19 @@ export default function Canvas() {
 				s.ellipse(shape.x1, shape.y1, shape.x2, shape.y2);
 			};
 
+			const drawRemoteCursor = (userId: number, cursor: RemoteCursor) => {
+				const color = colorFromUserId(userId);
+				s.push();
+				s.noStroke();
+				s.fill(color);
+				s.circle(cursor.x, cursor.y, 9 / viewRef.current.scale);
+				s.fill(20, 20, 20, 200);
+				s.textSize(12 / viewRef.current.scale);
+				s.textAlign(s.LEFT, s.BOTTOM);
+				s.text(cursor.username, cursor.x + 10 / viewRef.current.scale, cursor.y - 8 / viewRef.current.scale);
+				s.pop();
+			};
+
 			s.setup = () => {
 				const renderer = s.createCanvas(100, 100);
 				renderer.parent(canvasHostRef.current!);
@@ -637,6 +780,13 @@ export default function Canvas() {
 			};
 
 			s.draw = () => {
+				const now = Date.now();
+				for (const [userId, cursor] of remoteCursorsRef.current.entries()) {
+					if (now - cursor.lastSeen > 5000) {
+						remoteCursorsRef.current.delete(userId);
+					}
+				}
+
 				s.background(settingsRef.current.backgroundColor);
 				s.push();
 				s.translate(viewRef.current.offsetX, viewRef.current.offsetY);
@@ -644,8 +794,14 @@ export default function Canvas() {
 				for (const shape of shapesRef.current) {
 					drawShape(shape);
 				}
+				for (const shape of remoteDraftsRef.current.values()) {
+					drawShape(shape);
+				}
 				if (draftShapeRef.current) {
 					drawShape(draftShapeRef.current);
+				}
+				for (const [userId, cursor] of remoteCursorsRef.current.entries()) {
+					drawRemoteCursor(userId, cursor);
 				}
 				s.pop();
 			};
@@ -654,6 +810,7 @@ export default function Canvas() {
 				if ((event.buttons & 1) === 0) return;
 				if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
 				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
+				emitCursor(worldPoint.x, worldPoint.y, true);
 
 				dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
 
@@ -664,6 +821,7 @@ export default function Canvas() {
 						...(settingsRef.current.tool === "freehand" ? { color: settingsRef.current.lineColor } : {}),
 						strokeWeight: settingsRef.current.strokeWeight,
 					} as FreeHandShape | EraserShape;
+					emitDraftShape(draftShapeRef.current);
 					return;
 				}
 
@@ -677,6 +835,7 @@ export default function Canvas() {
 					filled: settingsRef.current.fill,
 					strokeWeight: settingsRef.current.strokeWeight,
 				} as LineShape | RectangleShape | CircleShape;
+				emitDraftShape(draftShapeRef.current);
 			};
 
 				s.mouseClicked = () => {
@@ -687,7 +846,7 @@ export default function Canvas() {
 						dotRef.current = true;
 						return;
 					}
-					commitShape({
+					commitShapeAndBroadcast({
 						kind: "dot",
 						x: worldPoint.x,
 						y: worldPoint.y,
@@ -696,18 +855,28 @@ export default function Canvas() {
 					});
 					draftShapeRef.current = null;
 					dragStartRef.current = null;
+					emitDraftShape(null);
 				};
 
 			s.mouseDragged = (event: MouseEvent) => {
 				if ((event.buttons & 1) === 0) return;
 				if (!dragStartRef.current || !draftShapeRef.current) return;
 				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
+				const now = Date.now();
+				if (now - lastCursorEmitAtRef.current > 30) {
+					emitCursor(worldPoint.x, worldPoint.y, true);
+					lastCursorEmitAtRef.current = now;
+				}
 				dotRef.current = false;
 				if (draftShapeRef.current.kind === "freehand" || draftShapeRef.current.kind === "eraser") {
 					draftShapeRef.current = {
 						...draftShapeRef.current,
 						points: [...draftShapeRef.current.points, { x: worldPoint.x, y: worldPoint.y }],
 					};
+					if (now - lastDraftEmitAtRef.current > 25) {
+						emitDraftShape(draftShapeRef.current);
+						lastDraftEmitAtRef.current = now;
+					}
 					return;
 				}
 
@@ -716,6 +885,19 @@ export default function Canvas() {
 					x2: worldPoint.x,
 					y2: worldPoint.y,
 				};
+				if (now - lastDraftEmitAtRef.current > 25) {
+					emitDraftShape(draftShapeRef.current);
+					lastDraftEmitAtRef.current = now;
+				}
+			};
+
+			s.mouseMoved = () => {
+				if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
+				const now = Date.now();
+				if (now - lastCursorEmitAtRef.current <= 30) return;
+				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
+				emitCursor(worldPoint.x, worldPoint.y, true);
+				lastCursorEmitAtRef.current = now;
 			};
 
 			s.mouseReleased = () => {
@@ -723,11 +905,17 @@ export default function Canvas() {
 					if ((draftShapeRef.current.kind === "freehand" || draftShapeRef.current.kind === "eraser") && draftShapeRef.current.points.length < 2) {
 						draftShapeRef.current = null;
 						dragStartRef.current = null;
+						emitDraftShape(null);
 						return;
 					}
-					commitShape({ ...draftShapeRef.current });
+					commitShapeAndBroadcast({ ...draftShapeRef.current });
 				dragStartRef.current = null;
 				draftShapeRef.current = null;
+				emitDraftShape(null);
+			};
+
+			s.mouseOut = () => {
+				emitCursor(undefined, undefined, false);
 			};
 
 			s.windowResized = () => {
@@ -764,7 +952,7 @@ export default function Canvas() {
 						<span style={controlNameStyle}>Canvas</span>
 						<span style={controlFieldStyle}>
 							<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-								<button type="button" onClick={clearCanvas} style={{ width: "70px" }}>
+								<button type="button" onClick={clearCanvasAndBroadcast} style={{ width: "70px" }}>
 									Clear
 								</button>
 								<button
@@ -787,7 +975,10 @@ export default function Canvas() {
 							<input
 								type="color"
 								value={backgroundColor}
-								onChange={(event) => setBackgroundColor(event.target.value)}
+								onChange={(event) => {
+									setBackgroundColor(event.target.value);
+									emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-background", { color: event.target.value });
+								}}
 							/>
 						</span>
 					</label>
@@ -872,6 +1063,7 @@ export default function Canvas() {
 					<CanvasChatSidebar
 						canvasName={canvasName}
 						members={members}
+						activeMemberIds={activeMemberIds}
 						chatStatus={chatStatus}
 						messages={chatMessages}
 						peerTyping={peerTyping}

@@ -51,7 +51,6 @@ export function FriendsCard({
             >
               <div>
                 <p style={{ marginBottom: 4, fontWeight: 600 }}>{friend.name}</p>
-                <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{friend.email}</p>
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>

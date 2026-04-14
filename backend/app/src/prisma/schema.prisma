@@ -39,6 +39,7 @@ model conversation {
 
 	participants conversation_participants[]
 	messages    message[]
+	canvases    canvas[]
 
 }
 

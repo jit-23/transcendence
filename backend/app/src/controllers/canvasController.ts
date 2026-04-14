@@ -84,7 +84,7 @@ export async function createCanvas(req: Request, res: Response) {
                 conversationId: conversation.id,
             },
         });
-
+		
         res.status(201).json(canvas);
     } catch (error) {
         console.error("Error creating canvas:", error);

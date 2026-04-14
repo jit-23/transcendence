@@ -14,6 +14,7 @@ export type CanvasChatMessage = {
 type CanvasChatSidebarProps = {
 	canvasName: string;
 	members: CanvasMember[];
+	activeMemberIds: number[];
 	chatStatus: string | null;
 	messages: CanvasChatMessage[];
 	peerTyping: string | null;
@@ -27,6 +28,7 @@ type CanvasChatSidebarProps = {
 export default function CanvasChatSidebar({
 	canvasName,
 	members,
+	activeMemberIds,
 	chatStatus,
 	messages,
 	peerTyping,
@@ -44,15 +46,20 @@ export default function CanvasChatSidebar({
 			</div>
 
 			<div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
-				<p style={{ margin: "0 0 6px", fontSize: "0.8rem", fontWeight: 600 }}>Members ({members.length})</p>
+				<p style={{ margin: "0 0 6px", fontSize: "0.8rem", fontWeight: 600 }}>
+					Members ({members.length}) · Active ({activeMemberIds.length})
+				</p>
 				<div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto" }}>
 					{members.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>No members found.</p>}
-					{members.map((member) => (
-						<div key={member.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
-							<span>{member.name}</span>
-							<span style={{ color: "var(--ink3)" }}>{member.role}</span>
-						</div>
-					))}
+					{members.map((member) => {
+						const isActive = activeMemberIds.includes(member.id);
+						return (
+							<div key={member.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
+								<span>{member.name}{isActive ? " (online)" : ""}</span>
+								<span style={{ color: "var(--ink3)" }}>{member.role}</span>
+							</div>
+						);
+					})}
 				</div>
 			</div>
 
@@ -73,6 +80,12 @@ export default function CanvasChatSidebar({
 					<input
 						value={chatInput}
 						onChange={(event) => onChatInputChange(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key !== "Enter") return;
+							event.preventDefault();
+							if (!conversationLinked || sendingMessage || !chatInput.trim()) return;
+							onSend();
+						}}
 						placeholder={conversationLinked ? "Type a message" : "Group chat not linked"}
 						disabled={!conversationLinked}
 						style={{ flex: 1 }}
