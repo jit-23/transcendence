@@ -1,0 +1,25 @@
+
+-> o back end tem enpoints para adicionar na basedados
+-> mandar do frontend para o backend por json;
+
+sudo docker inspect --format '{{.State.Pid}}' <PID>
+docker compose down
+rm -rf frontend/node_modules frontend/package-lock.json
+docker compose build --no-cache frontend_server
+docker compose up -d
+NOTA PARA MIM:
+-> TRATA DOS URL PARA O BACK END FICAR CONECTADO A BASE DE DADOS
+
+docker exec -it postgres psql -U postgres -c "\l27
+
+command: >
+    sh -c "sleep 5 && 
+           npx prisma db push --schema=./src/prisma/schema.prisma --accept-data-loss && 
+           node dist/index.js"
+
+
+      npx prisma db push --accept-data-loss --schema=./src/prisma/schema.prisma && node dist/index.js"
+
+
+
+-> 

@@ -1,0 +1,29 @@
+neste ficherio temos informaco sobre como o sistema de amigos funciona
+
+para comecar e-nos possivel pesquisar users no frontened pelo ficheiro searchfriends.tsx 
+
+no return temos um formulario que se o preenchermos guardmos a informacao dada peolo cliente e enviamos a info num query por um endpoint,
+este endpoint redireciona para o url users/search, que tem a funcao searchUsers vinculada.
+
+esta funcao que esta no ficheiro userControllers recebe o query,
+
+faz a confirmacao do jwt, apos tal confirmacao faz parse do query para saber qual o target,
+logo procura na base de dados pelos users que correespondem ao pedido, excluindo o proprio no processo.
+
+a variavel "users" e um json com todos os users que correspondem a descricao(limite de 20 users)
+este json e devolvido para o front end e podemos dar display deles no frontend.
+
+
+No frontend, quando recebemos a resposta do backend(lista de users)
+filtramos para a informacao estar bem apresentada para o user e fazemos display pela em baixo do search
+
+para cada bloco com o nome do futuro friend, temos a informacao dele, id, nome, email.
+caso seja ativado o botao de amizade( +add) -> a funcao handleSendRequest() sera chamada, e como
+argumento tera o id do cliente amigo que e enviada para o /users/friend-request/send com o ID amigo para finalizar o
+pedido de amizade.
+
+No backend(/users/friend-request/send) -> temos a funcao sendFriendRequest() no ficherio userControllers
+
+esta funcao confirma se o JSON e valido. Se esse for o caso, este procura na base de dados e cria 
+uma row na table de friend_request do user e adiciona a flag "accepted"-> desta forma conseguimos saber quais amigos estao vinculados a ti
+
