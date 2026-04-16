@@ -10,6 +10,10 @@ import {
     getUser,
     updateUser,
     getMe,
+    getUserProfile,
+    getBlockedUsers,
+    blockUser,
+    unblockUser,
     updateMe,
     updateAvatar,
     searchUsers,
@@ -20,6 +24,12 @@ import {
     getFriends,
     unfriend,
 } from '../controllers/userController';
+import {
+    googleAuthRedirect,
+    googleAuthCallback,
+    fortyTwoAuthRedirect,
+    fortyTwoAuthCallback,
+} from '../controllers/googleAuthController';
 
 const router = Router();
 
@@ -35,8 +45,20 @@ router.post('/signup', createUser);
 router.post('/login', login);
 router.post('/login2FA', twoFALimiter, login2FA);
 
+// Google OAuth
+router.get('/auth/google',          googleAuthRedirect);
+router.get('/auth/google/callback', googleAuthCallback);
+
+// 42 OAuth
+router.get('/auth/42',          fortyTwoAuthRedirect);
+router.get('/auth/42/callback', fortyTwoAuthCallback);
+
 // Profile
 router.get('/me', getMe);
+router.get('/blocks', getBlockedUsers);
+router.get('/:id/profile', getUserProfile);
+router.post('/:id/block', blockUser);
+router.post('/:id/unblock', unblockUser);
 router.put('/me', updateMe);
 router.put('/me/avatar', updateAvatar);
 

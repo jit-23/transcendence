@@ -1,24 +1,29 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
-import { LoginForm }   from "./userLogin.tsx";
-import { Dashboard }   from "./dashboard";
-import { SignupForm }  from './userSignup.tsx';
+import { LoginForm } from "./userLogin.tsx";
+import { Dashboard } from "./dashboard";
+import { SignupForm } from "./userSignup.tsx";
 import { ProfilePage } from './profile.tsx';
-import PrivateRoute    from "./PrivateRoute";
-import { useContext }  from "react";
+import PrivateRoute from "./PrivateRoute";
+import { useContext } from "react";
 import { AuthContext } from "./AuthContext";
-import { useTheme }    from "./ThemeContext";
+import { useTheme } from "./ThemeContext";
 import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
 import Canvas from "./Canvas.tsx";
 import { GroupChatsPage } from "./groupChats.tsx";
 import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
-import '../css/App.css'
+import { OAuthCallback } from "./OAuthCallback.tsx";
+import { UserPublicProfilePage } from "./userPublicProfile.tsx";
+import { BlockedUsersPage } from "./blockedUsers.tsx";
+import { PrivacyPolicyPage } from "./privacyPolicy.tsx";
+import { TermsOfServicePage } from "./termsOfService.tsx";
+import '../css/App.css';
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
-    if (!authReady) 
+    if (!authReady)
         return null;
     if (user)
         return <Navigate to="/dashboard" />;
@@ -40,9 +45,18 @@ function NotFound() {
                 <p style={{ color: 'var(--ink3)', margin: '12px 0 24px', fontSize: '0.85rem' }}>
                     This page doesn't exist.
                 </p>
-                <Link to="/" className="btn btn-ghost">← Go home</Link>
+                <Link to="/dashboard" className="btn btn-ghost">← Go to dashboard</Link>
             </div>
         </div>
+    );
+}
+
+function SiteFooter() {
+    return (
+        <footer className="site-footer">
+            <Link to="/privacy" className="footer-link">Privacy Policy</Link>
+            <Link to="/terms" className="footer-link">Terms of Service</Link>
+        </footer>
     );
 }
 
@@ -51,7 +65,6 @@ function Home() {
 
     return (
         <div id="center">
-            {/* Theme toggle top-right */}
             <button
                 className="theme-toggle"
                 onClick={toggleTheme}
@@ -84,7 +97,7 @@ function Home() {
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                     <Link to="/signup" className="btn btn-primary">Get started →</Link>
-                    <Link to="/login"  className="btn btn-ghost">Sign in</Link>
+                    <Link to="/login" className="btn btn-ghost">Sign in</Link>
                 </div>
             </div>
         </div>
@@ -95,50 +108,25 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Home />} />
-
-                <Route path="/login" element={
-                    <PublicRoute><LoginForm /></PublicRoute>
-                } />
-
-                <Route path="/signup" element={
-                    <PublicRoute><SignupForm /></PublicRoute>
-                } />
-
-                <Route path="/dashboard" element={
-                    <PrivateRoute><Dashboard /></PrivateRoute>
-                } />
-
-                <Route path="/profile" element={
-                    <PrivateRoute><ProfilePage /></PrivateRoute>
-                } />
-
-                <Route path="/search" element={
-                    <PrivateRoute><SearchFriends /></PrivateRoute>
-                } />
-
-                <Route path="/chat" element={
-                    <PrivateRoute><ChatPage /></PrivateRoute>
-                } />
-
-                <Route path="/conversations" element={
-                    <PrivateRoute><ConversationsPage /></PrivateRoute>
-                } />
-				
-				<Route path="/Canvases" element={
-                    <PrivateRoute><CanvasesPage /></PrivateRoute>
-                } />
-
-                <Route path="/groups" element={
-                    <PrivateRoute><GroupChatsPage /></PrivateRoute>
-                } />
-
-                <Route path="/canvas" element={
-                    <PrivateRoute><Canvas /></PrivateRoute>
-                } />
-
+                <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+                <Route path="/login" element={<PublicRoute><LoginForm /></PublicRoute>} />
+                <Route path="/signup" element={<PublicRoute><SignupForm /></PublicRoute>} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms" element={<TermsOfServicePage />} />
+                <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+                <Route path="/profile/blocked" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
+                <Route path="/users/:id" element={<PrivateRoute><UserPublicProfilePage /></PrivateRoute>} />
+                <Route path="/search" element={<PrivateRoute><SearchFriends /></PrivateRoute>} />
+                <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
+                <Route path="/conversations" element={<PrivateRoute><ConversationsPage /></PrivateRoute>} />
+                <Route path="/Canvases" element={<PrivateRoute><CanvasesPage /></PrivateRoute>} />
+                <Route path="/groups" element={<PrivateRoute><GroupChatsPage /></PrivateRoute>} />
+                <Route path="/canvas" element={<PrivateRoute><Canvas /></PrivateRoute>} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
+            <SiteFooter />
         </BrowserRouter>
     );
 }

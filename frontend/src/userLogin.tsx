@@ -1,5 +1,5 @@
-import { useContext, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useContext, useEffect, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
 
@@ -11,9 +11,38 @@ export function     LoginForm() {
     const [needs2FA, setNeeds2FA]   = useState(false);
     const [loading, setLoading]     = useState(false);
     const [error, setError]         = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
     const { login }                 = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
+    const location                  = useLocation();
+
+    const sanitizeCode = (value: string) => value.replace(/\D/g, '').slice(0, 6);
+
+    useEffect(() => {
+        const state = location.state as { needs2FA?: boolean; tempToken?: string } | null;
+        if (state?.needs2FA && state.tempToken) {
+            setNeeds2FA(true);
+            setTempToken(state.tempToken);
+            setError(null);
+            navigate('/login', { replace: true });
+        }
+    }, [location.state, navigate]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const oauthError = params.get('error');
+
+        const messageByError: Record<string, string> = {
+            oauth_state: 'Login session expired. Please try signing in again.',
+            oauth_failed: 'OAuth sign-in failed. Please try again.',
+            oauth_misconfigured: 'OAuth is currently unavailable. Please try email/password or contact support.',
+        };
+
+        if (oauthError && messageByError[oauthError]) {
+            setError(messageByError[oauthError]);
+        }
+    }, [location.search]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,13 +135,23 @@ export function     LoginForm() {
                             </div>
                             <div className="form-group">
                                 <label>Password</label>
-                                <input
-                                    type="password"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                />
+                                <div className="input-with-action">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-action-btn"
+                                        onClick={() => setShowPassword(prev => !prev)}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? 'Hide' : 'Show'}
+                                    </button>
+                                </div>
                             </div>
                             <button
                                 type="submit"
@@ -122,6 +161,66 @@ export function     LoginForm() {
                             >
                                 {loading ? 'Signing in...' : 'Sign in →'}
                             </button>
+
+                            {/* ── Divider ── */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center',
+                                gap: 10, margin: '4px 0',
+                                color: 'var(--ink3)', fontSize: '0.75rem',
+                            }}>
+                                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                                or
+                                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                            </div>
+
+                            {/* ── Google button ── */}
+                            <a
+                                href="http://localhost:8081/users/auth/google"
+                                className="btn btn-ghost btn-full"
+                                aria-disabled={loading}
+                                onClick={(e) => { if (loading) e.preventDefault(); }}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill="#4285F4" d="M45.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.1c-.5 2.7-2.1 5-4.4 6.5v5.4h7.1c4.2-3.8 6.6-9.5 6.6-16.4z"/>
+                                    <path fill="#34A853" d="M24 46c6 0 11-2 14.7-5.4l-7.1-5.4c-2 1.3-4.5 2.1-7.6 2.1-5.8 0-10.8-3.9-12.5-9.2H4.1v5.6C7.8 41.8 15.4 46 24 46z"/>
+                                    <path fill="#FBBC05" d="M11.5 28.1c-.4-1.3-.7-2.7-.7-4.1s.2-2.8.7-4.1v-5.6H4.1C2.8 17 2 20.4 2 24s.8 7 2.1 9.7l7.4-5.6z"/>
+                                    <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35 4 29.9 2 24 2 15.4 2 7.8 6.2 4.1 14.3l7.4 5.6C13.2 14.7 18.2 10.8 24 10.8z"/>
+                                </svg>
+                                Continue with Google
+                            </a>
+
+                            <a
+                                href="http://localhost:8081/users/auth/42"
+                                className="btn btn-ghost btn-full"
+                                aria-disabled={loading}
+                                onClick={(e) => { if (loading) e.preventDefault(); }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    textDecoration: 'none',
+                                    fontWeight: 700,
+                                    opacity: loading ? 0.5 : 1,
+                                    pointerEvents: loading ? 'none' : 'auto',
+                                }}
+                            >
+                                <span style={{
+                                    display: 'inline-flex',
+                                    width: 18,
+                                    height: 18,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '1px solid var(--border2)',
+                                    borderRadius: 4,
+                                    fontSize: '0.65rem',
+                                    letterSpacing: '-0.02em',
+                                }}>
+                                    42
+                                </span>
+                                Continue with 42
+                            </a>
                         </form>
                     ) : (
                         <div className="form-stack">
@@ -136,14 +235,29 @@ export function     LoginForm() {
                                     maxLength={6}
                                     placeholder="000 000"
                                     value={code}
-                                    onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                                    onChange={e => setCode(sanitizeCode(e.target.value))}
+                                    onPaste={(e) => {
+                                        const pasted = sanitizeCode(e.clipboardData.getData('text'));
+                                        if (pasted) {
+                                            e.preventDefault();
+                                            setCode(pasted);
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && code.length === 6 && !loading) {
+                                            e.preventDefault();
+                                            void handle2FA();
+                                        }
+                                    }}
                                     autoFocus
                                     className="code-input"
                                     style={{ maxWidth: '100%' }}
                                 />
+                                <p className="form-hint">Tip: you can paste the full 6-digit code.</p>
                             </div>
                             <button
                                 className="btn btn-primary btn-full"
+                                type="button"
                                 onClick={handle2FA}
                                 disabled={!tempToken || loading}
                             >
@@ -151,7 +265,9 @@ export function     LoginForm() {
                             </button>
                             <button
                                 className="btn btn-ghost btn-full"
+                                type="button"
                                 onClick={() => { setNeeds2FA(false); setError(null); setCode(''); }}
+                                disabled={loading}
                             >
                                 ← Back to login
                             </button>
