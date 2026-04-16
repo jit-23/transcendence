@@ -177,12 +177,55 @@ export const getMyConversations = async (req: Request, res: Response) => {
                 type: membership.conversation.type,
                 name: membership.conversation.name,
                 members,
+                role: membership.role,
             };
         });
 
         return res.json(conversations);
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteGroupConversation = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const conversationId = Number(req.params.id);
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({ error: "Invalid conversation id" });
+        }
+
+        const membership = await prisma.conversation_participants.findFirst({
+            where: { conversation_id: conversationId, user_id: auth.userId },
+            select: { role: true, conversation_id: true },
+        });
+
+        if (!membership) {
+            return res.status(403).json({ error: "Not a participant of this conversation" });
+        }
+
+        if (membership.role === "owner") {
+            await prisma.conversation.delete({
+                where: { id: conversationId },
+            });
+
+            return res.json({ message: "Group deleted" });
+        }
+
+        await prisma.conversation_participants.delete({
+            where: {
+                conversation_id_user_id: {
+                    conversation_id: conversationId,
+                    user_id: auth.userId,
+                },
+            },
+        });
+
+        return res.json({ message: "Left group" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || "Failed to delete conversation" });
     }
 };
 

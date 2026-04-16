@@ -43,6 +43,7 @@ model conversation {
 
 	participants conversation_participants[]
 	messages    message[]
+	canvases    canvas[]
 
 }
 
@@ -104,6 +105,9 @@ model canvas {
 	content String? @db.Text
 	createdAt DateTime @default(now())
 	updatedAt DateTime @updatedAt
+
+	conversationId Int? // New: link to group chat
+	conversation conversation? @relation(fields: [conversationId], references: [id])
 
 	user my_users @relation(fields: [userId], references: [id], onDelete: Cascade)
 	collaborators canvas_collaborator[]

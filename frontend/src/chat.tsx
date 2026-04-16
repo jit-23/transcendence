@@ -1,23 +1,28 @@
 import { FormEvent, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
 
+type ChatBubble = {
+    from: string;
+    text: string;
+    self: boolean;
+};
+
 export function ChatPage() {
     const { user } = useContext(AuthContext);
-    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const friendIdParam = searchParams.get("friendId");
     const friendNameParam = searchParams.get("name") ?? "";
-    const initialTarget = friendNameParam || (searchParams.get("to") ?? "");
+    const initialTarget = friendNameParam;
 
     const [target, setTarget] = useState(initialTarget);
-    const [draftTarget, setDraftTarget] = useState(initialTarget);
     const [text, setText] = useState("");
     const [status, setStatus] = useState<string | null>(null);
-    const [messages, setMessages] = useState<Array<{ from: string; text: string; self: boolean }>>([]);
+    const [messages, setMessages] = useState<ChatBubble[]>([]);
     const [peerTyping, setPeerTyping] = useState<string | null>(null);
     const [conversationLoading, setConversationLoading] = useState(false);
+    const [conversationId, setConversationId] = useState<number | null>(null);
 
     const socketRef = useRef<Socket | null>(null);
     const typingTimeoutRef = useRef<number | null>(null);
@@ -28,8 +33,8 @@ export function ChatPage() {
     });
 
     const canSend = useMemo(() => {
-        return Boolean(target.trim() && text.trim() && socketRef.current && !conversationLoading);
-    }, [target, text, conversationLoading]);
+        return Boolean(conversationId && text.trim() && socketRef.current && !conversationLoading);
+    }, [conversationId, text, conversationLoading]);
 
     useEffect(() => {
         if (!friendIdParam) return;
@@ -63,8 +68,8 @@ export function ChatPage() {
                 if (cancelled) return;
 
                 const displayName = friendNameParam || data.name || `User ${friendId}`;
+                setConversationId(Number(data.id));
                 setTarget(displayName);
-                setDraftTarget(displayName);
                 setMessages([]);
                 setPeerTyping(null);
                 setStatus(`Chatting with ${displayName}`);
@@ -87,6 +92,46 @@ export function ChatPage() {
     }, [friendIdParam, friendNameParam, user?.name]);
 
     useEffect(() => {
+        if (!conversationId) return;
+
+        let cancelled = false;
+
+        const loadMessages = async () => {
+            try {
+                const res = await fetch(`http://localhost:8081/conversations/${conversationId}/messages`, {
+                    headers: authHeader(),
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setStatus(data.error || "Failed to load messages");
+                    return;
+                }
+
+                if (cancelled) return;
+
+                const mapped: ChatBubble[] = data.map((message: any) => ({
+                    from: message.sender?.name ?? "Unknown",
+                    text: message.content,
+                    self: message.sender?.id === user?.id,
+                }));
+
+                setMessages(mapped);
+            } catch {
+                if (!cancelled) {
+                    setStatus("Network error while loading messages");
+                }
+            }
+        };
+
+        void loadMessages();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [conversationId, user?.id]);
+
+    useEffect(() => {
         if (!user?.name) return;
 
         const socket = io("http://localhost:8081", {
@@ -99,16 +144,23 @@ export function ChatPage() {
         socket.on("connect", () => setStatus("Connected"));
         socket.on("disconnect", () => setStatus("Disconnected"));
 
-        socket.on("private-message", ({ from, text: incomingText }) => {
-            setMessages((prev) => [...prev, { from, text: incomingText, self: false }]);
+        socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
+            const normalizedIncoming = Number(incomingConversationId);
+            if (!conversationId || normalizedIncoming !== conversationId) return;
+
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: message.sender?.name ?? "Unknown",
+                    text: message.content,
+                    self: message.sender?.id === user?.id,
+                },
+            ]);
         });
 
-        socket.on("user-not-found", ({ to }) => {
-            setStatus(`User ${to} is offline or not connected`);
-        });
-
-        socket.on("typing", ({ from, isTyping }) => {
-            if (from !== target.trim()) return;
+        socket.on("conversation-typing", ({ conversationId: incomingConversationId, from, isTyping }) => {
+            const normalizedIncoming = Number(incomingConversationId);
+            if (!conversationId || normalizedIncoming !== conversationId) return;
             setPeerTyping(isTyping ? from : null);
         });
 
@@ -120,26 +172,18 @@ export function ChatPage() {
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [user?.name, target]);
-
-    const handleSelectTarget = (event: FormEvent) => {
-        event.preventDefault();
-        const clean = draftTarget.trim();
-        if (!clean) return;
-        setTarget(clean);
-        setStatus(`Chatting with ${clean}`);
-        setMessages([]);
-        setPeerTyping(null);
-        navigate(`/chat?to=${encodeURIComponent(clean)}`, { replace: true });
-    };
+    }, [user?.name, conversationId, user?.id]);
 
     const handleTextChange = (value: string) => {
         setText(value);
 
-        const cleanTarget = target.trim();
-        if (!cleanTarget || !socketRef.current) return;
+        if (!socketRef.current) return;
+        if (!conversationId) return;
 
-        socketRef.current.emit("typing", { to: cleanTarget, isTyping: true });
+        socketRef.current.emit("conversation-typing", {
+            conversationId,
+            isTyping: true,
+        });
 
         if (typingTimeoutRef.current) {
             window.clearTimeout(typingTimeoutRef.current);
@@ -154,17 +198,19 @@ export function ChatPage() {
 
     const handleSend = (event: FormEvent) => {
         event.preventDefault();
-        const cleanTarget = target.trim();
         const cleanText = text.trim();
-        if (!cleanTarget || !cleanText || !socketRef.current) return;
+        if (!cleanText || !socketRef.current || !conversationId) return;
 
-        socketRef.current.emit("private-message", {
-            payload: { to: cleanTarget, text: cleanText },
+        socketRef.current.emit("conversation-message", {
+            conversationId,
+            text: cleanText,
         });
 
-        socketRef.current.emit("typing", { to: cleanTarget, isTyping: false });
+        socketRef.current.emit("conversation-typing", {
+            conversationId,
+            isTyping: false,
+        });
 
-        setMessages((prev) => [...prev, { from: user?.name ?? "me", text: cleanText, self: true }]);
         setText("");
     };
 
@@ -173,19 +219,8 @@ export function ChatPage() {
             <div className="card" style={{ maxWidth: 700 }}>
                 <h2 style={{ marginBottom: 10 }}>Direct Chat</h2>
 
-                {!target && (
-                    <form onSubmit={handleSelectTarget} style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                        <input
-                            value={draftTarget}
-                            onChange={(event) => setDraftTarget(event.target.value)}
-                            placeholder="Friend username"
-                        />
-                        <button className="btn btn-ghost" type="submit">Open</button>
-                    </form>
-                )}
-
                 <p style={{ color: "var(--ink3)", marginBottom: 12 }}>
-                    {target ? `Talking to: ${target}` : "Select a username to start chatting."}
+                    {target ? `Talking to: ${target}` : "Open this page from your friends list."}
                 </p>
 
                 {status && (
@@ -236,7 +271,7 @@ export function ChatPage() {
                         value={text}
                         onChange={(event) => handleTextChange(event.target.value)}
                         placeholder="Type a message"
-                        disabled={!target}
+                        disabled={conversationLoading || !conversationId}
                     />
                     <button className="btn btn-primary" type="submit" disabled={!canSend}>Send</button>
                 </form>
