@@ -342,9 +342,6 @@ export function Dashboard() {
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
                         Profile
                     </button>
-                    <button className="btn btn-primary btn-sm" onClick={openAddFriendModal}>
-                        Add friend
-                    </button>
                     <div className="topbar-notification" ref={requestsPanelRef}>
                         <button
                             className="notification-bell-btn"
@@ -405,29 +402,32 @@ export function Dashboard() {
             <main className="dashboard-body">
                 <div className="page-title fade-up">
                     <h1>Welcome back, {user?.name}</h1>
-                    <p>Manage your account and security settings.</p>
+                    <p>Quick actions, social updates, and account security in one place.</p>
                 </div>
+
+                <section className="section-card dashboard-actions-card fade-up fade-up-1">
+                    <div className="section-card-header" style={{ marginBottom: 12 }}>
+                        <h3>Quick actions</h3>
+                    </div>
+                    <div className="dashboard-actions-grid">
+                        <button className="btn btn-primary" onClick={openAddFriendModal}>
+                            Add friend
+                        </button>
+                        <button className="btn btn-ghost" onClick={() => navigate('/conversations')}>
+                            Open conversations
+                        </button>
+                        <button className="btn btn-ghost" onClick={() => navigate('/Canvases')}>
+                            Open canvases
+                        </button>
+                        <button className="btn btn-ghost" onClick={() => navigate('/profile/blocked')}>
+                            Blocked users
+                        </button>
+                    </div>
+                </section>
 
                 <div className="dashboard-layout">
                     <section className="dashboard-main-column">
-
-                        <div className="section-card fade-up fade-up-2">
-                            <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Talk to friends</h3>
-                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/conversations')}>
-                                    Open
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="section-card fade-up fade-up-2">
-                            <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Plan Your Projects</h3>
-                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/Canvases')}>
-                                    Open
-                                </button>
-                            </div>
-                        </div>
+                        <div className="dashboard-section-label fade-up fade-up-2">Security</div>
 
                         <TwoFactorCard
                             twoFAEnabled={twoFAEnabled}
@@ -451,12 +451,14 @@ export function Dashboard() {
                     </section>
 
                     <aside className="dashboard-friends-column">
+                        <div className="dashboard-section-label fade-up fade-up-2">Social</div>
                         <FriendsCard
                             friends={friends}
                             loading={friendsLoading}
                             error={friendsError}
                             unfriendingId={unfriendingId}
                             onRefresh={fetchFriends}
+                            onViewProfile={(friendId) => navigate(`/users/${friendId}`)}
                             onChat={(friend) => navigate(`/chat?friendId=${friend.id}&name=${encodeURIComponent(friend.name)}`)}
                             onUnfriend={handleUnfriend}
                         />
@@ -501,13 +503,21 @@ export function Dashboard() {
                                             <p style={{ fontWeight: 600, marginBottom: 4 }}>{result.name}</p>
                                             <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{result.email}</p>
                                         </div>
-                                        <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() => handleSendRequest(result.id)}
-                                            disabled={pendingRequests.has(result.id)}
-                                        >
-                                            {pendingRequests.has(result.id) ? "Requested" : "Invite"}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                                className="btn btn-ghost btn-sm"
+                                                onClick={() => navigate(`/users/${result.id}`)}
+                                            >
+                                                Profile
+                                            </button>
+                                            <button
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() => handleSendRequest(result.id)}
+                                                disabled={pendingRequests.has(result.id)}
+                                            >
+                                                {pendingRequests.has(result.id) ? "Requested" : "Invite"}
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
