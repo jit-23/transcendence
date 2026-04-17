@@ -2,11 +2,14 @@ import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from './ThemeContext';
 import { Avatar, DEFAULT_AVATARS } from './Avatar';
+import { useTranslation } from "react-i18next";
+import { changeLanguage } from "./components/i18n.tsx";
 
 // ── Two-step signup: step 1 = credentials, step 2 = pick avatar ───────────────
 type Step = 'credentials' | 'avatar';
 
 export function SignupForm() {
+    const {t} = useTranslation()
     const [step, setStep]         = useState<Step>('credentials');
 
     // Step 1
@@ -86,6 +89,15 @@ export function SignupForm() {
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'dark' ? '☀' : '☾'}
                     </button>
+					<button
+						//FIX THE POSITION
+						className="theme-toggle"//change classname
+						onClick={changeLanguage}//onClick LANGUAGECHANGE
+						title="Toggle theme"//change title
+						style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
+					>
+						☾
+					</button>
                 </div>
 
                 <div className="card" style={{ maxWidth: step === 'avatar' ? 420 : 380 }}>
@@ -96,8 +108,8 @@ export function SignupForm() {
                         </div>
                         <p className="auth-subtitle">
                             {step === 'credentials'
-                                ? 'Create your workspace account'
-                                : 'Choose your avatar'}
+                                ? t('create_account')
+                                : t('choose_avatar')}
                         </p>
                     </div>
 
@@ -122,10 +134,10 @@ export function SignupForm() {
                     {step === 'credentials' && (
                         <form onSubmit={handleNext} className="form-stack">
                             <div className="form-group">
-                                <label>Username</label>
+                                <label>{t("username")}</label>
                                 <input
                                     type="text"
-                                    placeholder="yourname"
+                                    placeholder={t("your_name")}
                                     value={username}
                                     onChange={e => setUsername(e.target.value)}
                                     required autoFocus
@@ -135,17 +147,17 @@ export function SignupForm() {
                                 <label>Email</label>
                                 <input
                                     type="email"
-                                    placeholder="you@example.com"
+                                    placeholder={t("your_email")}
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     required
                                 />
                             </div>
                             <div className="form-group">
-                                <label>Password</label>
+                                <label>{t("password")}</label>
                                 <input
                                     type="password"
-                                    placeholder="at least 6 characters"
+                                    placeholder={t("your_password")}
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     required
@@ -156,7 +168,7 @@ export function SignupForm() {
                                 className="btn btn-primary btn-full"
                                 style={{ marginTop: 6 }}
                             >
-                                Next →
+                                {t("next")} →
                             </button>
                         </form>
                     )}
@@ -173,7 +185,7 @@ export function SignupForm() {
                                         {username}
                                     </p>
                                     <p style={{ fontSize: '0.74rem', color: 'var(--ink3)' }}>
-                                        This is how others will see you.
+                                        {t("how_others_see_you")}
                                     </p>
                                 </div>
                             </div>
@@ -181,7 +193,7 @@ export function SignupForm() {
                             {/* Default options */}
                             <div>
                                 <label style={{ display: 'block', marginBottom: 10 }}>
-                                    Default Avatars
+                                    {t("default_avatars")}
                                 </label>
                                 <div style={{ display: 'flex', gap: 10 }}>
                                     {Object.keys(DEFAULT_AVATARS).map(key => (
@@ -214,7 +226,7 @@ export function SignupForm() {
                             {/* Upload own */}
                             <div>
                                 <label style={{ display: 'block', marginBottom: 10 }}>
-                                    Upload Your Own
+                                    {t("upload_your_own")}
                                 </label>
                                 <input
                                     ref={fileRef}
@@ -229,11 +241,11 @@ export function SignupForm() {
                                     onClick={() => fileRef.current?.click()}
                                     style={{ fontSize: '0.78rem' }}
                                 >
-                                    Choose image (JPG / PNG, max 2MB)
+                                    {t("choose_image")} (JPG / PNG, max 2MB)
                                 </button>
                                 {preview && (
                                     <p style={{ marginTop: 6, fontSize: '0.74rem', color: 'var(--success)' }}>
-                                        ✓ Image loaded
+                                        ✓ {t("image_loaded")}
                                     </p>
                                 )}
                             </div>
@@ -247,7 +259,7 @@ export function SignupForm() {
                                     disabled={loading}
                                     style={{ flex: 1 }}
                                 >
-                                    {loading ? 'Creating account...' : 'Create account →'}
+                                    {loading ? t("creating_account") : t("create_accout_confirm")}
                                 </button>
                                 <button
                                     type="button"
@@ -255,15 +267,15 @@ export function SignupForm() {
                                     onClick={() => { setStep('credentials'); setError(null); }}
                                     disabled={loading}
                                 >
-                                    ← Back
+                                    {t("back")}
                                 </button>
                             </div>
                         </div>
                     )}
 
                     <div className="auth-footer">
-                        Already have an account?{' '}
-                        <Link to="/login">Sign in</Link>
+                        {t("already_have_account")}{' '}
+                        <Link to="/login"> {t("log_in")}</Link>
                     </div>
                 </div>
             </div>

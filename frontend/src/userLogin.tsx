@@ -2,6 +2,8 @@ import { useContext, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
+import { changeLanguage } from "./components/i18n.tsx";
+import { useTranslation } from 'react-i18next';
 
 export function     LoginForm() {
     const [email, setEmail]         = useState('');
@@ -14,6 +16,7 @@ export function     LoginForm() {
     const { login }                 = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
+    const {t} = useTranslation()
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -73,6 +76,15 @@ export function     LoginForm() {
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'dark' ? '☀' : '☾'}
                     </button>
+                    <button
+                        //FIX THE POSITION
+                        className="theme-toggle"//change classname
+                        onClick={changeLanguage}//onClick LANGUAGECHANGE
+                        title="Toggle theme"//change title
+                        style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
+                    >
+                        ☾
+                    </button>
                 </div>
 
                 <div className="card">
@@ -98,14 +110,14 @@ export function     LoginForm() {
                                 <label>Email</label>
                                 <input
                                     type="email"
-                                    placeholder="you@example.com"
+                                    placeholder={t("your_email")}
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     required autoFocus
                                 />
                             </div>
                             <div className="form-group">
-                                <label>Password</label>
+                                <label>{t("password")}</label>
                                 <input
                                     type="password"
                                     placeholder="••••••••"
@@ -120,16 +132,16 @@ export function     LoginForm() {
                                 disabled={loading}
                                 style={{ marginTop: 6 }}
                             >
-                                {loading ? 'Signing in...' : 'Sign in →'}
+                                {loading ? t("signing_in") : t("sign_in_confirm")}
                             </button>
                         </form>
                     ) : (
                         <div className="form-stack">
                             <p style={{ color: 'var(--ink2)', fontSize: '0.8rem', lineHeight: 1.6 }}>
-                                Open your authenticator app and enter the 6-digit code.
+                                {t("open_auth_app")}
                             </p>
                             <div className="form-group">
-                                <label>Authentication Code</label>
+                                <label>{t("auth_code")}</label>
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -147,20 +159,20 @@ export function     LoginForm() {
                                 onClick={handle2FA}
                                 disabled={!tempToken || loading}
                             >
-                                {loading ? 'Verifying...' : 'Verify →'}
+                                {loading ? t("verifying") : t("verify")}
                             </button>
                             <button
                                 className="btn btn-ghost btn-full"
                                 onClick={() => { setNeeds2FA(false); setError(null); setCode(''); }}
                             >
-                                ← Back to login
+                                {t("back_to_login")}
                             </button>
                         </div>
                     )}
 
                     <div className="auth-footer">
-                        Don't have an account?{' '}
-                        <Link to="/signup">Create one</Link>
+                        {t("dont_have_acc")}{' '}
+                        <Link to="/signup">{t("create_one")}</Link>
                     </div>
                 </div>
             </div>

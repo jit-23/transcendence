@@ -79,8 +79,8 @@ function Home() {
                 </div>
 
                 <h1 style={{ fontSize: '2.8rem', marginBottom: 16, lineHeight: 1.1 }}>
-                    {t("think_together")},<br />
-                    <span style={{ color: 'var(--ink2)' }}>{t("in_real_time")}.</span>
+                    {t("slogan_1")}<br />
+                    <span style={{ color: 'var(--ink2)' }}>{t("slogan_2")}</span>
                 </h1>
 
                 <p style={{
@@ -89,13 +89,13 @@ function Home() {
                     lineHeight: 1.8,
                     marginBottom: 36,
                 }}>
-                    A shared canvas for your team — draw, plan,<br />
-                    and collaborate without the noise.
+                    {t("description_1")}<br />
+                    {t("description_2")}
                 </p>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <Link to="/signup" className="btn btn-primary">Get started →</Link>
-                    <Link to="/login"  className="btn btn-ghost">Sign in</Link>
+                    <Link to="/signup" className="btn btn-primary">{t("sign_up")} →</Link>
+                    <Link to="/login"  className="btn btn-ghost">{t("log_in")}</Link>
                 </div>
             </div>
         </div>
