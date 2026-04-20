@@ -5,6 +5,8 @@ import { useTheme } from "./ThemeContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Avatar } from "./Avatar";
+import { changeLanguage } from "./components/i18n.tsx";
+import { useTranslation } from 'react-i18next';
 
 type EnableStep = "idle" | "scanning";
 
@@ -33,6 +35,7 @@ export function Dashboard() {
     const { user, logout }          = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
+    const {t} = useTranslation()
 
     const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled ?? false);
     const [enableStep, setEnableStep]     = useState<EnableStep>("idle");
@@ -340,10 +343,10 @@ export function Dashboard() {
                         {user?.name}
                     </div>
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
-                        Profile
+                        {t("profile")}
                     </button>
                     <button className="btn btn-primary btn-sm" onClick={openAddFriendModal}>
-                        Add friend
+                        {t("add_friend")}
                     </button>
                     <div className="topbar-notification" ref={requestsPanelRef}>
                         <button
@@ -361,16 +364,16 @@ export function Dashboard() {
                         {showRequestsPanel && (
                             <div className="notification-panel">
                                 <div className="notification-panel-header">
-                                    <h3>Friend Requests</h3>
+                                    <h3>{t("friend_req")}</h3>
                                     <button className="btn btn-ghost btn-sm" onClick={fetchRequests} disabled={requestsLoading}>
-                                        {requestsLoading ? "..." : "Refresh"}
+                                        {requestsLoading ? "..." : t("refresh_req")}
                                     </button>
                                 </div>
 
                                 {requestsError && <div className="msg msg-error" style={{ marginBottom: 10 }}>{requestsError}</div>}
 
                                 {!requestsLoading && requests.length === 0 && (
-                                    <p className="notification-empty">No pending requests.</p>
+                                    <p className="notification-empty">{t("no_pend_req")}</p>
                                 )}
 
                                 {requests.length > 0 && (
@@ -382,8 +385,8 @@ export function Dashboard() {
                                                     <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{request.sender.email}</p>
                                                 </div>
                                                 <div style={{ display: "flex", gap: 6 }}>
-                                                    <button className="btn btn-primary btn-sm" onClick={() => decideRequest(request.id, "accept")}>Accept</button>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => decideRequest(request.id, "reject")}>Reject</button>
+                                                    <button className="btn btn-primary btn-sm" onClick={() => decideRequest(request.id, "accept")}>{t("accept_req")}</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => decideRequest(request.id, "reject")}>{t("accept_req")}</button>
                                                 </div>
                                             </div>
                                         ))}
@@ -393,10 +396,19 @@ export function Dashboard() {
                         )}
                     </div>
                     <button className="btn btn-ghost btn-sm" onClick={logout}>
-                        Sign out
+                        {t("sign_out")}
                     </button>
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'dark' ? '☀' : '☾'}
+                    </button>
+                    <button
+                        //FIX THE POSITION
+                        className="theme-toggle"//change classname
+                        onClick={changeLanguage}//onClick LANGUAGECHANGE
+                        title="Toggle theme"//change title
+                        style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
+                    >
+                        ☾
                     </button>
                 </div>
             </header>
@@ -404,8 +416,8 @@ export function Dashboard() {
             {/* ── Body ── */}
             <main className="dashboard-body">
                 <div className="page-title fade-up">
-                    <h1>Welcome back, {user?.name}</h1>
-                    <p>Manage your account and security settings.</p>
+                    <h1>{t("welcome_back")} {user?.name}</h1>
+                    <p>{t("manage_acc_sec")}</p>
                 </div>
 
                 <div className="dashboard-layout">
@@ -413,18 +425,18 @@ export function Dashboard() {
 
                         <div className="section-card fade-up fade-up-2">
                             <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Talk to friends</h3>
+                                <h3>{t("talk_to_friends")}</h3>
                                 <button className="btn btn-ghost btn-sm" onClick={() => navigate('/conversations')}>
-                                    Open
+                                    {t("open_dashboard")}
                                 </button>
                             </div>
                         </div>
 
                         <div className="section-card fade-up fade-up-2">
                             <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Plan Your Projects</h3>
+                                <h3>{t("plan_projects")}</h3>
                                 <button className="btn btn-ghost btn-sm" onClick={() => navigate('/Canvases')}>
-                                    Open
+                                    {t("open_dashboard")}
                                 </button>
                             </div>
                         </div>

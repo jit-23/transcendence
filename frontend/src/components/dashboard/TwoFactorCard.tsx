@@ -1,4 +1,5 @@
 import { EnableStep } from "./types";
+import { useTranslation } from 'react-i18next';
 
 type TwoFactorCardProps = {
   twoFAEnabled: boolean;
@@ -39,13 +40,14 @@ export function TwoFactorCard({
   onConfirm,
   onDisable,
 }: TwoFactorCardProps) {
+  const {t} = useTranslation()
   return (
     <div className="section-card fade-up fade-up-2">
       <div className="section-card-header">
-        <h3>Two-Factor Authentication</h3>
+        <h3>{t("two_fac_auth")}</h3>
         <span className={`badge ${twoFAEnabled ? "badge-on" : "badge-off"}`}>
           <span className="badge-dot" />
-          {twoFAEnabled ? "Enabled" : "Disabled"}
+          {twoFAEnabled ? t("enabled_2fa") : t("disabled_2fa")}
         </span>
       </div>
 
@@ -54,10 +56,10 @@ export function TwoFactorCard({
       {!twoFAEnabled && enableStep === "idle" && (
         <>
           <p style={{ color: "var(--ink3)", fontSize: "0.8rem", marginBottom: 16, lineHeight: 1.6 }}>
-            Protect your account with a time-based one-time password from an authenticator app.
+            {t("protect_acc_2fa")}
           </p>
           <button className="btn btn-ghost" onClick={onGenerate} disabled={loading}>
-            {loading ? "Loading..." : "Enable 2FA"}
+            {loading ? t("loading") : t("enable_2fa")}
           </button>
         </>
       )}
@@ -67,14 +69,14 @@ export function TwoFactorCard({
           <div className="qr-warning">
             <span>⚠</span>
             <span>
-              Scan this with Google Authenticator or Authy. <strong style={{ color: "var(--ink)" }}>You won't see it again.</strong>
+              {t("scan_2fa")}<strong style={{ color: "var(--ink)" }}>{t("wont_see_2fa")}</strong>
             </span>
           </div>
           <div className="qr-box">
             <img src={qr} alt="2FA QR Code" width={160} height={160} />
           </div>
           <p style={{ color: "var(--ink3)", fontSize: "0.76rem", marginBottom: 10, marginTop: 4 }}>
-            Enter the 6-digit code from your app to confirm:
+            {t("enter_2fa")}
           </p>
           <div className="code-row">
             <input
@@ -88,7 +90,7 @@ export function TwoFactorCard({
               autoFocus
             />
             <button className="btn btn-primary" onClick={onConfirm} disabled={loading}>
-              {loading ? "Verifying..." : "Confirm"}
+              {loading ? t("verifying") : t("confirm_2fa")}
             </button>
             <button
               className="btn btn-ghost"
@@ -100,7 +102,7 @@ export function TwoFactorCard({
                 setError(null);
               }}
             >
-              Cancel
+              {t("cancel_2fa")}
             </button>
           </div>
         </>
@@ -109,7 +111,7 @@ export function TwoFactorCard({
       {twoFAEnabled && !showDisable && (
         <>
           <p style={{ color: "var(--ink3)", fontSize: "0.8rem", marginBottom: 16, lineHeight: 1.6 }}>
-            Your account is protected. An authenticator code is required at every login.
+            {t("acc_protected_2fa")}
           </p>
           <button
             className="btn btn-danger"
@@ -118,7 +120,7 @@ export function TwoFactorCard({
               setError(null);
             }}
           >
-            Disable 2FA
+            {t("disable_2fa")}
           </button>
         </>
       )}
@@ -126,7 +128,7 @@ export function TwoFactorCard({
       {twoFAEnabled && showDisable && (
         <>
           <p style={{ color: "var(--ink3)", fontSize: "0.76rem", marginBottom: 10 }}>
-            Enter your current authenticator code to confirm:
+            {t("enter_curr_2fa")}
           </p>
           <div className="code-row">
             <input
@@ -140,7 +142,7 @@ export function TwoFactorCard({
               autoFocus
             />
             <button className="btn btn-danger" onClick={onDisable} disabled={loading}>
-              {loading ? "Disabling..." : "Confirm"}
+              {loading ? t("disabling_2fa") : t("confirm_2fa")}
             </button>
             <button
               className="btn btn-ghost"
@@ -151,7 +153,7 @@ export function TwoFactorCard({
                 setError(null);
               }}
             >
-              Cancel
+              {t("cancel_2fa")}
             </button>
           </div>
         </>

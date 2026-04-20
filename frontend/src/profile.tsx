@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { Avatar, AvatarPicker } from './Avatar';
+import { changeLanguage } from "./components/i18n.tsx";
+import { useTranslation } from 'react-i18next';
 
 export function ProfilePage() {
     const { user, refreshUser }  = useContext(AuthContext);
@@ -18,6 +20,7 @@ export function ProfilePage() {
     const [loading, setLoading]                 = useState(false);
     const [success, setSuccess]                 = useState<string | null>(null);
     const [error, setError]                     = useState<string | null>(null);
+    const {t} = useTranslation()
 
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
@@ -88,18 +91,27 @@ export function ProfilePage() {
                 </div>
                 <div className="topbar-right">
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-                        ← Dashboard
+                        {t("dashboard_prof")}
                     </button>
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'dark' ? '☀' : '☾'}
+                    </button>
+                    <button
+                        //FIX THE POSITION
+                        className="theme-toggle"//change classname
+                        onClick={changeLanguage}//onClick LANGUAGECHANGE
+                        title="Toggle theme"//change title
+                        style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
+                    >
+                    ☾
                     </button>
                 </div>
             </header>
 
             <main className="dashboard-body">
                 <div className="page-title fade-up">
-                    <h1>Edit Profile</h1>
-                    <p>Update your account information and avatar.</p>
+                    <h1>{t("edit_profile")}</h1>
+                    <p>{t("update_prof")}</p>
                 </div>
 
                 {/* Avatar row */}
@@ -141,7 +153,7 @@ export function ProfilePage() {
                 {/* Edit form */}
                 <div className="section-card fade-up fade-up-2">
                     <div className="section-card-header">
-                        <h3>Account Details</h3>
+                        <h3>{t("account_details")}</h3>
                     </div>
 
                     {success && <div className="msg msg-success" style={{ marginBottom: 18 }}>{success}</div>}
@@ -149,7 +161,7 @@ export function ProfilePage() {
 
                     <form onSubmit={handleSubmit} className="form-stack">
                         <div className="form-group">
-                            <label>Username</label>
+                            <label>{t("username_prof")}</label>
                             <input type="text" value={username} onChange={e => setUsername(e.target.value)} />
                         </div>
                         <div className="form-group">
@@ -160,19 +172,19 @@ export function ProfilePage() {
                         <div className="divider" />
 
                         <div className="form-group">
-                            <label>New Password</label>
+                            <label>{t("new_pass_prof")}</label>
                             <input
                                 type="password"
-                                placeholder="Leave blank to keep current"
+                                placeholder={t("leave_blank_prof")}
                                 value={newPassword}
                                 onChange={e => setNewPassword(e.target.value)}
                             />
                         </div>
                         <div className="form-group">
-                            <label>Confirm New Password</label>
+                            <label>{t("confirm_new_pass_prof")}</label>
                             <input
                                 type="password"
-                                placeholder="Repeat new password"
+                                placeholder={t("repeat_new_prof")}
                                 value={confirmNew}
                                 onChange={e => setConfirmNew(e.target.value)}
                             />
@@ -182,12 +194,12 @@ export function ProfilePage() {
 
                         <div className="form-group">
                             <label>
-                                Current Password{' '}
+                                {t("curr_pass_prof")}{' '}
                                 <span style={{ color: 'var(--danger)', fontSize: '0.72rem' }}>required</span>
                             </label>
                             <input
                                 type="password"
-                                placeholder="Required to save any changes"
+                                placeholder={t("req_save_prof")}
                                 value={currentPassword}
                                 onChange={e => setCurrentPassword(e.target.value)}
                                 required
@@ -196,10 +208,10 @@ export function ProfilePage() {
 
                         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                             <button type="submit" className="btn btn-primary" disabled={loading}>
-                                {loading ? 'Saving...' : 'Save Changes'}
+                                {loading ? t("saving_change_prof") : t("save_change_prof")}
                             </button>
                             <button type="button" className="btn btn-ghost" onClick={() => navigate('/dashboard')}>
-                                Cancel
+                                {t("cancel_prof")}
                             </button>
                         </div>
                     </form>

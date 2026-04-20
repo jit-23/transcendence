@@ -1,4 +1,5 @@
 import { Friend } from "./types";
+import { useTranslation } from 'react-i18next';
 
 type FriendsCardProps = {
   friends: Friend[];
@@ -19,19 +20,20 @@ export function FriendsCard({
   onChat,
   onUnfriend,
 }: FriendsCardProps) {
+  const {t} = useTranslation()
   return (
     <div className="section-card fade-up fade-up-2">
       <div className="section-card-header">
-        <h3>My Friends</h3>
+        <h3>{t("my_friends")}</h3>
         <button className="btn btn-ghost btn-sm" onClick={onRefresh} disabled={loading}>
-          {loading ? "Loading..." : "Refresh"}
+          {loading ? t("loading_friends") : t("refresh_friends")}
         </button>
       </div>
 
       {error && <div className="msg msg-error" style={{ marginBottom: 14 }}>{error}</div>}
 
       {!loading && friends.length === 0 && (
-        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>You do not have friends yet.</p>
+        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{t("no_friends")}</p>
       )}
 
       {friends.length > 0 && (
@@ -56,14 +58,14 @@ export function FriendsCard({
 
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-primary btn-sm" onClick={() => onChat(friend)}>
-                  Chat
+                  {t("chat_friends")}
                 </button>
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => onUnfriend(friend.id)}
                   disabled={unfriendingId === friend.id}
                 >
-                  {unfriendingId === friend.id ? "Removing..." : "Unfriend"}
+                  {unfriendingId === friend.id ? t("removing_friends") : t("unfriend")}
                 </button>
               </div>
             </div>

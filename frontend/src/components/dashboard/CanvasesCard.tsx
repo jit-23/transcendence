@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from 'react-i18next';
 
 type Canvas = {
   id: number;
@@ -25,6 +26,7 @@ export function CanvasesCard({
   onDeleteCanvas,
   onOpenCanvas,
 }: CanvasesCardProps) {
+  const {t} = useTranslation()
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
   const [creatingCanvas, setCreatingCanvas] = React.useState(false);
@@ -49,14 +51,14 @@ export function CanvasesCard({
   return (
     <div className="section-card fade-up fade-up-2">
       <div className="section-card-header">
-        <h3>Your Canvases</h3>
+        <h3>{t("your_canvases")}</h3>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => setShowNameInput(true)}
             disabled={canvases.length >= 3 || canvasesLoading}
           >
-            {canvasesLoading ? "Loading..." : canvases.length >= 3 ? "Max 3 Canvases" : "Add Canvas"}
+            {canvasesLoading ? t("loading_canvases") : canvases.length >= 3 ? t("max_3_canvases") : t("add_canvas")}
           </button>
         </div>
       </div>
@@ -66,7 +68,7 @@ export function CanvasesCard({
           <div style={{ display: "flex", gap: 8 }}>
             <input
               type="text"
-              placeholder="Canvas name (optional)"
+              placeholder={t("canvas_name_opt")}
               value={newCanvasName}
               onChange={(e) => setNewCanvasName(e.target.value)}
               onKeyDown={(e) => {
@@ -92,7 +94,7 @@ export function CanvasesCard({
               }}
               disabled={canvasesLoading || creatingCanvas}
             >
-              {creatingCanvas ? "Creating..." : "Create"}
+              {creatingCanvas ? t("creating_canvas") : t("create_canvas")}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -101,7 +103,7 @@ export function CanvasesCard({
                 setNewCanvasName("");
               }}
             >
-              Cancel
+              {t("cancel_canvas")}
             </button>
           </div>
         </div>
@@ -149,7 +151,7 @@ export function CanvasesCard({
                   onClick={() => onDeleteCanvas(canvas.id)}
                   style={{ color: "var(--error)", fontSize: "0.75rem" }}
                 >
-                  Delete
+               {t("delete_canvas")}
                 </button>
               </div>
             ))}
@@ -159,7 +161,7 @@ export function CanvasesCard({
 
       {canvases.length === 0 && !showNameInput && (
         <div style={{ marginTop: 12, textAlign: "center", color: "var(--ink-secondary)" }}>
-          <p>No canvases yet. Create one to get started!</p>
+          <p>{t("no_canvas")}</p>
         </div>
       )}
     </div>

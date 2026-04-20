@@ -4,6 +4,9 @@ import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 import { Avatar } from "./Avatar";
 import { CanvasesCard } from "./components/dashboard/CanvasesCard";
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from "./components/i18n.tsx";
+
 
 type Canvas = {
   id: number;
@@ -21,7 +24,7 @@ export function CanvasesPage() {
   const [canvases, setCanvases] = useState<Canvas[]>([]);
 	const [canvasesLoading, setCanvasesLoading] = useState(false);
 	const [canvasesError, setCanvasesError] = useState<string | null>(null);
-
+  const {t} = useTranslation()
 
 
     const authHeader = () => ({
@@ -117,13 +120,22 @@ export function CanvasesPage() {
 		  <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
 			{theme === "dark" ? "☀" : "☾"}
 		  </button>
+        <button
+          //FIX THE POSITION
+          className="theme-toggle"//change classname
+          onClick={changeLanguage}//onClick LANGUAGECHANGE
+          title="Toggle theme"//change title
+          style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
+      >
+          ☾
+      </button>
 		</div>
 	  </header>
 
 	  <main className="dashboard-body">
 		<div className="page-title fade-up">
-		  <h1>Plan Your Group Projects</h1>
-		  <p>Create canvases for project planning and collaboration.</p>
+		  <h1>{t("plan_group_proj")}</h1>
+		  <p>{t("create_canvas_proj")}</p>
 		</div>
 		 <div className="dashboard-layout">
                     <section className="dashboard-main-column">
@@ -138,13 +150,13 @@ export function CanvasesPage() {
 			</div>
 		<div className="section-card fade-up fade-up-1" style={{ maxWidth: 785 }}>
 		  <div className="section-card-header" >
-			<h3>Chat Rooms</h3>
+			<h3>{t("chat_rooms")}</h3>
 		  </div>
 		  <p style={{ color: "var(--ink2)", marginBottom: 10, fontSize: "0.82rem" }}>
-			Use canvases to sketch, plan, and organize group work.
+			{t("use_canvas")}
 		  </p>
 		  <div style={{ display: "flex", gap: 8 }}>
-			<button className="btn btn-ghost" onClick={() => navigate("/groups")}>Chat Room</button>
+			<button className="btn btn-ghost" onClick={() => navigate("/groups")}>{t("chat_rooms")}</button>
 		  </div>
 		</div>
 	  </main>
