@@ -130,9 +130,10 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
                 req_save_prof: "Required to save any changes",
                 saving_change_prof: "Saving...",
                 save_change_prof: "Save Changes",
+                save_avatar: "Save Avatar",
                 cancel_prof: "Cancel",
-                
-                //Avatar
+                preview_avatar: "Preview",
+                others_see_avatar: "This is how others will see you",
             },
         },
         pt: {
@@ -159,6 +160,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
                 upload_your_own: "Upload your own",//bad translation: BAD
                 choose_image: "Escolher imagem",
                 image_loaded: "Imagem carregada",
+                image_loaded_avatar: "✓ Image loaded — click Save to apply",
                 creating_account: "A criar conta...",
                 create_accout_confirm: "Criar conta →",
                 back: "← Atras",//bad translation: atras

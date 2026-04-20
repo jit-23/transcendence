@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ── 4 default avatars as inline SVG data URLs ─────────────────────────────────
 // Each is a simple geometric face — no external assets needed
@@ -98,6 +99,7 @@ export function AvatarPicker({ current, name, onSave, onCancel }: AvatarPickerPr
     const [loading, setLoading]   = useState(false);
     const [error, setError]       = useState<string | null>(null);
     const fileRef                 = useRef<HTMLInputElement>(null);
+    const {t} = useTranslation()
 
     const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -142,10 +144,10 @@ export function AvatarPicker({ current, name, onSave, onCancel }: AvatarPickerPr
                 <Avatar avatar={selected} name={name} size={64} />
                 <div>
                     <p style={{ fontSize: '0.82rem', color: 'var(--ink)', fontWeight: 500, marginBottom: 2 }}>
-                        Preview
+                        {t("preview_avatar")}
                     </p>
                     <p style={{ fontSize: '0.74rem', color: 'var(--ink3)' }}>
-                        This is how others will see you.
+                        {t("others_see_avatar")}
                     </p>
                 </div>
             </div>
@@ -153,7 +155,7 @@ export function AvatarPicker({ current, name, onSave, onCancel }: AvatarPickerPr
             {/* Default options */}
             <div>
                 <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 10 }}>
-                    Default Avatars
+                    {t("default_avatars")}
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>
                     {Object.keys(DEFAULT_AVATARS).map((key) => (
@@ -186,7 +188,7 @@ export function AvatarPicker({ current, name, onSave, onCancel }: AvatarPickerPr
             {/* Upload */}
             <div>
                 <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 10 }}>
-                    Upload Your Own
+                    {t("upload_your_own")}
                 </p>
                 <input
                     ref={fileRef}
@@ -200,11 +202,11 @@ export function AvatarPicker({ current, name, onSave, onCancel }: AvatarPickerPr
                     onClick={() => fileRef.current?.click()}
                     style={{ fontSize: '0.78rem' }}
                 >
-                    Choose image (JPG / PNG, max 2MB)
+                    {t("choose_image")} (JPG / PNG, max 2MB)
                 </button>
                 {preview && (
                     <p style={{ marginTop: 6, fontSize: '0.74rem', color: 'var(--success)' }}>
-                        ✓ Image loaded — click Save to apply
+                        {t("image_loaded_avatar")}
                     </p>
                 )}
             </div>
@@ -216,10 +218,10 @@ export function AvatarPicker({ current, name, onSave, onCancel }: AvatarPickerPr
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
                 <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
-                    {loading ? 'Saving...' : 'Save Avatar'}
+                    {loading ? t("saving_change_prof") : t("save_avatar")}
                 </button>
                 <button className="btn btn-ghost" onClick={onCancel} disabled={loading}>
-                    Cancel
+                    {t("cancel_prof")}
                 </button>
             </div>
         </div>
