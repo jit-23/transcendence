@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { Avatar } from './Avatar';
+import { Button } from './components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
 type PublicProfile = {
     id: number;
@@ -256,124 +258,121 @@ export function UserPublicProfilePage() {
     };
 
     return (
-        <div className="dashboard-shell">
-            <header className="topbar">
-                <div className="logo">
-                    <div className="logo-mark">W</div>
-                    whiteboard
-                </div>
-                <div className="topbar-right">
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>
-                        ← Back
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-                        Dashboard
-                    </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
+        <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
+                        whiteboard
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+                            ← Back
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                            Dashboard
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                            {theme === 'dark' ? '☀' : '☾'}
+                        </Button>
+                    </div>
                 </div>
             </header>
 
-            <main className="dashboard-body">
-                <div className="page-title fade-up">
-                    <h1>User Profile</h1>
-                    <p>View profile information</p>
+            <main className="space-y-5">
+                <div>
+                    <h1 className="font-display text-3xl">User Profile</h1>
+                    <p className="mt-1 text-sm text-muted">View profile information</p>
                 </div>
 
-                <div className="section-card fade-up fade-up-1">
-                    {loading && <p style={{ color: 'var(--ink3)' }}>Loading profile...</p>}
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Public details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {loading && <p className="text-sm text-muted">Loading profile...</p>}
 
-                    {!loading && error && (
-                        <div className="msg msg-error">{error}</div>
-                    )}
+                        {!loading && error && (
+                            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>
+                        )}
 
-                    {!loading && !error && actionError && (
-                        <div className="msg msg-error" style={{ marginBottom: 12 }}>{actionError}</div>
-                    )}
+                        {!loading && !error && actionError && (
+                            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{actionError}</div>
+                        )}
 
-                    {!loading && !error && profile && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                            <Avatar avatar={profile.avatar} name={profile.name} size={72} />
-                            <div>
-                                <p style={{
-                                    fontFamily: "'Syne', sans-serif",
-                                    fontWeight: 700,
-                                    fontSize: '1.15rem',
-                                    letterSpacing: '-0.02em',
-                                    marginBottom: 6,
-                                }}>
-                                    {profile.name}
-                                </p>
-                                <p style={{ color: 'var(--ink3)', fontSize: '0.85rem', marginBottom: 6 }}>
-                                    {profile.email}
-                                </p>
-                                <p style={{ color: 'var(--ink3)', fontSize: '0.75rem' }}>
-                                    Joined {new Date(profile.createdAt).toLocaleDateString()}
-                                </p>
+                        {!loading && !error && profile && (
+                            <div className="flex flex-wrap items-start gap-4 rounded-md border border-border bg-surface2 p-4">
+                                <Avatar avatar={profile.avatar} name={profile.name} size={72} />
+                                <div className="min-w-[220px] flex-1">
+                                    <p className="font-display text-xl font-semibold leading-tight text-ink">{profile.name}</p>
+                                    <p className="mt-1 text-sm text-muted">{profile.email}</p>
+                                    <p className="mt-1 text-xs text-muted">Joined {new Date(profile.createdAt).toLocaleDateString()}</p>
 
-                                {profile.blockedByUser && (
-                                    <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: 10 }}>
-                                        You are blocked by this user.
-                                    </p>
-                                )}
-
-                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                                    {profile.isBlocked ? (
-                                        <button
-                                            className="btn btn-ghost btn-sm"
-                                            onClick={handleUnblock}
-                                            disabled={actionLoading}
-                                        >
-                                            {actionLoading ? 'Unblocking...' : 'Unblock'}
-                                        </button>
-                                    ) : profile.blockedByUser ? null : isFriend ? (
-                                        <>
-                                            <button
-                                                className="btn btn-primary btn-sm"
-                                                onClick={handleMessage}
-                                                disabled={actionLoading}
-                                            >
-                                                Message
-                                            </button>
-                                            <button
-                                                className="btn btn-ghost btn-sm"
-                                                onClick={handleUnfriend}
-                                                disabled={actionLoading}
-                                            >
-                                                {actionLoading ? 'Removing...' : 'Remove friend'}
-                                            </button>
-                                            <button
-                                                className="btn btn-ghost btn-sm"
-                                                onClick={handleBlock}
-                                                disabled={actionLoading}
-                                            >
-                                                Block
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                className="btn btn-primary btn-sm"
-                                                onClick={handleAddFriend}
-                                                disabled={actionLoading || requestPending}
-                                            >
-                                                {requestPending ? '✓ Requested' : (actionLoading ? 'Sending...' : 'Add friend')}
-                                            </button>
-                                            <button
-                                                className="btn btn-ghost btn-sm"
-                                                onClick={handleBlock}
-                                                disabled={actionLoading}
-                                            >
-                                                Block
-                                            </button>
-                                        </>
+                                    {profile.blockedByUser && (
+                                        <p className="mt-3 text-sm text-red-400">You are blocked by this user.</p>
                                     )}
+
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {profile.isBlocked ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleUnblock}
+                                                disabled={actionLoading}
+                                            >
+                                                {actionLoading ? 'Unblocking...' : 'Unblock'}
+                                            </Button>
+                                        ) : profile.blockedByUser ? null : isFriend ? (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={handleMessage}
+                                                    disabled={actionLoading}
+                                                >
+                                                    Message
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleUnfriend}
+                                                    disabled={actionLoading}
+                                                >
+                                                    {actionLoading ? 'Removing...' : 'Remove friend'}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleBlock}
+                                                    disabled={actionLoading}
+                                                >
+                                                    Block
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={handleAddFriend}
+                                                    disabled={actionLoading || requestPending}
+                                                >
+                                                    {requestPending ? '✓ Requested' : (actionLoading ? 'Sending...' : 'Add friend')}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleBlock}
+                                                    disabled={actionLoading}
+                                                >
+                                                    Block
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </CardContent>
+                </Card>
             </main>
         </div>
     );

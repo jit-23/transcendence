@@ -2,6 +2,9 @@ import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Input } from "./components/ui/input";
 
 interface SearchResult {
     id: number;
@@ -99,121 +102,120 @@ export function SearchFriends() {
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
     return (
-        <div className="dashboard-shell">
-            {/* ── Topbar ── */}
-            <header className="topbar">
-                <div className="logo">
-                    <div className="logo-mark">W</div>
-                    whiteboard
-                </div>
-                <div className="topbar-right">
-                    <div className="user-chip">
-                        <div className="user-avatar">{initials}</div>
-                        {user?.name}
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
+                        whiteboard
                     </div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-                        Dashboard
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
-                        Profile
-                    </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2 px-3 py-1.5 text-sm text-ink">
+                            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-[0.65rem] font-semibold">
+                                {initials}
+                            </div>
+                            {user?.name}
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                            Dashboard
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
+                            Profile
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                            {theme === 'dark' ? '☀' : '☾'}
+                        </Button>
+                    </div>
                 </div>
             </header>
 
-            {/* ── Body ── */}
-            <main className="dashboard-body">
-                <div className="page-title fade-up">
-                    <h1>Search for Friends</h1>
-                    <p>Find users by username or email</p>
+            <main className="space-y-5">
+                <div>
+                    <h1 className="font-display text-3xl">Search for Friends</h1>
+                    <p className="mt-1 text-sm text-muted">Find users by username or email.</p>
                 </div>
 
-                {/* Search Card */}
-                <div className="section-card fade-up fade-up-1">
-                    <form onSubmit={handleSearch}>
-                        <div style={{ display: 'flex', gap: 10 }}>
-                            <input
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Search</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <form onSubmit={handleSearch} className="flex gap-2">
+                            <Input
                                 type="text"
                                 placeholder="Search by username or email..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="code-input"
-                                style={{ flex: 1 }}
+                                className="flex-1"
                                 autoFocus
                             />
-                            <button
+                            <Button
                                 type="submit"
-                                className="btn btn-primary"
                                 disabled={loading}
                             >
                                 {loading ? 'Searching...' : 'Search'}
-                            </button>
-                        </div>
-                    </form>
+                            </Button>
+                        </form>
 
-                    {error && (
-                        <div className="msg msg-error" style={{ marginTop: 14 }}>
-                            {error}
-                        </div>
-                    )}
-                </div>
+                        {error && (
+                            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                                {error}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
-                {/* Results */}
                 {searched && results.length === 0 && !loading && (
-                    <div className="section-card fade-up fade-up-2" style={{ textAlign: 'center' }}>
-                        <p style={{ color: 'var(--ink3)' }}>
+                    <Card>
+                        <CardContent className="pt-6 text-center">
+                            <p className="text-sm text-muted">
                             {error ? 'No results found' : 'No users match your search'}
-                        </p>
-                    </div>
+                            </p>
+                        </CardContent>
+                    </Card>
                 )}
 
                 {results.length > 0 && (
-                    <div className="section-card fade-up fade-up-2">
-                        <div className="section-card-header">
-                            <h3>Results ({results.length})</h3>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-base">Results ({results.length})</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
                             {results.map(result => (
                                 <div
                                     key={result.id}
-                                    style={{
-                                        padding: '12px 14px',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '6px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                    }}
+                                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface2 p-3"
                                 >
                                     <div>
-                                        <p style={{ fontWeight: 600, marginBottom: 4 }}>
+                                        <p className="text-sm font-semibold text-ink">
                                             {result.name}
                                         </p>
-                                        <p style={{ fontSize: '0.8rem', color: 'var(--ink3)' }}>
+                                        <p className="text-xs text-muted">
                                             {result.email}
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button
-                                            className="btn btn-ghost btn-sm"
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
                                             onClick={() => navigate(`/users/${result.id}`)}
                                         >
                                             Profile
-                                        </button>
-                                        <button
-                                            className="btn btn-primary btn-sm"
+                                        </Button>
+                                        <Button
+                                            size="sm"
                                             onClick={() => handleSendRequest(result.id)}
                                             disabled={pendingRequests.has(result.id)}
                                         >
                                             {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
-                        </div>
-                    </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </main>
         </div>

@@ -5,6 +5,8 @@ import { useTheme } from "./ThemeContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Avatar } from "./Avatar";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 
 type EnableStep = "idle" | "scanning";
 
@@ -327,108 +329,106 @@ export function Dashboard() {
     }, [showRequestsPanel]);
 
     return (
-        <div className="dashboard-shell">
-            {/* ── Topbar ── */}
-            <header className="topbar">
-                <div className="logo">
-                    <div className="logo-mark">W</div>
-                    whiteboard
-                </div>
-                <div className="topbar-right">
-                    <div className="user-chip">
-                        <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
-                        {user?.name}
+        <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
+                        whiteboard
                     </div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
-                        Profile
-                    </button>
-                    <div className="topbar-notification" ref={requestsPanelRef}>
-                        <button
-                            className="notification-bell-btn"
-                            onClick={() => setShowRequestsPanel(prev => !prev)}
-                            title="Friend requests"
-                            aria-label="Friend requests"
-                        >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-5.2V11a7 7 0 1 0-14 0v5.8L3.6 18a1 1 0 0 0 .7 1.8h15.4a1 1 0 0 0 .7-1.8L19 16.8Z" />
-                            </svg>
-                            {requests.length > 0 && <span className="notification-badge">{requests.length}</span>}
-                        </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2 px-3 py-1.5 text-sm text-ink">
+                            <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
+                            {user?.name}
+                        </div>
 
-                        {showRequestsPanel && (
-                            <div className="notification-panel">
-                                <div className="notification-panel-header">
-                                    <h3>Friend Requests</h3>
-                                    <button className="btn btn-ghost btn-sm" onClick={fetchRequests} disabled={requestsLoading}>
-                                        {requestsLoading ? "..." : "Refresh"}
-                                    </button>
-                                </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>Profile</Button>
 
-                                {requestsError && <div className="msg msg-error" style={{ marginBottom: 10 }}>{requestsError}</div>}
-
-                                {!requestsLoading && requests.length === 0 && (
-                                    <p className="notification-empty">No pending requests.</p>
-                                )}
-
+                        <div className="relative" ref={requestsPanelRef}>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setShowRequestsPanel(prev => !prev)}
+                                title="Friend requests"
+                                aria-label="Friend requests"
+                                className="relative"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+                                    <path d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-5.2V11a7 7 0 1 0-14 0v5.8L3.6 18a1 1 0 0 0 .7 1.8h15.4a1 1 0 0 0 .7-1.8L19 16.8Z" />
+                                </svg>
                                 {requests.length > 0 && (
-                                    <div className="notification-list">
-                                        {requests.map((request) => (
-                                            <div key={request.id} className="notification-item">
-                                                <div>
-                                                    <p style={{ marginBottom: 4, fontWeight: 600 }}>{request.sender.name}</p>
-                                                    <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{request.sender.email}</p>
-                                                </div>
-                                                <div style={{ display: "flex", gap: 6 }}>
-                                                    <button className="btn btn-primary btn-sm" onClick={() => decideRequest(request.id, "accept")}>Accept</button>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => decideRequest(request.id, "reject")}>Reject</button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold text-bg">
+                                        {requests.length}
+                                    </span>
                                 )}
-                            </div>
-                        )}
+                            </Button>
+
+                            {showRequestsPanel && (
+                                <Card className="absolute right-0 z-30 mt-2 w-[320px] max-w-[90vw]">
+                                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                                        <CardTitle className="text-base">Friend Requests</CardTitle>
+                                        <Button variant="ghost" size="sm" onClick={fetchRequests} disabled={requestsLoading}>
+                                            {requestsLoading ? '...' : 'Refresh'}
+                                        </Button>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        {requestsError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{requestsError}</div>}
+
+                                        {!requestsLoading && requests.length === 0 && <p className="text-sm text-muted">No pending requests.</p>}
+
+                                        {requests.length > 0 && (
+                                            <div className="space-y-2">
+                                                {requests.map((request) => (
+                                                    <div key={request.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface2 p-2.5">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-ink">{request.sender.name}</p>
+                                                            <p className="text-xs text-muted">{request.sender.email}</p>
+                                                        </div>
+                                                        <div className="flex gap-1.5">
+                                                            <Button size="sm" onClick={() => decideRequest(request.id, "accept")}>Accept</Button>
+                                                            <Button size="sm" variant="outline" onClick={() => decideRequest(request.id, "reject")}>Reject</Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+
+                        <Button variant="outline" size="sm" onClick={logout}>Sign out</Button>
+                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                            {theme === 'dark' ? '☀' : '☾'}
+                        </Button>
                     </div>
-                    <button className="btn btn-ghost btn-sm" onClick={logout}>
-                        Sign out
-                    </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
                 </div>
             </header>
 
-            {/* ── Body ── */}
-            <main className="dashboard-body">
-                <div className="page-title fade-up">
-                    <h1>Welcome back, {user?.name}</h1>
-                    <p>Quick actions, social updates, and account security in one place.</p>
+            <main className="space-y-6">
+                <div>
+                    <h1 className="font-display text-3xl">Welcome back, {user?.name}</h1>
+                    <p className="mt-1 text-sm text-muted">Quick actions, social updates, and account security in one place.</p>
                 </div>
 
-                <section className="section-card dashboard-actions-card fade-up fade-up-1">
-                    <div className="section-card-header" style={{ marginBottom: 12 }}>
-                        <h3>Quick actions</h3>
-                    </div>
-                    <div className="dashboard-actions-grid">
-                        <button className="btn btn-primary" onClick={openAddFriendModal}>
-                            Add friend
-                        </button>
-                        <button className="btn btn-ghost" onClick={() => navigate('/conversations')}>
-                            Open conversations
-                        </button>
-                        <button className="btn btn-ghost" onClick={() => navigate('/Canvases')}>
-                            Open canvases
-                        </button>
-                        <button className="btn btn-ghost" onClick={() => navigate('/profile/blocked')}>
-                            Blocked users
-                        </button>
-                    </div>
-                </section>
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Quick actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="mb-3 text-xs text-muted">Start by adding a friend or jump into your active spaces.</p>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <Button onClick={openAddFriendModal}>Add friend</Button>
+                            <Button variant="outline" onClick={() => navigate('/conversations')}>Open conversations</Button>
+                            <Button variant="outline" onClick={() => navigate('/Canvases')}>Open canvases</Button>
+                            <Button variant="outline" onClick={() => navigate('/profile/blocked')}>Blocked users</Button>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <div className="dashboard-layout">
-                    <section className="dashboard-main-column">
-                        <div className="dashboard-section-label fade-up fade-up-2">Security</div>
-
+                <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+                    <section>
+                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Security</p>
                         <TwoFactorCard
                             twoFAEnabled={twoFAEnabled}
                             enableStep={enableStep}
@@ -450,8 +450,8 @@ export function Dashboard() {
                         />
                     </section>
 
-                    <aside className="dashboard-friends-column">
-                        <div className="dashboard-section-label fade-up fade-up-2">Social</div>
+                    <aside>
+                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Social</p>
                         <FriendsCard
                             friends={friends}
                             loading={friendsLoading}
@@ -467,62 +467,51 @@ export function Dashboard() {
             </main>
 
             {showAddFriendModal && (
-                <div className="dashboard-modal-backdrop" onClick={closeAddFriendModal}>
-                    <div className="dashboard-modal" onClick={(event) => event.stopPropagation()}>
-                        <div className="dashboard-modal-header">
-                            <h3>Add Friend</h3>
-                            <button className="btn btn-ghost btn-sm" onClick={closeAddFriendModal}>
-                                Close
-                            </button>
-                        </div>
+                <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closeAddFriendModal}>
+                    <Card className="w-full max-w-xl" onClick={(event) => event.stopPropagation()}>
+                        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                            <CardTitle className="text-base">Add Friend</CardTitle>
+                            <Button variant="ghost" size="sm" onClick={closeAddFriendModal}>Close</Button>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <form className="flex gap-2" onSubmit={handleSearchUsers}>
+                                <input
+                                    type="text"
+                                    placeholder="Search by username or email"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    autoFocus
+                                    className="flex h-9 w-full rounded-md border border-border bg-surface2 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
+                                />
+                                <Button size="sm" type="submit" disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</Button>
+                            </form>
+                            {requestsLoading && <p className="text-sm text-muted">Loading pending requests...</p>}
+                            <p className="text-xs text-muted">Invite someone by username or email. They’ll receive a friend request.</p>
 
-                        <form className="dashboard-modal-search" onSubmit={handleSearchUsers}>
-                            <input
-                                type="text"
-                                placeholder="Search by username or email"
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                                autoFocus
-                            />
-                            <button className="btn btn-primary btn-sm" type="submit" disabled={searchLoading}>
-                                {searchLoading ? "Searching..." : "Search"}
-                            </button>
-                        </form>
+                            {searchError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{searchError}</div>}
 
-                        {searchError && <div className="msg msg-error">{searchError}</div>}
+                            {searched && !searchLoading && searchResults.length === 0 && <p className="text-sm text-muted">No users found.</p>}
 
-                        {searched && !searchLoading && searchResults.length === 0 && (
-                            <p className="dashboard-modal-empty">No users found.</p>
-                        )}
-
-                        {searchResults.length > 0 && (
-                            <div className="dashboard-modal-results">
-                                {searchResults.map((result) => (
-                                    <div key={result.id} className="dashboard-modal-result-item">
-                                        <div>
-                                            <p style={{ fontWeight: 600, marginBottom: 4 }}>{result.name}</p>
-                                            <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{result.email}</p>
+                            {searchResults.length > 0 && (
+                                <div className="space-y-2">
+                                    {searchResults.map((result) => (
+                                        <div key={result.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface2 p-2.5">
+                                            <div>
+                                                <p className="text-sm font-semibold text-ink">{result.name}</p>
+                                                <p className="text-xs text-muted">{result.email}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button size="sm" variant="outline" onClick={() => navigate(`/users/${result.id}`)}>Profile</Button>
+                                                <Button size="sm" onClick={() => handleSendRequest(result.id)} disabled={pendingRequests.has(result.id)}>
+                                                    {pendingRequests.has(result.id) ? 'Requested' : 'Invite'}
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <button
-                                                className="btn btn-ghost btn-sm"
-                                                onClick={() => navigate(`/users/${result.id}`)}
-                                            >
-                                                Profile
-                                            </button>
-                                            <button
-                                                className="btn btn-primary btn-sm"
-                                                onClick={() => handleSendRequest(result.id)}
-                                                disabled={pendingRequests.has(result.id)}
-                                            >
-                                                {pendingRequests.has(result.id) ? "Requested" : "Invite"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>
