@@ -1,4 +1,6 @@
 import { Friend } from "./types";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 type FriendsCardProps = {
   friends: Friend[];
@@ -22,58 +24,53 @@ export function FriendsCard({
   onUnfriend,
 }: FriendsCardProps) {
   return (
-    <div className="section-card fade-up fade-up-2">
-      <div className="section-card-header">
-        <h3>My Friends</h3>
-        <button className="btn btn-ghost btn-sm" onClick={onRefresh} disabled={loading}>
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base">My Friends</CardTitle>
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
           {loading ? "Loading..." : "Refresh"}
-        </button>
-      </div>
+        </Button>
+      </CardHeader>
 
-      {error && <div className="msg msg-error" style={{ marginBottom: 14 }}>{error}</div>}
+      <CardContent className="space-y-3">
+        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
 
-      {!loading && friends.length === 0 && (
-        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>You do not have friends yet.</p>
-      )}
+        {!loading && friends.length === 0 && (
+          <p className="text-sm text-muted">You do not have friends yet.</p>
+        )}
 
-      {friends.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {friends.map((friend) => (
-            <div
-              key={friend.id}
-              style={{
-                padding: "10px 12px",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <div>
-                <p style={{ marginBottom: 4, fontWeight: 600 }}>{friend.name}</p>
+        {friends.length > 0 && (
+          <div className="space-y-2">
+            {friends.map((friend) => (
+              <div
+                key={friend.id}
+                className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface2 p-2.5"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-ink">{friend.name}</p>
+                </div>
+
+                <div className="flex gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => onViewProfile(friend.id)}>
+                    Profile
+                  </Button>
+                  <Button size="sm" onClick={() => onChat(friend)}>
+                    Chat
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onUnfriend(friend.id)}
+                    disabled={unfriendingId === friend.id}
+                  >
+                    {unfriendingId === friend.id ? "Removing..." : "Unfriend"}
+                  </Button>
+                </div>
               </div>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => onViewProfile(friend.id)}>
-                  Profile
-                </button>
-                <button className="btn btn-primary btn-sm" onClick={() => onChat(friend)}>
-                  Chat
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => onUnfriend(friend.id)}
-                  disabled={unfriendingId === friend.id}
-                >
-                  {unfriendingId === friend.id ? "Removing..." : "Unfriend"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

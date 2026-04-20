@@ -19,6 +19,7 @@ import { UserPublicProfilePage } from "./userPublicProfile.tsx";
 import { BlockedUsersPage } from "./blockedUsers.tsx";
 import { PrivacyPolicyPage } from "./privacyPolicy.tsx";
 import { TermsOfServicePage } from "./termsOfService.tsx";
+import { Button } from "./components/ui/button";
 import '../css/App.css';
 
 function PublicRoute({ children }) {
@@ -32,20 +33,13 @@ function PublicRoute({ children }) {
 
 function NotFound() {
     return (
-        <div id="center">
-            <div style={{ textAlign: 'center' }}>
-                <p style={{
-                    fontFamily: "'Syne', sans-serif",
-                    fontSize: '5rem',
-                    fontWeight: 800,
-                    color: 'var(--border2)',
-                    letterSpacing: '-0.04em',
-                    lineHeight: 1,
-                }}>404</p>
-                <p style={{ color: 'var(--ink3)', margin: '12px 0 24px', fontSize: '0.85rem' }}>
-                    This page doesn't exist.
-                </p>
-                <Link to="/dashboard" className="btn btn-ghost">← Go to dashboard</Link>
+        <div className="flex min-h-screen items-center justify-center px-6 py-10">
+            <div className="text-center">
+                <p className="font-display text-7xl font-extrabold text-border2 leading-none">404</p>
+                <p className="mt-3 mb-6 text-sm text-muted">This page doesn't exist.</p>
+                <Button asChild variant="outline">
+                    <Link to="/dashboard">← Go to dashboard</Link>
+                </Button>
             </div>
         </div>
     );
@@ -64,40 +58,40 @@ function Home() {
     const { theme, toggleTheme } = useTheme();
 
     return (
-        <div id="center">
-            <button
-                className="theme-toggle"
+        <div className="flex min-h-screen items-center justify-center px-6 py-10">
+            <Button
+                variant="ghost"
+                size="icon"
                 onClick={toggleTheme}
                 title="Toggle theme"
-                style={{ position: 'fixed', top: 20, right: 24 }}
+                className="fixed right-6 top-6"
             >
                 {theme === 'dark' ? '☀' : '☾'}
-            </button>
+            </Button>
 
-            <div style={{ textAlign: 'center', maxWidth: 440 }}>
-                <div className="logo" style={{ justifyContent: 'center', marginBottom: 32, fontSize: '1.1rem' }}>
-                    <div className="logo-mark" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>W</div>
+            <div className="text-center w-full max-w-md">
+                <div className="mb-8 flex items-center justify-center gap-2 font-display text-lg font-semibold text-ink">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
                     whiteboard
                 </div>
 
-                <h1 style={{ fontSize: '2.8rem', marginBottom: 16, lineHeight: 1.1 }}>
+                <h1 className="mb-4 font-display text-4xl font-bold leading-tight">
                     Think together,<br />
-                    <span style={{ color: 'var(--ink2)' }}>in real time.</span>
+                    <span className="text-ink2">in real time.</span>
                 </h1>
 
-                <p style={{
-                    color: 'var(--ink3)',
-                    fontSize: '0.875rem',
-                    lineHeight: 1.8,
-                    marginBottom: 36,
-                }}>
+                <p className="mb-9 text-sm leading-relaxed text-muted">
                     A shared canvas for your team — draw, plan,<br />
                     and collaborate without the noise.
                 </p>
 
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <Link to="/signup" className="btn btn-primary">Get started →</Link>
-                    <Link to="/login" className="btn btn-ghost">Sign in</Link>
+                <div className="flex justify-center gap-3">
+                    <Button asChild>
+                        <Link to="/signup">Get started →</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link to="/login">Sign in</Link>
+                    </Button>
                 </div>
             </div>
         </div>

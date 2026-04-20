@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from './ThemeContext';
 import { Avatar } from './Avatar';
+import { Button } from './components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
 type BlockedUser = {
     id: number;
@@ -90,82 +92,89 @@ export function BlockedUsersPage() {
     };
 
     return (
-        <div className="dashboard-shell">
-            <header className="topbar">
-                <div className="logo">
-                    <div className="logo-mark">W</div>
-                    whiteboard
-                </div>
-                <div className="topbar-right">
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
-                        ← Profile
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-                        Dashboard
-                    </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
+        <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
+                        whiteboard
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
+                            ← Profile
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                            Dashboard
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                            {theme === 'dark' ? '☀' : '☾'}
+                        </Button>
+                    </div>
                 </div>
             </header>
 
-            <main className="dashboard-body">
-                <div className="page-title fade-up">
-                    <h1>Blocked Users</h1>
-                    <p>Manage users you have blocked.</p>
+            <main className="space-y-5">
+                <div>
+                    <h1 className="font-display text-3xl">Blocked Users</h1>
+                    <p className="mt-1 text-sm text-muted">Manage users you have blocked.</p>
                 </div>
 
-                <div className="section-card fade-up fade-up-1">
-                    {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                        <CardTitle className="text-base">Blocked list</CardTitle>
+                        <Button variant="outline" size="sm" onClick={loadBlockedUsers} disabled={loading}>
+                            {loading ? 'Refreshing...' : 'Refresh'}
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
 
-                    {loading && <p style={{ color: 'var(--ink3)' }}>Loading blocked users...</p>}
+                        {loading && <p className="text-sm text-muted">Loading blocked users...</p>}
 
-                    {!loading && blockedUsers.length === 0 && (
-                        <p style={{ color: 'var(--ink3)' }}>You have no blocked users.</p>
-                    )}
+                        {!loading && blockedUsers.length === 0 && (
+                            <div className="rounded-md border border-border bg-surface2 px-4 py-5 text-center">
+                                <p className="text-sm font-medium text-ink">You have no blocked users.</p>
+                                <p className="mt-1 text-xs text-muted">When you block someone, they will appear here.</p>
+                            </div>
+                        )}
 
-                    {!loading && blockedUsers.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {blockedUsers.map((blockedUser) => (
-                                <div
-                                    key={blockedUser.id}
-                                    style={{
-                                        padding: '10px 12px',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: 8,
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        gap: 12,
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {!loading && blockedUsers.length > 0 && (
+                            <div className="space-y-2">
+                                {blockedUsers.map((blockedUser) => (
+                                    <div
+                                        key={blockedUser.id}
+                                        className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface2 p-2.5"
+                                    >
+                                        <div className="flex items-center gap-3">
                                         <Avatar avatar={blockedUser.avatar} name={blockedUser.name} size={44} />
-                                        <div>
-                                            <p style={{ marginBottom: 4, fontWeight: 600 }}>{blockedUser.name}</p>
-                                            <p style={{ color: 'var(--ink3)', fontSize: '0.8rem' }}>{blockedUser.email}</p>
+                                            <div>
+                                                <p className="text-sm font-semibold text-ink">{blockedUser.name}</p>
+                                                <p className="text-xs text-muted">{blockedUser.email}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <button
-                                            className="btn btn-ghost btn-sm"
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
                                             onClick={() => navigate(`/users/${blockedUser.id}`)}
-                                        >
-                                            View profile
-                                        </button>
-                                        <button
-                                            className="btn btn-ghost btn-sm"
+                                            >
+                                                View profile
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
                                             onClick={() => handleUnblock(blockedUser.id)}
                                             disabled={actionLoadingId === blockedUser.id}
-                                        >
-                                            {actionLoadingId === blockedUser.id ? 'Unblocking...' : 'Unblock'}
-                                        </button>
+                                            >
+                                                {actionLoadingId === blockedUser.id ? 'Unblocking...' : 'Unblock'}
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </main>
         </div>
     );

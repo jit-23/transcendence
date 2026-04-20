@@ -83,6 +83,15 @@ async function getBlockedUserIdsFor(userId: number): Promise<number[]> {
     return Array.from(blockedUserIds);
 }
 
+function getPasswordPolicyError(password: string): string | null {
+    if (password.length < 8) return "Password must be at least 8 characters";
+    if (!/[A-Z]/.test(password)) return "Password must include at least 1 uppercase letter";
+    if (!/[a-z]/.test(password)) return "Password must include at least 1 lowercase letter";
+    if (!/\d/.test(password)) return "Password must include at least 1 number";
+    if (!/[^A-Za-z0-9]/.test(password)) return "Password must include at least 1 symbol";
+    return null;
+}
+
 // ─── helper: extract & verify JWT from Authorization header ───────────────────
 function getAuthUser(req: Request): { userId: number } | null {
     try {
@@ -95,13 +104,24 @@ function getAuthUser(req: Request): { userId: number } | null {
 }
 
 // ─── SIGNUP ───────────────────────────────────────────────────────────────────
+const hasWhitespace = (value: string) => /\s/.test(value);
+
 export const createUser = async (req: Request, res: Response) => {
     try {
         const { username, email, password, avatar } = req.body;
 
         if (!username) return res.status(422).json({ error: "username required" });
+        if (typeof username !== "string" || hasWhitespace(username.trim())) {
+            return res.status(422).json({ error: "Username cannot contain spaces" });
+        }
         if (!email)    return res.status(422).json({ error: "Email required" });
         if (!password) return res.status(422).json({ error: "password required" });
+        if (typeof password !== "string") return res.status(422).json({ error: "password required" });
+
+        const passwordPolicyError = getPasswordPolicyError(password);
+        if (passwordPolicyError) {
+            return res.status(422).json({ error: passwordPolicyError });
+        }
 
         if (await prisma.my_users.findUnique({ where: { name: username } }))
             return res.status(409).json({ error: "Username exists" });
@@ -455,6 +475,9 @@ export const updateMe = async (req: Request, res: Response) => {
 
         // Check uniqueness only if the value is actually changing
         if (username && username !== user.name) {
+            if (typeof username !== "string" || hasWhitespace(username.trim())) {
+                return res.status(422).json({ error: "Username cannot contain spaces" });
+            }
             if (await prisma.my_users.findUnique({ where: { name: username } }))
                 return res.status(409).json({ error: "Username already taken" });
         }
@@ -467,8 +490,9 @@ export const updateMe = async (req: Request, res: Response) => {
         if (username) data.name     = username;
         if (email)    data.email    = email;
         if (newPassword) {
-            if (newPassword.length < 6)
-                return res.status(422).json({ error: "New password must be at least 6 characters" });
+            const passwordPolicyError = getPasswordPolicyError(newPassword);
+            if (passwordPolicyError)
+                return res.status(422).json({ error: passwordPolicyError });
             data.password = await bcrypt.hash(newPassword, 10);
         }
 
