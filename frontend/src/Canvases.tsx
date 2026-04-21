@@ -45,7 +45,8 @@ export function CanvasesPage() {
 	
     const groupChat = async (canvasId: number) => {
       try {
-        const res = await fetch(`http://localhost:8081/canvases/${canvasId}/collaborators`, {
+        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+        const res = await fetch(`${apiUrl}/canvases/${canvasId}/collaborators`, {
           headers: authHeader(),
         });
         if (!res.ok)
@@ -67,7 +68,8 @@ export function CanvasesPage() {
         setCanvasesLoading(true);
         setCanvasesError(null);
         try {
-            const res = await fetch("http://localhost:8081/canvases", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/canvases`, {
                 headers: authHeader(),
             });
             const data = await res.json();
@@ -89,7 +91,8 @@ export function CanvasesPage() {
         setFriendsLoading(true);
         setFriendsError(null);
         try {
-          const res = await fetch("http://localhost:8081/users/friends", {
+          const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+          const res = await fetch(`${apiUrl}/users/friends`, {
             headers: authHeader(),
           });
           const data = await res.json();
@@ -110,7 +113,8 @@ export function CanvasesPage() {
     const handleAddCanvas = async (name: string): Promise<boolean> => {
         setCanvasesError(null);
         try {
-			const res = await fetch("http://localhost:8081/canvases", {
+			const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+			const res = await fetch(`${apiUrl}/canvases`, {
 				method: "POST",
                 headers: authHeader(),
                 body: JSON.stringify({ name: name.trim() || `Canvas ${canvases.length + 1}` }),
@@ -131,7 +135,8 @@ export function CanvasesPage() {
     const handleDeleteCanvas = async (canvasId: number) => {
         setCanvasesError(null);
         try {
-            const res = await fetch(`http://localhost:8081/canvases/${canvasId}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/canvases/${canvasId}`, {
                 method: "DELETE",
                 headers: authHeader(),
             });
@@ -150,7 +155,8 @@ export function CanvasesPage() {
         setInviteError(null);
         setInvitingFriendId(friendId);
         try {
-          const res = await fetch(`http://localhost:8081/canvases/${canvasId}/collaborators`, {
+          const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+          const res = await fetch(`${apiUrl}/canvases/${canvasId}/collaborators`, {
             method: "POST",
             headers: authHeader(),
             body: JSON.stringify({ friendId }),

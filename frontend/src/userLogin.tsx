@@ -19,7 +19,8 @@ export function     LoginForm() {
         e.preventDefault();
         setLoading(true); setError(null);
         try {
-            const res  = await fetch('http://localhost:8081/users/login', {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -46,7 +47,8 @@ export function     LoginForm() {
         if (!code) { setError('Enter your 6-digit code'); return; }
         setLoading(true); setError(null);
         try {
-            const res  = await fetch('http://localhost:8081/users/login2FA', {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/login2FA`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code, tempToken }),

@@ -38,10 +38,11 @@ export function GroupChatsPage() {
   const loadData = async () => {
     setLoading(true);
     setError(null);
+    const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
     try {
-      const [friendsRes, convRes] = await Promise.all([
-        fetch("http://localhost:8081/users/friends", { headers: authHeader() }),
-        fetch("http://localhost:8081/conversations/my", { headers: authHeader() }),
+        const [friendsRes, conversationsRes] = await Promise.all([
+        fetch(`${apiUrl}/users/friends`, { headers: authHeader() }),
+        fetch(`${apiUrl}/conversations/my`, { headers: authHeader() }),
       ]);
 
       const friendsData = await friendsRes.json();
@@ -74,7 +75,7 @@ export function GroupChatsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:8081/conversations/${conversationId}`, {
+      const res = await fetch(`${apiUrl}/conversations/${conversationId}`, {
         method: "DELETE",
         headers: authHeader(),
       });

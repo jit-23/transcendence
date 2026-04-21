@@ -22,7 +22,8 @@ export function ProfilePage() {
     const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
 
     const saveAvatar = async (avatar: string) => {
-        const res  = await fetch('http://localhost:8081/users/me/avatar', {
+        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+        const res  = await fetch(`${apiUrl}/users/me/avatar`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -58,7 +59,8 @@ export function ProfilePage() {
 
         setLoading(true);
         try {
-            const res  = await fetch('http://localhost:8081/users/me', {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/me`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

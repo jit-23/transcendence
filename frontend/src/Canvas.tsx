@@ -1351,7 +1351,8 @@ export default function Canvas() {
 		setSaveStatus(isAutosave ? "" : "Saving...");
 
 		try {
-			const res = await fetch(`http://localhost:8081/canvases/${canvasId}/content`, {
+			const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+			const res = await fetch(`${apiUrl}/canvases/${canvasId}/content`, {
 				method: "PUT",
 				headers: authHeader(),
 				body: JSON.stringify({ content: JSON.stringify(buildSnapshot()) }),
@@ -1713,7 +1714,8 @@ export default function Canvas() {
 		const loadCanvas = async () => {
 			setSaveStatus("Loading...");
 			try {
-				const res = await fetch(`http://localhost:8081/canvases/${canvasId}`, {
+				const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+				const res = await fetch(`${apiUrl}/canvases/${canvasId}`, {
 					headers: authHeader(),
 				});
 				const data = await res.json();
@@ -1775,7 +1777,8 @@ export default function Canvas() {
 
 		const loadMessages = async () => {
 			try {
-				const res = await fetch(`http://localhost:8081/conversations/${conversationId}/messages`, {
+				const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+				const res = await fetch(`${apiUrl}/conversations/${conversationId}/messages`, {
 					headers: authHeader(),
 				});
 				const data = await res.json();
@@ -1807,7 +1810,8 @@ export default function Canvas() {
 	useEffect(() => {
 		if (!user?.name) return;
 
-		const socket = io("http://localhost:8081", {
+		const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+		const socket = io(apiUrl, {
 			auth: { username: user.name },
 			withCredentials: true,
 		});

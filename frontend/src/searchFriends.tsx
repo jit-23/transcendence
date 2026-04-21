@@ -37,8 +37,9 @@ export function SearchFriends() {
         setError(null);
         setSearched(true);
         try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(
-                `http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`,
+                `${apiUrl}/users/search?query=${encodeURIComponent(searchQuery)}`,
                 { headers: authHeader()}
             );
             const data = await res.json();
@@ -68,7 +69,7 @@ export function SearchFriends() {
         setPendingRequests(prev => new Set(prev).add(receiverId));
         
         try {
-            const res = await fetch("http://localhost:8081/users/friend-request/send", {
+            const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: "POST",
                 headers: authHeader(),
                 body: JSON.stringify({ receiverId }),

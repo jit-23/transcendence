@@ -53,7 +53,8 @@ export function ChatPage() {
             setStatus("Opening conversation...");
 
             try {
-                const res = await fetch("http://localhost:8081/conversations/direct", {
+                const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                const res = await fetch(`${apiUrl}/conversations/direct`, {
                     method: "POST",
                     headers: authHeader(),
                     body: JSON.stringify({ friendId }),
@@ -98,7 +99,8 @@ export function ChatPage() {
 
         const loadMessages = async () => {
             try {
-                const res = await fetch(`http://localhost:8081/conversations/${conversationId}/messages`, {
+                const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                const res = await fetch(`${apiUrl}/conversations/${conversationId}/messages`, {
                     headers: authHeader(),
                 });
                 const data = await res.json();
@@ -134,7 +136,8 @@ export function ChatPage() {
     useEffect(() => {
         if (!user?.name) return;
 
-        const socket = io("http://localhost:8081", {
+        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+        const socket = io(apiUrl, {
             auth: { username: user.name },
             withCredentials: true,
         });

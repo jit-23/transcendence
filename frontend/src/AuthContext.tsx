@@ -31,7 +31,8 @@ export function AuthProvider({ children }) {
 
 		const fetchUserData = async (token: string) => {
 			try {
-				const response = await fetch("http://localhost:8081/users/me", { 
+				const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+				const response = await fetch(`${apiUrl}/users/me`, { 
 					headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!response.ok) throw new Error("Failed to fetch user data");

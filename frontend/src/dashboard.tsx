@@ -85,7 +85,8 @@ export function Dashboard() {
     const handleGenerate = async () => {
         setLoading(true); setError(null);
         try {
-            const res  = await fetch("http://localhost:8081/users/2fa/generate", { method: "POST", headers: authHeader() });
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/2fa/generate`, { method: "POST", headers: authHeader() });
             const data = await res.json();
             if (!res.ok) return setError(data.error);
             setQr(data.qr); setEnableStep("scanning");
@@ -97,7 +98,8 @@ export function Dashboard() {
         if (!confirmCode) return setError("Enter the 6-digit code");
         setLoading(true); setError(null);
         try {
-            const res  = await fetch("http://localhost:8081/users/2fa/confirm", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/2fa/confirm`, {
                 method: "POST", headers: authHeader(), body: JSON.stringify({ code: confirmCode }),
             });
             const data = await res.json();
@@ -111,7 +113,8 @@ export function Dashboard() {
         if (!disableCode) return setError("Enter your current 2FA code");
         setLoading(true); setError(null);
         try {
-            const res  = await fetch("http://localhost:8081/users/2fa/disable", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/2fa/disable`, {
                 method: "POST", headers: authHeader(), body: JSON.stringify({ code: disableCode }),
             });
             const data = await res.json();
@@ -125,7 +128,8 @@ export function Dashboard() {
         setRequestsLoading(true);
         setRequestsError(null);
         try {
-            const res = await fetch("http://localhost:8081/users/friend-request/received", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/received`, {
                 headers: authHeader(),
             });
             const data = await res.json();
@@ -146,7 +150,8 @@ export function Dashboard() {
     const decideRequest = async (requestId: number, action: "accept" | "reject") => {
         setRequestsError(null);
         try {
-            const res = await fetch(`http://localhost:8081/users/friend-request/${requestId}/${action}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/${requestId}/${action}`, {
                 method: "POST",
                 headers: authHeader(),
             });
@@ -168,7 +173,8 @@ export function Dashboard() {
         setFriendsLoading(true);
         setFriendsError(null);
         try {
-            const res = await fetch("http://localhost:8081/users/friends", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friends`, {
                 headers: authHeader(),
             });
             const data = await res.json();
@@ -190,7 +196,8 @@ export function Dashboard() {
         setFriendsError(null);
         setUnfriendingId(friendId);
         try {
-            const res = await fetch(`http://localhost:8081/users/friends/${friendId}/unfriend`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friends/${friendId}/unfriend`, {
                 method: "POST",
                 headers: authHeader(),
             });
@@ -234,7 +241,8 @@ export function Dashboard() {
         setSearched(true);
 
         try {
-            const res = await fetch(`http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/search?query=${encodeURIComponent(searchQuery)}`, {
                 headers: authHeader(),
             });
             const data = await res.json();
@@ -260,7 +268,8 @@ export function Dashboard() {
         setSearchError(null);
 
         try {
-            const res = await fetch("http://localhost:8081/users/friend-request/send", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: "POST",
                 headers: authHeader(),
                 body: JSON.stringify({ receiverId }),

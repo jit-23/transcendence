@@ -7,7 +7,7 @@ type SharedCanvas = {
   updatedAt: string;
 };
 
-const API_BASE = "http://localhost:8081";
+const API_BASE = import.meta.env.VITE_API_URL || "https://localhost:8081";
 
 const authHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem("token")}`,
