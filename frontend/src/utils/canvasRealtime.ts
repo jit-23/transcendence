@@ -39,8 +39,14 @@ type CanvasCursorPayload = {
   visible?: boolean;
 };
 
+type CanvasShapeDeletePayload = {
+  canvasId: number;
+  shapeIds?: string[];
+};
+
 export type CanvasRealtimeHandlers<Shape> = {
   onShapeCommit: (shape: Shape) => void;
+  onShapeDelete: (shapeIds: string[]) => void;
   onClear: () => void;
   onUndo: () => void;
   onRedo: (shape: Shape) => void;
@@ -121,7 +127,14 @@ export const registerCanvasRealtimeHandlers = <Shape>(
     handlers.onCursor({ userId, username, x, y, visible: true });
   };
 
+  const handleShapeDelete = ({ canvasId: incomingCanvasId, shapeIds }: CanvasShapeDeletePayload) => {
+    if (!isValidCanvasId(canvasId) || Number(incomingCanvasId) !== canvasId) return;
+    if (!Array.isArray(shapeIds) || shapeIds.length === 0) return;
+    handlers.onShapeDelete(shapeIds);
+  };
+
   socket.on("canvas-shape-commit", handleShapeCommit);
+  socket.on("canvas-shape-delete", handleShapeDelete);
   socket.on("canvas-clear", handleClear);
   socket.on("canvas-undo", handleUndo);
   socket.on("canvas-redo", handleRedo);
@@ -132,6 +145,7 @@ export const registerCanvasRealtimeHandlers = <Shape>(
 
   return () => {
     socket.off("canvas-shape-commit", handleShapeCommit);
+    socket.off("canvas-shape-delete", handleShapeDelete);
     socket.off("canvas-clear", handleClear);
     socket.off("canvas-undo", handleUndo);
     socket.off("canvas-redo", handleRedo);

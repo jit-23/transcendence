@@ -451,6 +451,7 @@ const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 		default:
 			return shape;
 	}
+	
 };
 
 const getShapeBounds = (shape: Shape): Bounds => {
@@ -1241,6 +1242,7 @@ export default function Canvas() {
 	const shapesRef = useRef<Shape[]>([]);
 	const redoShapesRef = useRef<Shape[][]>([]);
 	const undoStatesRef = useRef<Shape[][]>([]);
+	const undoDepthRef = useRef(0);
 	const draftShapeRef = useRef<Shape | null>(null);
 	const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 	const draggedShapeIdRef = useRef<string | null>(null);
@@ -1253,6 +1255,9 @@ export default function Canvas() {
 	const marqueeSelectionInitialIdsRef = useRef<string[]>([]);
 	const viewRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 	const initializedSketchRef = useRef(false);
+	const autosaveTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+	const savingRef = useRef(false);
+	const dirtyVersionRef = useRef(0);
 	const isAnyColorPickerOpen = Object.values(openColorPickers).some(Boolean);
 
 	//nando
@@ -1261,11 +1266,29 @@ export default function Canvas() {
 		"Content-Type": "application/json",
 	});
 
+	const clearAutosaveTimer = () => {
+		if (autosaveTimeoutRef.current !== null) {
+			window.clearTimeout(autosaveTimeoutRef.current);
+			autosaveTimeoutRef.current = null;
+		}
+	};
+
+	const scheduleAutosave = () => {
+		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) return;
+		clearAutosaveTimer();
+		autosaveTimeoutRef.current = window.setTimeout(() => {
+			autosaveTimeoutRef.current = null;
+			if (!dirtyRef.current || hydratingRef.current || savingRef.current) return;
+			void saveCanvas(true);
+		}, 500); // tempo para autosave pos modificação
+	};
 
 	
 	const markDirty = () => {
 		if (hydratingRef.current) return;
 		dirtyRef.current = true;
+		dirtyVersionRef.current += 1;
+		scheduleAutosave();
 	};
 
 	const colorFromUserId = (userId: number) => {
@@ -1291,6 +1314,7 @@ export default function Canvas() {
 
 	const applySnapshot = (snapshot: CanvasSnapshot) => {
 		hydratingRef.current = true;
+		clearAutosaveTimer();
 
 		setBackgroundColor(snapshot.backgroundColor ?? "#ffffff");
 		setLineColor(snapshot.lineColor ?? "#111111");
@@ -1303,6 +1327,7 @@ export default function Canvas() {
 		shapesRef.current = Array.isArray(snapshot.shapes) ? snapshot.shapes : [];
 		redoShapesRef.current = [];
 		undoDepthRef.current = Math.min(HISTORY_LIMIT, shapesRef.current.length);
+		dirtyVersionRef.current = 0;
 		draftShapeRef.current = null;
 		dragStartRef.current = null;
 		dotRef.current = true;
@@ -1311,14 +1336,19 @@ export default function Canvas() {
 		hydratingRef.current = false;
 	};
 
-	const saveCanvas = async () => {
+	const saveCanvas = async (isAutosave = false) => {
 		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) {
 			setSaveStatus("No canvas id found in URL");
 			return;
 		}
 
+		if (savingRef.current) return;
+
+		const dirtyVersionAtStart = dirtyVersionRef.current;
+		savingRef.current = true;
+
 		setSaving(true);
-		setSaveStatus("Saving...");
+		setSaveStatus(isAutosave ? "" : "Saving...");
 
 		try {
 			const res = await fetch(`http://localhost:8081/canvases/${canvasId}/content`, {
@@ -1333,12 +1363,18 @@ export default function Canvas() {
 				return;
 			}
 
-			dirtyRef.current = false;
-			setSaveStatus("Saved");
+			if (dirtyVersionRef.current === dirtyVersionAtStart) {
+				dirtyRef.current = false;
+			}
+			setSaveStatus(isAutosave ? "" : "");
 		} catch {
 			setSaveStatus("Network error while saving");
 		} finally {
+			savingRef.current = false;
 			setSaving(false);
+			if (dirtyRef.current) {
+				scheduleAutosave();
+			}
 		}
 	};
 	//nando
@@ -1392,6 +1428,7 @@ export default function Canvas() {
 		dotRef.current = true;
 		undoDepthRef.current = 0;
 		markDirty();
+
 		//nando
 		
 	};
@@ -1430,10 +1467,14 @@ export default function Canvas() {
 			textEditSnapshotTakenRef.current = true;
 		}
 
-		shapesRef.current[shapeIndex] = {
+		const updatedShape = {
 			...shape,
 			content: nextContent,
 		};
+		shapesRef.current[shapeIndex] = updatedShape;
+		
+		// Broadcast text edits to other clients
+		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-commit", { shape: updatedShape });
 	};
 
 	const cloneShape = (shape: Shape): Shape => {
@@ -1505,6 +1546,7 @@ export default function Canvas() {
 		viewRef.current.offsetX = anchorX - worldX * nextScale;
 		viewRef.current.offsetY = anchorY - worldY * nextScale;
 		setZoomPercent(clampedPercent);
+		markDirty();
 	};
 
 	const isEditableElement = (target: EventTarget | null) => {
@@ -1539,6 +1581,7 @@ export default function Canvas() {
 	};
 
 	const emitDraftShape = (shape: Shape | null) => {
+
 		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-draft", { shape });
 	};
 
@@ -1674,7 +1717,6 @@ export default function Canvas() {
 					headers: authHeader(),
 				});
 				const data = await res.json();
-				console.log("Loaded canvas data:", data);
 				if (!res.ok) {
 					if (!cancelled) setSaveStatus(data.error || "Failed to load canvas");
 					return;
@@ -1710,7 +1752,7 @@ export default function Canvas() {
 					setChatStatus(data.conversationId ? null : "No linked group chat found for this canvas yet");
 				}
 
-				if (!cancelled) setSaveStatus("Loaded");
+				if (!cancelled) setSaveStatus("");
 			} catch {
 				if (!cancelled) setSaveStatus("Network error while loading");
 			}
@@ -1772,8 +1814,23 @@ export default function Canvas() {
 
 		chatSocketRef.current = socket;
 		const detachCanvasHandlers = registerCanvasRealtimeHandlers<Shape>(socket, canvasId, {
-			onShapeCommit: (shape) => commitShape(shape),
-			onClear: () => clearCanvas(),
+			onShapeCommit: (shape) => {
+				// Check if shape with this ID already exists (update instead of adding)
+				const existingIndex = shapesRef.current.findIndex((s) => s.id === shape.id);
+				if (existingIndex >= 0) {
+					shapesRef.current[existingIndex] = shape;
+					markDirty();
+				} else {
+					commitShapeAndBroadcast(shape);
+				}
+			},
+			onShapeDelete: (shapeIds) => {
+				const idsToDelete = new Set(shapeIds);
+				shapesRef.current = shapesRef.current.filter((shape) => !idsToDelete.has(shape.id));
+				syncSelectionAfterStateChange();
+				markDirty();
+			},
+			onClear: () => clearCanvasAndBroadcast(),
 			onUndo: () => {
 				if (undoDepthRef.current <= 0) return;
 				shapesRef.current.pop();
@@ -1908,17 +1965,10 @@ export default function Canvas() {
 	};
 
 	useEffect(() => {
-		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) return;
-
-		const interval = window.setInterval(() => {
-			if (!dirtyRef.current || saving) return;
-			void saveCanvas();
-		}, 8000);
-
 		return () => {
-			window.clearInterval(interval);
+			clearAutosaveTimer();
 		};
-	}, [canvasId, saving, backgroundColor, lineColor, tool, fill, strokeWeight, zoomPercent]);
+	}, [canvasIdParam]);
 	//nando
 
 
@@ -2246,6 +2296,7 @@ export default function Canvas() {
 				if (eraserMarkedShapeIdsRef.current.size === 0) return;
 				pushUndoSnapshot();
 				const idsToDelete = eraserMarkedShapeIdsRef.current;
+				const idsArray = Array.from(idsToDelete);
 				shapesRef.current = shapesRef.current.filter((shape) => !idsToDelete.has(shape.id));
 
 				if (hoveredShapeIdRef.current && idsToDelete.has(hoveredShapeIdRef.current)) {
@@ -2258,6 +2309,9 @@ export default function Canvas() {
 				eraserMarkedShapeIdsRef.current = new Set();
 				eraserTouchLatchRef.current = new Set();
 				markDirty();
+				
+				// Broadcast eraser deletions to all connected clients
+				emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-delete", { shapeIds: idsArray });
 			};
 
 			const syncHoverFromPointer = () => {
@@ -2855,6 +2909,14 @@ export default function Canvas() {
 				eraserTouchLatchRef.current = new Set();
 				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
 				toggleEraserMarksAtPoint(worldPoint.x, worldPoint.y);
+				draftShapeRef.current = {
+					kind: "eraser",
+					id: generateShapeId(),
+					points: [{ x: worldPoint.x, y: worldPoint.y }],
+					strokeWeight: settingsRef.current.strokeWeight,
+					angle: 0,
+				} as EraserShape;
+				emitDraftShape(draftShapeRef.current);
 				draggedShapeIdRef.current = null;
 				resizeSessionRef.current = null;
 				rotationSessionRef.current = null;
@@ -3062,10 +3124,18 @@ export default function Canvas() {
 					toggleEraserMarksAtPoint(worldPoint.x, worldPoint.y);
 				}
 				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
-					emitCursorFromPointer(worldPoint.x, worldPoint.y, true);
-					if (draftShapeRef.current) {
+				if (draftShapeRef.current && draftShapeRef.current.kind === "eraser") {
+					draftShapeRef.current = {
+						...draftShapeRef.current,
+						points: [...draftShapeRef.current.points, { x: worldPoint.x, y: worldPoint.y }],
+					};
+					const now = Date.now();
+					if (now - lastDraftEmitAtRef.current > 25) {
 						emitDraftShape(draftShapeRef.current);
+						lastDraftEmitAtRef.current = now;
 					}
+				}
+					emitCursorFromPointer(worldPoint.x, worldPoint.y, true);
 				return;
 			}
 
@@ -3095,6 +3165,7 @@ export default function Canvas() {
 					applySelection([shapeId]);
 					hoveredShapeIdRef.current = shapeId;
 					hoveredHandleRef.current = "rotation";
+					emitDraftShape(shapesRef.current[shapeIndex]);
 				}
 				return;
 			}
@@ -3120,12 +3191,15 @@ export default function Canvas() {
 						const deltaX = fixedWorldAnchor.x - currentWorldOpposite.x;
 						const deltaY = fixedWorldAnchor.y - currentWorldOpposite.y;
 						resizedShape = moveShape(resizedShape, deltaX, deltaY);
+						//emitDraftShape(resizedShape);
+					
 					}
-
 					shapesRef.current[shapeIndex] = resizedShape;
+					emitDraftShape(resizedShape);
 					applySelection([shapeId]);
 					hoveredShapeIdRef.current = shapeId;
 					hoveredHandleRef.current = handle;
+					//commitShapeAndBroadcast(resizedShape);
 				}
 				return;
 			}				// If we're dragging a shape, move it
@@ -3140,7 +3214,10 @@ export default function Canvas() {
 						const selectedIds = selectedShapeIdsRef.current;
 						shapesRef.current = shapesRef.current.map((shape) =>
 							selectedIds.has(shape.id) ? moveShape(shape, deltaX, deltaY) : shape,
-						);
+						
+					);
+						emitDraftShape(shapesRef.current.find((shape) => shape.id === draggedShapeIdRef.current) ?? null);
+						//commitShapesAndBroadcast(Array.from(selectedIds).map((id) => shapesRef.current.find((shape) => shape.id === id)!));
 						hoveredShapeIdRef.current = draggedShapeIdRef.current;
 						dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
 						return;
@@ -3150,10 +3227,12 @@ export default function Canvas() {
 					if (shapeIndex >= 0) {
 						const shape = shapesRef.current[shapeIndex]!;
 						shapesRef.current[shapeIndex] = moveShape(shape, deltaX, deltaY);
+						emitDraftShape(shapesRef.current[shapeIndex]);
 						hoveredShapeIdRef.current = draggedShapeIdRef.current;
 						dragStartRef.current = { x: worldPoint.x, y: worldPoint.y };
 						markDirty();
 					}
+					
 					return;
 				}
 
@@ -3192,6 +3271,7 @@ export default function Canvas() {
 			};
 
 			s.mouseReleased = () => {
+				
 				if (settingsRef.current.isAnyColorPickerOpen) {
 					dragStartRef.current = null;
 					marqueeSelectionStartRef.current = null;
@@ -3202,6 +3282,7 @@ export default function Canvas() {
 					resizeSessionRef.current = null;
 					rotationSessionRef.current = null;
 					draftShapeRef.current = null;
+
 					return;
 				}
 
@@ -3235,6 +3316,10 @@ export default function Canvas() {
 					return;
 				}
 				if (rotationSessionRef.current) {
+					const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === rotationSessionRef.current!.shapeId);
+					if (shapeIndex >= 0) {
+						emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-commit", { shape: shapesRef.current[shapeIndex]! });
+					}
 					rotationSessionRef.current = null;
 					dragStartRef.current = null;
 					markDirty();
@@ -3245,12 +3330,17 @@ export default function Canvas() {
 					commitMarkedEraserDeletes();
 					eraserTouchLatchRef.current = new Set();
 					eraserLastPointRef.current = null;
-					dragStartRef.current = null;
-					draftShapeRef.current = null;
+				//	dragStartRef.current = null;
+				//	draftShapeRef.current = null;
+					emitDraftShape(null);
 					return;
 				}
 
 				if (resizeSessionRef.current) {
+					const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === resizeSessionRef.current!.shapeId);
+					if (shapeIndex >= 0) {
+						emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-commit", { shape: shapesRef.current[shapeIndex]! });
+					}
 					resizeSessionRef.current = null;
 					dragStartRef.current = null;
 					markDirty();
@@ -3259,6 +3349,10 @@ export default function Canvas() {
 
 				// If we were dragging a shape, commit the changes
 				if (draggedShapeIdRef.current) {
+					const shapeIndex = shapesRef.current.findIndex((shape) => shape.id === draggedShapeIdRef.current);
+					if (shapeIndex >= 0) {
+						emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-commit", { shape: shapesRef.current[shapeIndex]! });
+					}
 					draggedShapeIdRef.current = null;
 					dragStartRef.current = null;
 					// The shape position has already been updated in shapesRef during drag
@@ -3296,7 +3390,7 @@ export default function Canvas() {
 					shapeToCommit.y2 = shapeToCommit.y1 + nextHeight;
 				}
 
-				commitShape(shapeToCommit);
+				commitShapeAndBroadcast(shapeToCommit);
 				emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-commit", { shape: shapeToCommit });
 				emitDraftShape(null);
 				if (isTextShape(shapeToCommit)) {
@@ -3355,7 +3449,7 @@ export default function Canvas() {
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Canvas</span>
 						<span style={controlFieldStyle}>
-							<button type="button" onClick={clearCanvas} style={{ width: "80px" }}>
+							<button type="button" onClick={clearCanvasAndBroadcast} style={{ width: "80px" }}>
 								Clear
 							</button>
 						</span>
@@ -3370,7 +3464,10 @@ export default function Canvas() {
 									pickerId="background"
 									label="Background"
 									value={backgroundColor}
-									onChange={setBackgroundColor}
+											onChange={(value) => {
+												setBackgroundColor(value);
+												markDirty();
+											}}
 									defaultValue={DEFAULT_BACKGROUND_COLOR}
 									onOpenChange={handleColorPickerOpenChange}
 									hideLabel
@@ -3385,7 +3482,10 @@ export default function Canvas() {
 									pickerId="line"
 									label="Line Color"
 									value={lineColor}
-									onChange={setLineColor}
+									onChange={(value) => {
+										setLineColor(value);
+										markDirty();
+									}}
 									defaultValue={DEFAULT_LINE_COLOR}
 									onOpenChange={handleColorPickerOpenChange}
 									hideLabel
@@ -3398,7 +3498,10 @@ export default function Canvas() {
 						<span style={controlFieldStyle}>
 							<select
 								value={tool}
-								onChange={(event) => setTool(event.target.value as Tool)}
+								onChange={(event) => {
+									setTool(event.target.value as Tool);
+									markDirty();
+								}}
 							>
 								<option value="cursor">🖱️ Cursor</option>
 								<option value="freehand">✏️ Free Hand</option>
@@ -3421,7 +3524,10 @@ export default function Canvas() {
 							<input
 								type="checkbox"
 								checked={fill}
-								onChange={(event) => setFill(event.target.checked)}
+								onChange={(event) => {
+									setFill(event.target.checked);
+									markDirty();
+								}}
 							/>
 						</span>
 					</label>
@@ -3429,7 +3535,14 @@ export default function Canvas() {
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Text Font</span>
 						<span style={controlFieldStyle}>
-							<select value={textFont} onChange={(event) => setTextFont(event.target.value as TextFont)} style={{ fontFamily: textFont }}>
+							<select
+								value={textFont}
+								onChange={(event) => {
+									setTextFont(event.target.value as TextFont);
+									markDirty();
+								}}
+								style={{ fontFamily: textFont }}
+							>
 								{TEXT_FONT_OPTIONS.map((fontOption) => (
 									<option key={fontOption} value={fontOption} style={{ fontFamily: fontOption }}>
 										{fontOption}
@@ -3453,6 +3566,7 @@ export default function Canvas() {
 									if (Number.isNaN(parsed)) return;
 									const clamped = Math.min(30, Math.max(1, parsed));
 									setStrokeWeight(clamped);
+									markDirty();
 								}}
 								style={{ width: "64px" }}
 							/>
@@ -3473,6 +3587,9 @@ export default function Canvas() {
 				</div>
 
 				<div />
+			</div>
+			<div style={{ minHeight: "20px", fontSize: "12px", color: "var(--muted-foreground, #64748b)", padding: "0 4px" }}>
+				{saveStatus}
 			</div>
 			<div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "10px", alignItems: "stretch" }}>
 					<div ref={canvasHostRef} style={{ minHeight: "320px", border: "1px solid var(--border)", borderRadius: 8 }} />
