@@ -2,8 +2,9 @@ import { useContext, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
-import { changeLanguage } from "./components/i18n.tsx";
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from "./components/i18n.tsx";
+import LanguageSwitcher from "./components/i18n.tsx";
 
 export function     LoginForm() {
     const [email, setEmail]         = useState('');
@@ -67,7 +68,6 @@ export function     LoginForm() {
             setLoading(false);
         }
     };
-
     return (
         <div id="center">
             <div className="auth-wrap fade-up">
@@ -76,15 +76,7 @@ export function     LoginForm() {
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'dark' ? '☀' : '☾'}
                     </button>
-                    <button
-                        //FIX THE POSITION
-                        className="theme-toggle"//change classname
-                        onClick={changeLanguage}//onClick LANGUAGECHANGE
-                        title="Toggle theme"//change title
-                        style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
-                    >
-                        ☾
-                    </button>
+                <LanguageSwitcher onClick={changeLanguage} />
                 </div>
 
                 <div className="card">

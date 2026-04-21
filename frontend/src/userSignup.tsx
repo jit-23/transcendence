@@ -4,6 +4,7 @@ import { useTheme } from './ThemeContext';
 import { Avatar, DEFAULT_AVATARS } from './Avatar';
 import { useTranslation } from "react-i18next";
 import { changeLanguage } from "./components/i18n.tsx";
+import LanguageSwitcher from "./components/i18n.tsx";
 
 // ── Two-step signup: step 1 = credentials, step 2 = pick avatar ───────────────
 type Step = 'credentials' | 'avatar';
@@ -89,15 +90,7 @@ export function SignupForm() {
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'dark' ? '☀' : '☾'}
                     </button>
-					<button
-						//FIX THE POSITION
-						className="theme-toggle"//change classname
-						onClick={changeLanguage}//onClick LANGUAGECHANGE
-						title="Toggle theme"//change title
-						style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
-					>
-						☾
-					</button>
+                <LanguageSwitcher onClick={changeLanguage} />
                 </div>
 
                 <div className="card" style={{ maxWidth: step === 'avatar' ? 420 : 380 }}>

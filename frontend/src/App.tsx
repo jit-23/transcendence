@@ -17,6 +17,7 @@ import { CanvasesPage } from "./Canvases.tsx";
 import '../css/App.css'
 import { useTranslation } from "react-i18next";
 import { changeLanguage } from "./components/i18n.tsx";
+import LanguageSwitcher from "./components/i18n.tsx";
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
@@ -63,15 +64,7 @@ function Home() {
             >
                 {theme === 'dark' ? '☀' : '☾'}
             </button>
-            <button
-                className="theme-toggle"//change classname
-                onClick={changeLanguage}//onClick LANGUAGECHANGE
-                title="Toggle theme"//change title
-                style={{ position: 'fixed', top: 20, right: 70 }}//change the icon
-            >
-                ☾
-            </button>
-
+            <LanguageSwitcher onClick={changeLanguage} />
             <div style={{ textAlign: 'center', maxWidth: 440 }}>
                 <div className="logo" style={{ justifyContent: 'center', marginBottom: 32, fontSize: '1.1rem' }}>
                     <div className="logo-mark" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>W</div>
