@@ -1,7 +1,7 @@
 import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
+import ThemeSwitch from "./ThemeContext";
 
 interface SearchResult {
     id: number;
@@ -12,7 +12,6 @@ interface SearchResult {
 
 export function SearchFriends() {
     const { user } = useContext(AuthContext);
-    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -117,9 +116,7 @@ export function SearchFriends() {
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
                         Profile
                     </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
+                    <ThemeSwitch />
                 </div>
             </header>
 

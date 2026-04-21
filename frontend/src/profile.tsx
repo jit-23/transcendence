@@ -1,15 +1,14 @@
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
-import { useTheme } from './ThemeContext';
 import { Avatar, AvatarPicker } from './Avatar';
 import { useTranslation } from 'react-i18next';
-import { changeLanguage } from "./components/i18n.tsx";
 import LanguageSwitcher from "./components/i18n.tsx";
+import ThemeSwitch from "./ThemeContext";
+
 
 export function ProfilePage() {
     const { user, refreshUser }  = useContext(AuthContext);
-    const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
 
     const [showPicker, setShowPicker]           = useState(false);
@@ -94,9 +93,7 @@ export function ProfilePage() {
                     <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
                         {t("dashboard_prof")}
                     </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
+                    <ThemeSwitch />
                     <LanguageSwitcher onClick={changeLanguage} />
                 </div>
             </header>

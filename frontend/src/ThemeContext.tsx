@@ -26,3 +26,31 @@ export function ThemeProvider({ children }) {
 }
 
 export const useTheme = () => useContext(ThemeContext);
+
+type ThemeSwitchProps = {
+  onClick: () => void;
+  top?: number;
+  right?: number;
+};
+
+
+const ThemeSwitch: React.FC = ({
+    onClick,
+    top = 15,
+    right = 60,
+}) => {
+    const {theme, toggleTheme} = useTheme();
+    return (
+        <button
+        className="theme-toggle"
+        title="Toggle theme"
+        style={{ position: "fixed", top, right }}
+        onClick={toggleTheme} 
+        >
+        
+        {theme === 'dark' ? '☀' : '☾'}
+        </button>
+    );
+};
+
+export default ThemeSwitch;

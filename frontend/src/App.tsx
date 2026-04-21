@@ -7,7 +7,6 @@ import { ProfilePage } from './profile.tsx';
 import PrivateRoute    from "./PrivateRoute";
 import { useContext }  from "react";
 import { AuthContext } from "./AuthContext";
-import { useTheme }    from "./ThemeContext";
 import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
 import Canvas from "./Canvas.tsx";
@@ -16,8 +15,8 @@ import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
 import '../css/App.css'
 import { useTranslation } from "react-i18next";
-import { changeLanguage } from "./components/i18n.tsx";
 import LanguageSwitcher from "./components/i18n.tsx";
+import ThemeSwitch from "./ThemeContext";
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
@@ -51,20 +50,12 @@ function NotFound() {
 
 function Home() {
     const {t} = useTranslation()
-    const { theme, toggleTheme } = useTheme();
 
     return (
         <div id="center">
             {/* Theme toggle top-right */}
-            <button
-                className="theme-toggle"
-                onClick={toggleTheme}
-                title="Toggle theme"
-                style={{ position: 'fixed', top: 20, right: 24 }}
-            >
-                {theme === 'dark' ? '☀' : '☾'}
-            </button>
-            <LanguageSwitcher onClick={changeLanguage} />
+            <LanguageSwitcher />
+            <ThemeSwitch />
             <div style={{ textAlign: 'center', maxWidth: 440 }}>
                 <div className="logo" style={{ justifyContent: 'center', marginBottom: 32, fontSize: '1.1rem' }}>
                     <div className="logo-mark" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>W</div>

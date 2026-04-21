@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useTheme } from './ThemeContext';
 import { Avatar, DEFAULT_AVATARS } from './Avatar';
 import { useTranslation } from "react-i18next";
-import { changeLanguage } from "./components/i18n.tsx";
+import ThemeSwitch from "./ThemeContext";
 import LanguageSwitcher from "./components/i18n.tsx";
 
 // ── Two-step signup: step 1 = credentials, step 2 = pick avatar ───────────────
@@ -26,7 +25,6 @@ export function SignupForm() {
     const [loading, setLoading]   = useState(false);
     const [error, setError]       = useState<string | null>(null);
 
-    const { theme, toggleTheme }  = useTheme();
     const navigate                = useNavigate();
 
     // ── Step 1 → 2: validate fields then show avatar picker ──────────────────
@@ -85,12 +83,10 @@ export function SignupForm() {
 
     return (
         <div id="center">
+            <LanguageSwitcher/>
             <div className="auth-wrap fade-up">
                 <div className="auth-theme-btn">
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
-                <LanguageSwitcher onClick={changeLanguage} />
+                    <ThemeSwitch />
                 </div>
 
                 <div className="card" style={{ maxWidth: step === 'avatar' ? 420 : 380 }}>

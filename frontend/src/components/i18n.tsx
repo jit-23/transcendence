@@ -145,6 +145,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
                 fill_shape_canvas: "Fill Shape",
                 text_font_canvas: "Text Font",
                 stroke_weight_canvas: "Stroke Weight",
+                zoom_canvas: "Zoom",
 
                 //Profile
                 dashboard_prof: "← Dashboard",
@@ -342,6 +343,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
                 fill_shape_canvas: "Preencher forma",//bad
                 text_font_canvas: "Fonte de texto",//bad
                 stroke_weight_canvas: "Peso de escrita",//bad
+                zoom_canvas: "Zoom",//bad
 
                 //Profile
                 dashboard_prof: "← Dashboard",//bad, existing
@@ -459,29 +461,23 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 
 
 
-type LanguageSwitcherProps = {
-  onClick: () => void;
-  top?: number;
-  right?: number;
-};
 
 
-const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
-    onClick,
-    top = 20,
-    right = 70,
+const LanguageSwitcher: React.FC = ({
+	top = 15,
+	right = 15,
 }) => {
-  return (
-    <button
-      className="theme-toggle"
-      onClick={onClick}
-      title="Change language"
-      style={{ position: "fixed", top, right }}
-    >
-      
-    {i18n.language === "pt" ? "🇵🇹" : "🇬🇧"}
-    </button>
-  );
+	return (
+		<button
+		className="theme-toggle"
+		title="Change language"
+		style={{ position: "fixed", top, right }}
+		onClick={changeLanguage} 
+		>
+		
+		{i18n.language === "pt" ? "🇵🇹" : "🇬🇧"}
+		</button>
+	);
 };
 
 export default LanguageSwitcher;

@@ -1,13 +1,12 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Avatar } from "./Avatar";
 import { useTranslation } from 'react-i18next';
-import { changeLanguage } from "./components/i18n.tsx";
 import LanguageSwitcher from "./components/i18n.tsx";
+import ThemeSwitch from "./ThemeContext";
 
 type EnableStep = "idle" | "scanning";
 
@@ -34,7 +33,6 @@ type SearchResult = {
 
 export function Dashboard() {
     const { user, logout }          = useContext(AuthContext);
-    const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
     const {t} = useTranslation()
 
@@ -399,10 +397,8 @@ export function Dashboard() {
                     <button className="btn btn-ghost btn-sm" onClick={logout}>
                         {t("sign_out")}
                     </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
-                    <LanguageSwitcher onClick={changeLanguage} />
+                    <ThemeSwitch />
+                    <LanguageSwitcher />
                 </div>
             </header>
 
