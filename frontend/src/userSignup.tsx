@@ -13,6 +13,8 @@ import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolic
 type Step = 'credentials' | 'avatar';
 
 export function SignupForm() {
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     const [step, setStep]         = useState<Step>('credentials');
 
     // Step 1
@@ -80,7 +82,6 @@ export function SignupForm() {
     const handleSubmit = async () => {
         setLoading(true); setError(null);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res  = await fetch(`${apiUrl}/users/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -102,7 +103,8 @@ export function SignupForm() {
     };
 
     const handleOAuthRedirect = (provider: 'google' | '42') => {
-        if (loading || oauthLoading) return;
+		console.log("1");
+		if (loading || oauthLoading) return;
         setError(null);
         setOauthLoading(provider);
     };
@@ -213,7 +215,7 @@ export function SignupForm() {
                             </div>
 
                             <a
-                                href="http://localhost:8081/users/auth/google"
+                                href={`${apiUrl}/users/auth/google`}
                                 aria-disabled={loading || !!oauthLoading}
                                 onClick={(e) => {
                                     if (loading || oauthLoading) {
@@ -234,7 +236,7 @@ export function SignupForm() {
                             </a>
 
                             <a
-                                href="http://localhost:8081/users/auth/42"
+                                href={`${apiUrl}/users/auth/42`}
                                 aria-disabled={loading || !!oauthLoading}
                                 onClick={(e) => {
                                     if (loading || oauthLoading) {

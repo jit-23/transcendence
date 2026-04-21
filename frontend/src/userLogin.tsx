@@ -8,6 +8,7 @@ import { Label } from './components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 
 export function     LoginForm() {
+    const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
     const [email, setEmail]         = useState('');
     const [password, setPassword]   = useState('');
     const [code, setCode]           = useState('');
@@ -53,7 +54,6 @@ export function     LoginForm() {
         e.preventDefault();
         setLoading(true); setError(null);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res  = await fetch(`${apiUrl}/users/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -180,7 +180,7 @@ export function     LoginForm() {
                             </div>
 
                             <a
-                                href="http://localhost:8081/users/auth/google"
+                                href={`${apiUrl}/users/auth/google`}
                                 aria-disabled={loading || !!oauthLoading}
                                 onClick={(e) => {
                                     if (loading || oauthLoading) {
@@ -201,7 +201,7 @@ export function     LoginForm() {
                             </a>
 
                             <a
-                                href="http://localhost:8081/users/auth/42"
+                                href={`${apiUrl}/users/auth/42`}
                                 aria-disabled={loading || !!oauthLoading}
                                 onClick={(e) => {
                                     if (loading || oauthLoading) {

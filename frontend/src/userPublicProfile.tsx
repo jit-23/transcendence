@@ -57,12 +57,12 @@ export function UserPublicProfilePage() {
 
             try {
                 const [profileRes, friendsRes] = await Promise.all([
-                    fetch(`http://localhost:8081/users/${profileId}/profile`, {
+                    fetch(`https://localhost:8081/users/${profileId}/profile`, {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
                     }),
-                    fetch('http://localhost:8081/users/friends', {
+                    fetch('https://localhost:8081/users/friends', {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
@@ -110,7 +110,7 @@ export function UserPublicProfilePage() {
         setActionError(null);
 
         try {
-            const res = await fetch('http://localhost:8081/users/friend-request/send', {
+            const res = await fetch('https://localhost:8081/users/friend-request/send', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -156,7 +156,7 @@ export function UserPublicProfilePage() {
         setActionError(null);
 
         try {
-            const res = await fetch(`http://localhost:8081/users/friends/${profile.id}/unfriend`, {
+            const res = await fetch(`https://localhost:8081/users/friends/${profile.id}/unfriend`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -196,7 +196,7 @@ export function UserPublicProfilePage() {
         setActionError(null);
 
         try {
-            const res = await fetch(`http://localhost:8081/users/${profile.id}/block`, {
+            const res = await fetch(`https://localhost:8081/users/${profile.id}/block`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -232,7 +232,7 @@ export function UserPublicProfilePage() {
         setActionError(null);
 
         try {
-            const res = await fetch(`http://localhost:8081/users/${profile.id}/unblock`, {
+            const res = await fetch(`https://localhost:8081/users/${profile.id}/unblock`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,

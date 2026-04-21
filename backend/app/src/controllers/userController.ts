@@ -108,6 +108,7 @@ const hasWhitespace = (value: string) => /\s/.test(value);
 
 export const createUser = async (req: Request, res: Response) => {
     try {
+		console.log("Signup request body:", req.body); // Debug log
         const { username, email, password, avatar } = req.body;
 
         if (!username) return res.status(422).json({ error: "username required" });

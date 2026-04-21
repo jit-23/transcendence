@@ -35,7 +35,7 @@ export function BlockedUsersPage() {
         setError(null);
 
         try {
-            const res = await fetch('http://localhost:8081/users/blocks', {
+            const res = await fetch('https://localhost:8081/users/blocks', {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
@@ -69,7 +69,7 @@ export function BlockedUsersPage() {
         setError(null);
 
         try {
-            const res = await fetch(`http://localhost:8081/users/${userId}/unblock`, {
+            const res = await fetch(`https://localhost:8081/users/${userId}/unblock`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,

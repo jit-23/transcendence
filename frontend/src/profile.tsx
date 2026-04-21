@@ -38,7 +38,7 @@ export function ProfilePage() {
         const token = sessionStorage.getItem("token");
         if (!token) throw new Error("Not authenticated");
 
-        const res = await fetch("http://localhost:8081/users/me/avatar", {
+        const res = await fetch("https://localhost:8081/users/me/avatar", {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -100,7 +100,7 @@ export function ProfilePage() {
                 return;
             }
 
-            const res  = await fetch('http://localhost:8081/users/me', {
+            const res  = await fetch('https://localhost:8081/users/me', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
