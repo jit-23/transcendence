@@ -39,8 +39,16 @@ services:
       - CORS_ORIGIN=https://localhost:5173
       - SSL_CERT_PATH=/etc/ssl/certs/server.cert
       - SSL_KEY_PATH=/etc/ssl/certs/server.key
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - FORTYTWO_CLIENT_ID=${FORTYTWO_CLIENT_ID}
+      - FORTYTWO_CLIENT_SECRET=${FORTYTWO_CLIENT_SECRET}
+      - FORTYTWO_REDIRECT_URI=${FORTYTWO_REDIRECT_URI}
+      - FRONTEND_URL=${FRONTEND_URL}
     volumes:
       - ./certs:/etc/ssl/certs
+      
     depends_on:
       db:
         condition: service_healthy

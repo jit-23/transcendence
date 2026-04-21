@@ -8,6 +8,90 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
+type AvatarValidationResult =
+    | { valid: true; avatar: string }
+    | { valid: false; status: number; error: string };
+
+function validateAvatarValue(avatar: string): AvatarValidationResult {
+    if (avatar.startsWith("default:")) {
+        const num = parseInt(avatar.split(":")[1]);
+        if (isNaN(num) || num < 1 || num > 4) {
+            return { valid: false, status: 400, error: "Invalid default avatar (choose 1–4)" };
+        }
+        return { valid: true, avatar };
+    }
+
+    if (avatar.startsWith("data:image/")) {
+        const sizeBytes = (avatar.length * 3) / 4;
+        if (sizeBytes > 2 * 1024 * 1024) {
+            return { valid: false, status: 413, error: "Image too large (max 2MB)" };
+        }
+
+        const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
+        if (!validTypes.some(t => avatar.startsWith(t))) {
+            return { valid: false, status: 400, error: "Only JPG, PNG or WebP allowed" };
+        }
+
+        return { valid: true, avatar };
+    }
+
+    return { valid: false, status: 400, error: "Invalid avatar format" };
+}
+
+function verifyTotpCode(secret: string, code: string): boolean {
+    return speakeasy.totp.verify({
+        secret,
+        encoding: "base32",
+        token: code,
+        window: 1,
+    });
+}
+
+async function hasBlockRelation(userAId: number, userBId: number) {
+    const relation = await prisma.user_block.findFirst({
+        where: {
+            OR: [
+                { blockerId: userAId, blockedId: userBId },
+                { blockerId: userBId, blockedId: userAId },
+            ],
+        },
+    });
+
+    return !!relation;
+}
+
+async function getBlockedUserIdsFor(userId: number): Promise<number[]> {
+    const blockRelations = await prisma.user_block.findMany({
+        where: {
+            OR: [
+                { blockerId: userId },
+                { blockedId: userId },
+            ],
+        },
+        select: {
+            blockerId: true,
+            blockedId: true,
+        },
+    });
+
+    const blockedUserIds = new Set<number>();
+    for (const relation of blockRelations) {
+        if (relation.blockerId === userId) blockedUserIds.add(relation.blockedId);
+        if (relation.blockedId === userId) blockedUserIds.add(relation.blockerId);
+    }
+
+    return Array.from(blockedUserIds);
+}
+
+function getPasswordPolicyError(password: string): string | null {
+    if (password.length < 8) return "Password must be at least 8 characters";
+    if (!/[A-Z]/.test(password)) return "Password must include at least 1 uppercase letter";
+    if (!/[a-z]/.test(password)) return "Password must include at least 1 lowercase letter";
+    if (!/\d/.test(password)) return "Password must include at least 1 number";
+    if (!/[^A-Za-z0-9]/.test(password)) return "Password must include at least 1 symbol";
+    return null;
+}
+
 // ─── helper: extract & verify JWT from Authorization header ───────────────────
 function getAuthUser(req: Request): { userId: number } | null {
     try {
@@ -20,13 +104,24 @@ function getAuthUser(req: Request): { userId: number } | null {
 }
 
 // ─── SIGNUP ───────────────────────────────────────────────────────────────────
+const hasWhitespace = (value: string) => /\s/.test(value);
+
 export const createUser = async (req: Request, res: Response) => {
     try {
         const { username, email, password, avatar } = req.body;
 
         if (!username) return res.status(422).json({ error: "username required" });
+        if (typeof username !== "string" || hasWhitespace(username.trim())) {
+            return res.status(422).json({ error: "Username cannot contain spaces" });
+        }
         if (!email)    return res.status(422).json({ error: "Email required" });
         if (!password) return res.status(422).json({ error: "password required" });
+        if (typeof password !== "string") return res.status(422).json({ error: "password required" });
+
+        const passwordPolicyError = getPasswordPolicyError(password);
+        if (passwordPolicyError) {
+            return res.status(422).json({ error: passwordPolicyError });
+        }
 
         if (await prisma.my_users.findUnique({ where: { name: username } }))
             return res.status(409).json({ error: "Username exists" });
@@ -35,15 +130,10 @@ export const createUser = async (req: Request, res: Response) => {
 
         // Validate avatar if provided
         let validatedAvatar: string | null = null;
-        if (avatar) {
-            if (avatar.startsWith("default:")) {
-                const num = parseInt(avatar.split(":")[1]);
-                if (!isNaN(num) && num >= 1 && num <= 4) validatedAvatar = avatar;
-            } else if (avatar.startsWith("data:image/")) {
-                const sizeBytes = (avatar.length * 3) / 4;
-                const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
-                if (sizeBytes <= 2 * 1024 * 1024 && validTypes.some(t => avatar.startsWith(t)))
-                    validatedAvatar = avatar;
+        if (typeof avatar === "string") {
+            const avatarValidation = validateAvatarValue(avatar);
+            if (avatarValidation.valid) {
+                validatedAvatar = avatarValidation.avatar;
             }
         }
 
@@ -72,6 +162,9 @@ export const login = async (req: Request, res: Response) => {
 
         const user = await prisma.my_users.findUnique({ where: { email } });
         if (!user) return res.status(404).json({ error: "User not found" });
+
+        if (!user.password)
+            return res.status(401).json({ error: "This account uses OAuth Sign-In (Google/42). Please sign in with your provider." });
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: "Invalid password" });
@@ -109,12 +202,7 @@ export const login2FA = async (req: Request, res: Response) => {
     const user = await prisma.my_users.findUnique({ where: { id: payload.userId } });
     if (!user || !user.twoFactorSecret) return res.status(400).json({ error: "2FA not configured" });
 
-    const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: "base32",
-        token: code,
-        window: 1,
-    });
+    const verified = verifyTotpCode(user.twoFactorSecret, code);
 
     if (!verified) return res.status(400).json({ error: "Invalid code" });
 
@@ -157,9 +245,7 @@ export const confirm2FA = async (req: Request, res: Response) => {
         if (user.twoFactorEnabled)
             return res.status(400).json({ error: "2FA already active" });
 
-        const valid = speakeasy.totp.verify({
-            secret: user.twoFactorSecret, encoding: "base32", token: code, window: 1,
-        });
+        const valid = verifyTotpCode(user.twoFactorSecret, code);
         if (!valid) return res.status(401).json({ error: "Invalid code — scan the QR again" });
 
         await prisma.my_users.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
@@ -183,9 +269,7 @@ export const disable2FA = async (req: Request, res: Response) => {
         if (!user.twoFactorEnabled || !user.twoFactorSecret)
             return res.status(400).json({ error: "2FA is not enabled" });
 
-        const valid = speakeasy.totp.verify({
-            secret: user.twoFactorSecret, encoding: "base32", token: code, window: 1,
-        });
+        const valid = verifyTotpCode(user.twoFactorSecret, code);
         if (!valid) return res.status(401).json({ error: "Invalid 2FA code" });
 
         await prisma.my_users.update({
@@ -214,6 +298,153 @@ export const getMe = async (req: Request, res: Response) => {
     }
 };
 
+export const getUserProfile = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const userId = Number(req.params.id);
+        if (!userId) return res.status(400).json({ error: "Invalid user id" });
+
+        const profile = await prisma.my_users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                createdAt: true,
+            },
+        });
+
+        if (!profile) return res.status(404).json({ error: "User not found" });
+
+        const isBlocked = !!(await prisma.user_block.findUnique({
+            where: {
+                blockerId_blockedId: {
+                    blockerId: auth.userId,
+                    blockedId: userId,
+                },
+            },
+        }));
+
+        const blockedByUser = !!(await prisma.user_block.findUnique({
+            where: {
+                blockerId_blockedId: {
+                    blockerId: userId,
+                    blockedId: auth.userId,
+                },
+            },
+        }));
+
+        return res.json({
+            ...profile,
+            isBlocked,
+            blockedByUser,
+        });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const blockUser = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const targetUserId = Number(req.params.id);
+        if (!targetUserId) return res.status(400).json({ error: "Invalid user id" });
+        if (targetUserId === auth.userId)
+            return res.status(400).json({ error: "Cannot block yourself" });
+
+        const target = await prisma.my_users.findUnique({ where: { id: targetUserId } });
+        if (!target) return res.status(404).json({ error: "User not found" });
+
+        await prisma.user_block.upsert({
+            where: {
+                blockerId_blockedId: {
+                    blockerId: auth.userId,
+                    blockedId: targetUserId,
+                },
+            },
+            create: {
+                blockerId: auth.userId,
+                blockedId: targetUserId,
+            },
+            update: {},
+        });
+
+        // Delete all friend requests (pending and accepted) on both sides
+        await prisma.friend_request.deleteMany({
+            where: {
+                OR: [
+                    { senderId: auth.userId, receiverId: targetUserId },
+                    { senderId: targetUserId, receiverId: auth.userId },
+                ],
+            },
+        });
+
+        return res.json({ message: "User blocked" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const unblockUser = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const targetUserId = Number(req.params.id);
+        if (!targetUserId) return res.status(400).json({ error: "Invalid user id" });
+        if (targetUserId === auth.userId)
+            return res.status(400).json({ error: "Cannot unblock yourself" });
+
+        await prisma.user_block.deleteMany({
+            where: {
+                blockerId: auth.userId,
+                blockedId: targetUserId,
+            },
+        });
+
+        return res.json({ message: "User unblocked" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const getBlockedUsers = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const blockedUsers = await prisma.user_block.findMany({
+            where: { blockerId: auth.userId },
+            include: {
+                blocked: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        avatar: true,
+                        createdAt: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return res.json(
+            blockedUsers.map((entry: any) => ({
+                blockedAt: entry.createdAt,
+                ...entry.blocked,
+            }))
+        );
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 // ─── UPDATE MY PROFILE ────────────────────────────────────────────────────────
 export const updateMe = async (req: Request, res: Response) => {
     try {
@@ -228,12 +459,25 @@ export const updateMe = async (req: Request, res: Response) => {
         // Always verify current password first
         if (!currentPassword)
             return res.status(400).json({ error: "Current password is required" });
+        if (!user.password) {
+            const providers: string[] = [];
+            if (user.googleId) providers.push("Google");
+            if (user.fortyTwoId) providers.push("42 login");
+            const providerText = providers.length ? providers.join("/") : "OAuth";
+
+            return res.status(400).json({
+                error: `This account uses ${providerText}. Password changes are not supported.`,
+            });
+        }
         const validPassword = await bcrypt.compare(currentPassword, user.password);
         if (!validPassword)
             return res.status(401).json({ error: "Current password is incorrect" });
 
         // Check uniqueness only if the value is actually changing
         if (username && username !== user.name) {
+            if (typeof username !== "string" || hasWhitespace(username.trim())) {
+                return res.status(422).json({ error: "Username cannot contain spaces" });
+            }
             if (await prisma.my_users.findUnique({ where: { name: username } }))
                 return res.status(409).json({ error: "Username already taken" });
         }
@@ -246,8 +490,9 @@ export const updateMe = async (req: Request, res: Response) => {
         if (username) data.name     = username;
         if (email)    data.email    = email;
         if (newPassword) {
-            if (newPassword.length < 6)
-                return res.status(422).json({ error: "New password must be at least 6 characters" });
+            const passwordPolicyError = getPasswordPolicyError(newPassword);
+            if (passwordPolicyError)
+                return res.status(422).json({ error: passwordPolicyError });
             data.password = await bcrypt.hash(newPassword, 10);
         }
 
@@ -266,40 +511,27 @@ export const updateMe = async (req: Request, res: Response) => {
     }
 };
 
+// const token = sessionStorage.getItem("token");
 export const updateAvatar = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
         const { avatar } = req.body;
-        if (!avatar) return res.status(400).json({ error: "Avatar required" });
+        if (!avatar || typeof avatar !== "string")
+            return res.status(400).json({ error: "Avatar required" });
 
-        // Validate default selection
-        if (avatar.startsWith("default:")) {
-            const num = parseInt(avatar.split(":")[1]);
-            if (isNaN(num) || num < 1 || num > 4)
-                return res.status(400).json({ error: "Invalid default avatar (choose 1–4)" });
-        }
-        // Validate base64 upload
-        else if (avatar.startsWith("data:image/")) {
-            // Rough size check — base64 of 1MB image ≈ 1.37MB string
-            const sizeBytes = (avatar.length * 3) / 4;
-            if (sizeBytes > 2 * 1024 * 1024)
-                return res.status(413).json({ error: "Image too large (max 2MB)" });
-
-            const validTypes = ["data:image/jpeg", "data:image/jpg", "data:image/png", "data:image/webp"];
-            if (!validTypes.some(t => avatar.startsWith(t)))
-                return res.status(400).json({ error: "Only JPG, PNG or WebP allowed" });
-        } else {
-            return res.status(400).json({ error: "Invalid avatar format" });
+        const avatarValidation = validateAvatarValue(avatar);
+        if (avatarValidation.valid === false) {
+            return res.status(avatarValidation.status).json({ error: avatarValidation.error });
         }
 
         await prisma.my_users.update({
             where: { id: auth.userId },
-            data: { avatar },
+            data: { avatar: avatarValidation.avatar },
         });
 
-        return res.json({ message: "Avatar updated", avatar });
+        return res.json({ message: "Avatar updated", avatar: avatarValidation.avatar });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
@@ -318,13 +550,19 @@ export const searchUsers = async (req: Request, res: Response) => {
         if (query.trim().length < 1)
             return res.status(400).json({ error: "Search query too short" });
 
+        const blockedUserIds = await getBlockedUserIdsFor(auth.userId);
+
         const users = await prisma.my_users.findMany({
             where: {
                 OR: [
                     { name: { contains: query, mode: 'insensitive' } },
                     { email: { contains: query, mode: 'insensitive' } },
                 ],
-                NOT: { id: auth.userId }, // Exclude self
+                NOT: {
+                    id: {
+                        in: [auth.userId, ...blockedUserIds],
+                    },
+                },
             },
             select: { id: true, name: true, email: true, createdAt: true },
             take: 20, // Limit results
@@ -350,6 +588,10 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
 
         const receiver = await prisma.my_users.findUnique({ where: { id: receiverId } });
         if (!receiver) return res.status(404).json({ error: "User not found" });
+
+        const blocked = await hasBlockRelation(auth.userId, receiverId);
+        if (blocked)
+            return res.status(400).json({ error: "Cannot send request because one user has blocked the other" });
 
         // Check any existing relation in either direction.
         const existing = await prisma.friend_request.findFirst({
