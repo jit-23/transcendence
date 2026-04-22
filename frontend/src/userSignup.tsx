@@ -84,9 +84,9 @@ export function SignupForm() {
     return (
         <div id="center">
             <LanguageSwitcher/>
+            <ThemeSwitch />
             <div className="auth-wrap fade-up">
                 <div className="auth-theme-btn">
-                    <ThemeSwitch />
                 </div>
 
                 <div className="card" style={{ maxWidth: step === 'avatar' ? 420 : 380 }}>

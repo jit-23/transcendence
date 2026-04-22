@@ -1,7 +1,6 @@
 import { useContext, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
-import { useTheme } from './ThemeContext';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from "./components/i18n.tsx";
 import ThemeSwitch from "./ThemeContext";
