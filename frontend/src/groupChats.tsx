@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
+import { createSharedCanvas } from "./utils/sharedCanvas";
 
 type Friend = {
   id: number;
@@ -14,6 +15,7 @@ type Conversation = {
   type: "DIRECT" | "GROUP";
   name: string | null;
   members: Friend[];
+  role?: string;
 };
 
 export function GroupChatsPage() {
@@ -36,10 +38,11 @@ export function GroupChatsPage() {
   const loadData = async () => {
     setLoading(true);
     setError(null);
+    const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
     try {
-      const [friendsRes, convRes] = await Promise.all([
-        fetch("http://localhost:8081/users/friends", { headers: authHeader() }),
-        fetch("http://localhost:8081/conversations/my", { headers: authHeader() }),
+        const [friendsRes, conversationsRes] = await Promise.all([
+        fetch(`${apiUrl}/users/friends`, { headers: authHeader() }),
+        fetch(`${apiUrl}/conversations/my`, { headers: authHeader() }),
       ]);
 
       const friendsData = await friendsRes.json();
@@ -68,29 +71,45 @@ export function GroupChatsPage() {
     });
   };
 
+  const deleteGroup = async (conversationId: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiUrl}/conversations/${conversationId}`, {
+        method: "DELETE",
+        headers: authHeader(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete group");
+
+      await loadData();
+      setError(data.message || "Group updated");
+    } catch (err: any) {
+      setError(err.message || "Failed to delete group");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const createGroup = async () => {
     if (!groupName.trim())
       return setError("Group name is required");
-   /*  if (selected.length < 0)
-      return setError("Select at least one friend"); */
 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8081/conversations/group", {
-        method: "POST",
-        headers: authHeader(),
-        body: JSON.stringify({ name: groupName.trim(), memberIds: selected }),
+      const sharedCanvas = await createSharedCanvas({
+        groupName: groupName.trim(),
+        collaboratorIds: selected,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create group");
 
       setGroupName("");
       setSelected([]);
       await loadData();
-      navigate(`/chat?conversationId=${data.id}&name=${encodeURIComponent(data.name || "Group")}`);
+      navigate(`/canvas?id=${sharedCanvas.id}`);
     } catch (err: any) {
       setError(err.message || "Failed to create group");
+    } finally {
       setLoading(false);
     }
   };
@@ -189,12 +208,22 @@ export function GroupChatsPage() {
                         {conversation.members.length} members
                       </p>
                     </div>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => navigate(`/chat?conversationId=${conversation.id}&name=${encodeURIComponent(title)}`)}
-                    >
-                      Open Chat
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => navigate(`/chat?conversationId=${conversation.id}&name=${encodeURIComponent(title)}`)}
+                      >
+                        Open Chat
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => deleteGroup(conversation.id)}
+                        disabled={loading}
+                        style={{ color: "var(--error)" }}
+                      >
+                        {conversation.role === "owner" ? "Delete" : "Leave"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

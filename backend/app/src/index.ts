@@ -1,5 +1,6 @@
 import express from "express"
-import http from "http"
+import https from "https"
+import fs from "fs"
 import bodyParser from "body-parser"
 import cookieParser from "cookie-parser"
 import compression from "compression"
@@ -17,11 +18,30 @@ import { setupChatSocket } from "./sockets/chatSocket"
 const prisma = new PrismaClient()
 const app = express()
 
+const configuredOrigin = process.env.CORS_ORIGIN || 'https://localhost:5173';
+const allowedOrigins = new Set([
+  configuredOrigin,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://localhost:5173',
+  'https://127.0.0.1:5173',
+]);
+
 app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }));
+
+app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ limit: "5mb", extended: true }));
 app.use(metricsMiddleware);
 
 app.get("/metrics", async (_req, res) => {
@@ -34,7 +54,29 @@ app.use(`/conversations`, conversationRoute)
 app.use(`/canvases`, canvasRoute)
 
 const PORT = 8081;
-const server = app.listen(PORT, () => { console.log("express connected") });
+
+const keyPath = process.env.SSL_KEY_PATH || '/etc/ssl/certs/server.key';
+const certPath = process.env.SSL_CERT_PATH || '/etc/ssl/certs/server.cert';
+
+let server: https.Server;
+try {
+  const options: https.ServerOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+  server = https.createServer(options, app);
+  console.log("SSL certificates loaded successfully");
+} catch (err: any) {
+  console.error("✗ Failed to load SSL certificates:", err.message);
+  console.error("Cert path:", certPath);
+  console.error("Key path:", keyPath);
+  process.exit(1);
+}
+
+server.listen(PORT, () => { 
+  console.log("SSL server connected on port", PORT);
+  console.log("CORS enabled for origins:", Array.from(allowedOrigins).join(', '));
+});
 
 setupChatSocket(server, prisma);
 

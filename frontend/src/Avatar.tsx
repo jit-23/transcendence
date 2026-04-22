@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // ── 4 default avatars as inline SVG data URLs ─────────────────────────────────
 // Each is a simple geometric face — no external assets needed
@@ -35,8 +35,28 @@ export const DEFAULT_AVATARS: Record<string, string> = {
 // ── Resolve what to actually display as <img src> ─────────────────────────────
 export function resolveAvatarSrc(avatar: string | null | undefined, name: string): string | null {
     if (!avatar) return null;
-    if (avatar.startsWith('default:')) return DEFAULT_AVATARS[avatar] ?? null;
-    return avatar; // base64 upload
+    const trimmed = avatar.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('default:')) return DEFAULT_AVATARS[trimmed] ?? null;
+    if (trimmed.startsWith('data:image/')) return trimmed;
+
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+
+        if (parsed.protocol === 'http:') {
+            parsed.protocol = 'https:';
+        }
+
+        if (parsed.hostname.endsWith('googleusercontent.com') && !parsed.searchParams.has('sz')) {
+            parsed.searchParams.set('sz', '256');
+        }
+
+        return parsed.toString();
+    } catch {
+        return null;
+    }
 }
 
 // ── <Avatar> display component ────────────────────────────────────────────────
@@ -49,8 +69,13 @@ interface AvatarProps {
 }
 
 export function Avatar({ avatar, name, size = 40, className = '', style }: AvatarProps) {
-    const src     = resolveAvatarSrc(avatar, name);
+    const src      = resolveAvatarSrc(avatar, name);
+    const [imageFailed, setImageFailed] = useState(false);
     const initials = name.slice(0, 2).toUpperCase();
+
+    useEffect(() => {
+        setImageFailed(false);
+    }, [src]);
 
     const base: React.CSSProperties = {
         width: size, height: size,
@@ -61,10 +86,12 @@ export function Avatar({ avatar, name, size = 40, className = '', style }: Avata
         ...style,
     };
 
-    if (src) {
+    if (src && !imageFailed) {
         return (
             <div className={className} style={base}>
                 <img src={src} alt={name} width={size} height={size}
+                     referrerPolicy="no-referrer"
+                     onError={() => setImageFailed(true)}
                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
         );
