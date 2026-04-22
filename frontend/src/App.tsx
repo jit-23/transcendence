@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useTransition } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { LoginForm } from "./userLogin.tsx";
 import { Dashboard } from "./dashboard";
@@ -7,7 +7,7 @@ import { ProfilePage } from './profile.tsx';
 import PrivateRoute from "./PrivateRoute";
 import { useContext } from "react";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
+// import { useTheme } from "./ThemeContext";
 import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
 import Canvas from "./Canvas.tsx";
@@ -21,6 +21,8 @@ import { PrivacyPolicyPage } from "./privacyPolicy.tsx";
 import { TermsOfServicePage } from "./termsOfService.tsx";
 import { Button } from "./components/ui/button";
 import '../css/App.css';
+import LanguageSwitcher from "./components/i18n.tsx";
+import { useTranslation } from "react-i18next";
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
@@ -55,11 +57,12 @@ function SiteFooter() {
 }
 
 function Home() {
-    const { theme, toggleTheme } = useTheme();
+    const {t} = useTranslation()
+    // const { theme, toggleTheme } = useTheme();
 
     return (
         <div className="flex min-h-screen items-center justify-center px-6 py-10">
-            <Button
+            {/* <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleTheme}
@@ -67,7 +70,8 @@ function Home() {
                 className="fixed right-6 top-6"
             >
                 {theme === 'dark' ? '☀' : '☾'}
-            </Button>
+            </Button> */}
+            <LanguageSwitcher />
 
             <div className="text-center w-full max-w-md">
                 <div className="mb-8 flex items-center justify-center gap-2 font-display text-lg font-semibold text-ink">
@@ -76,21 +80,21 @@ function Home() {
                 </div>
 
                 <h1 className="mb-4 font-display text-4xl font-bold leading-tight">
-                    Think together,<br />
-                    <span className="text-ink2">in real time.</span>
+                    {t("slogan_1")}<br />
+                    <span className="text-ink2">{t("slogan_2")}</span>
                 </h1>
 
                 <p className="mb-9 text-sm leading-relaxed text-muted">
-                    A shared canvas for your team — draw, plan,<br />
-                    and collaborate without the noise.
+                    {t("description_1")}<br />
+                    {t("description_2")}
                 </p>
 
                 <div className="flex justify-center gap-3">
                     <Button asChild>
-                        <Link to="/signup">Get started →</Link>
+                        <Link to="/signup">{t("sign_up")}</Link>
                     </Button>
                     <Button asChild variant="outline">
-                        <Link to="/login">Sign in</Link>
+                        <Link to="/login">{t("log_in")}</Link>
                     </Button>
                 </div>
             </div>

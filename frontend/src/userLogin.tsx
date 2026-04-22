@@ -1,11 +1,13 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
-import { useTheme } from './ThemeContext';
+// import { useTheme } from './ThemeContext';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 
 export function     LoginForm() {
     const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
@@ -19,9 +21,10 @@ export function     LoginForm() {
     const [oauthLoading, setOauthLoading] = useState<'google' | '42' | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const { login }                 = useContext(AuthContext);
-    const { theme, toggleTheme }    = useTheme();
+    // const { theme, toggleTheme }    = useTheme();
     const navigate                  = useNavigate();
     const location                  = useLocation();
+    const {t} = useTranslation();
 
     const sanitizeCode = (value: string) => value.replace(/\D/g, '').slice(0, 6);
 
@@ -40,9 +43,9 @@ export function     LoginForm() {
         const oauthError = params.get('error');
 
         const messageByError: Record<string, string> = {
-            oauth_state: 'Login session expired. Please try signing in again.',
-            oauth_failed: 'OAuth sign-in failed. Please try again.',
-            oauth_misconfigured: 'OAuth is currently unavailable. Please try email/password or contact support.',
+            oauth_state: t("LI_sess_exp"),
+            oauth_failed: t("LI_signin_fail"),
+            oauth_misconfigured: t("LI_oauth_unav"),
         };
 
         if (oauthError && messageByError[oauthError]) {
@@ -67,10 +70,10 @@ export function     LoginForm() {
                 await login(data.token);
                 navigate('/dashboard');
             } else {
-                setError(data.error || 'Login failed');
+                setError(data.error || t("LI_login_fail"));
             }
         } catch {
-            setError('Network error. Please try again.');
+            setError(t("LI_network_fail_try"));
         } finally {
             setLoading(false);
         }
@@ -78,7 +81,7 @@ export function     LoginForm() {
 
     const handle2FA = async () => {
         if (!tempToken) { setNeeds2FA(false); return; }
-        if (!code) { setError('Enter your 6-digit code'); return; }
+        if (!code) { setError(t("LI_enter_6")); return; }
         setLoading(true); setError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
@@ -92,10 +95,10 @@ export function     LoginForm() {
                 await login(data.token);
                 navigate('/dashboard');
             } else {
-                setError(data.error || 'Invalid code');
+                setError(data.error || t("LI_inv_code"));
             }
         } catch {
-            setError('Network error');
+            setError(t("LI_network_fail"));
         } finally {
             setLoading(false);
         }
@@ -111,9 +114,10 @@ export function     LoginForm() {
     return (
         <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
             <div className="absolute right-6 top-6">
-                <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                     {theme === 'dark' ? '☀' : '☾'}
-                </Button>
+                </Button> */}
+                <LanguageSwitcher />
             </div>
 
             <Card className="w-full max-w-md">
@@ -123,8 +127,8 @@ export function     LoginForm() {
                         whiteboard
                     </div>
                     <div className="text-center">
-                        <CardTitle>{needs2FA ? 'Two-factor verification' : 'Sign in to your workspace'}</CardTitle>
-                        <CardDescription className="mt-1">Secure access to your collaborative dashboard.</CardDescription>
+                        <CardTitle>{needs2FA ? t("LI_two_auth"): t("sign_in_workspace")}</CardTitle>
+                        <CardDescription className="mt-1">{t("LI_secure")}</CardDescription>
                     </div>
                 </CardHeader>
 
@@ -141,7 +145,7 @@ export function     LoginForm() {
                                 <Label>Email</Label>
                                 <Input
                                     type="email"
-                                    placeholder="you@example.com"
+                                    placeholder={t("SU_your_email")}
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     required
@@ -149,7 +153,7 @@ export function     LoginForm() {
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Password</Label>
+                                <Label>{t("SU_password")}</Label>
                                 <div className="flex items-center gap-2">
                                     <Input
                                         type={showPassword ? 'text' : 'password'}
@@ -163,15 +167,15 @@ export function     LoginForm() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => setShowPassword(prev => !prev)}
-                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                        aria-label={showPassword ? t("SU_hide_pass") : t("SU_show_pass")}
                                     >
-                                        {showPassword ? 'Hide' : 'Show'}
+                                        {showPassword ? t("SU_hide") : t("SU_show")}
                                     </Button>
                                 </div>
                             </div>
 
                             <Button type="submit" className="w-full" disabled={loading || !!oauthLoading}>
-                                {loading ? 'Signing in...' : 'Sign in →'}
+                                {loading ? t("signing_in") : t("sign_in_confirm")}
                             </Button>
 
                             <div className="flex items-center gap-3 text-xs text-muted">
@@ -199,7 +203,7 @@ export function     LoginForm() {
                                     <path fill="#FBBC05" d="M11.5 28.1c-.4-1.3-.7-2.7-.7-4.1s.2-2.8.7-4.1v-5.6H4.1C2.8 17 2 20.4 2 24s.8 7 2.1 9.7l7.4-5.6z"/>
                                     <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35 4 29.9 2 24 2 15.4 2 7.8 6.2 4.1 14.3l7.4 5.6C13.2 14.7 18.2 10.8 24 10.8z"/>
                                 </svg>
-                                {oauthLoading === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
+                                {oauthLoading === 'google' ? t("SU_redir_google") : t("LI_continue_google")}
                             </a>
 
                             <a
@@ -215,15 +219,15 @@ export function     LoginForm() {
                                 className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-surface2 px-4 text-sm font-semibold text-ink transition hover:bg-surface ${loading || oauthLoading ? 'pointer-events-none opacity-60' : ''}`}
                             >
                                 <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-[4px] border border-border text-[0.65rem]">42</span>
-                                {oauthLoading === '42' ? 'Redirecting to 42...' : 'Continue with 42'}
+                                {oauthLoading === '42' ? t("SU_redir_42") : t("LI_continue_42")}
                             </a>
-                            <p className="text-center text-xs text-muted">OAuth opens a secure provider page and returns you automatically.</p>
+                            <p className="text-center text-xs text-muted">{t("LI_oauth_opens")}</p>
                         </form>
                     ) : (
                         <div className="space-y-4">
-                            <p className="text-sm text-muted">Open your authenticator app and enter the 6-digit code.</p>
+                            <p className="text-sm text-muted">{t("open_auth_app")}</p>
                             <div className="space-y-1.5">
-                                <Label>Authentication Code</Label>
+                                <Label>{t("auth_code")}</Label>
                                 <Input
                                     type="text"
                                     inputMode="numeric"
@@ -246,10 +250,10 @@ export function     LoginForm() {
                                     }}
                                     autoFocus
                                 />
-                                <p className="text-xs text-muted">Tip: you can paste the full 6-digit code.</p>
+                                <p className="text-xs text-muted">{t("LI_tip_code")}</p>
                             </div>
                             <Button className="w-full" type="button" onClick={handle2FA} disabled={!tempToken || loading}>
-                                {loading ? 'Verifying...' : 'Verify →'}
+                                {loading ? t("verifying") : t("verify")}
                             </Button>
                             <Button
                                 className="w-full"
@@ -258,14 +262,14 @@ export function     LoginForm() {
                                 onClick={() => { setNeeds2FA(false); setError(null); setCode(''); }}
                                 disabled={loading}
                             >
-                                ← Back to login
+                                {t("back_to_login")}
                             </Button>
                         </div>
                     )}
 
                     <p className="pt-2 text-center text-sm text-muted">
-                        Don't have an account?{' '}
-                        <Link to="/signup" className="text-ink underline underline-offset-4">Create one</Link>
+                        {t("dont_have_acc")}{' '}
+                        <Link to="/signup" className="text-ink underline underline-offset-4">{t("create_one")}</Link>
                     </p>
                 </CardContent>
             </Card>
