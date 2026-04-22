@@ -5,9 +5,8 @@ import path from 'path'
 
 // Enable HTTPS when cert files are available and VITE_HTTPS is set
 const useHttps = process.env.VITE_HTTPS === 'true' || process.env.VITE_HTTPS === '1'
-const certPath = process.env.VITE_HTTPS_CERT || '/etc/ssl/certs/server.cert'
-const keyPath = process.env.VITE_HTTPS_KEY || '/etc/ssl/private/server.key'
-
+const certPath = process.env.VITE_HTTPS_CERT       || '/etc/ssl/certs/server.cert'
+const keyPath = process.env.VITE_HTTPS_KEY         || '/etc/ssl/certs/server.key'
 let httpsConfig = undefined
 if (useHttps) {
   try {

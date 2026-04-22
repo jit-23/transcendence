@@ -102,7 +102,8 @@ export function     LoginForm() {
     };
 
     const handleOAuthRedirect = (provider: 'google' | '42') => {
-        if (loading || oauthLoading) return;
+		console.log(`Initiating ${provider} OAuth flow...`);
+		if (loading || oauthLoading) return;
         setError(null);
         setOauthLoading(provider);
     };
@@ -183,6 +184,7 @@ export function     LoginForm() {
                                 href={`${apiUrl}/users/auth/google`}
                                 aria-disabled={loading || !!oauthLoading}
                                 onClick={(e) => {
+									console.log('Google OAuth button clicked');
                                     if (loading || oauthLoading) {
                                         e.preventDefault();
                                         return;

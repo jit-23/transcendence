@@ -13,7 +13,7 @@ import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolic
 type Step = 'credentials' | 'avatar';
 
 export function SignupForm() {
-    const apiUrl = import.meta.env.VITE_API_URL;
+    const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
 
     const [step, setStep]         = useState<Step>('credentials');
 

@@ -165,11 +165,15 @@ function normalizeAvatarUrl(value?: string | null): string | null {
 export const googleAuthRedirect = (_req: Request, res: Response) => {
     const clientId = getRequiredEnv("GOOGLE_CLIENT_ID");
     const redirectUri = getRequiredEnv("GOOGLE_REDIRECT_URI");
-
-    if (!clientId || !redirectUri) {
-        console.error("Google OAuth configuration missing. Check GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI.");
-        return res.status(500).send("Google OAuth is not configured");
-    }
+	console.log("Initiating Google OAuth flow", { clientId: !!clientId, redirectUri: !!redirectUri });
+	
+	console.log('im here');
+	console.log(`Google OAuth client ID: ${clientId}, redirect URI: ${redirectUri}`);
+	if (!clientId || !redirectUri) {
+		console.error("Google OAuth configuration missing. Check GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI.");
+		return res.status(500).send("Google OAuth is not configured");
+	}
+	console.log('res: ', res);
 
     const state = createOAuthState();
     setOAuthStateCookie(res, "oauth_state_google", state);
@@ -210,7 +214,7 @@ export const fortyTwoAuthRedirect = (_req: Request, res: Response) => {
 
 // ─── Step 2: Google redirects back here with ?code=… ─────────────────────────
 export const googleAuthCallback = async (req: Request, res: Response) => {
-    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const FRONTEND_URL = process.env.FRONTEND_URL || "https://localhost:5173";
     const clientId = getRequiredEnv("GOOGLE_CLIENT_ID");
     const clientSecret = getRequiredEnv("GOOGLE_CLIENT_SECRET");
     const redirectUri = getRequiredEnv("GOOGLE_REDIRECT_URI");
@@ -297,7 +301,7 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
 };
 
 export const fortyTwoAuthCallback = async (req: Request, res: Response) => {
-    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const FRONTEND_URL = process.env.FRONTEND_URL || "https://localhost:5173";
     const clientId = getRequiredEnv("FORTYTWO_CLIENT_ID");
     const clientSecret = getRequiredEnv("FORTYTWO_CLIENT_SECRET");
     const redirectUri = getRequiredEnv("FORTYTWO_REDIRECT_URI");

@@ -18,8 +18,21 @@ import { setupChatSocket } from "./sockets/chatSocket"
 const prisma = new PrismaClient()
 const app = express()
 
+const configuredOrigin = process.env.CORS_ORIGIN || 'https://localhost:5173';
+const allowedOrigins = new Set([
+  configuredOrigin,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://localhost:5173',
+  'https://127.0.0.1:5173',
+]);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'https://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -62,7 +75,7 @@ try {
 
 server.listen(PORT, () => { 
   console.log("SSL server connected on port", PORT);
-  console.log("CORS enabled for origin:", process.env.CORS_ORIGIN || 'https://localhost:5173');
+  console.log("CORS enabled for origins:", Array.from(allowedOrigins).join(', '));
 });
 
 setupChatSocket(server, prisma);
