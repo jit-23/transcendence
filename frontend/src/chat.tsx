@@ -26,6 +26,7 @@ export function ChatPage() {
 
     const socketRef = useRef<Socket | null>(null);
     const typingTimeoutRef = useRef<number | null>(null);
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -35,6 +36,12 @@ export function ChatPage() {
     const canSend = useMemo(() => {
         return Boolean(conversationId && text.trim() && socketRef.current && !conversationLoading);
     }, [conversationId, text, conversationLoading]);
+
+    useEffect(() => {
+        const node = messagesContainerRef.current;
+        if (!node) return;
+        node.scrollTop = node.scrollHeight;
+    }, [messages.length]);
 
     useEffect(() => {
         if (!friendIdParam) return;
@@ -219,7 +226,7 @@ export function ChatPage() {
 
     return (
         <div id="center">
-            <div className="card" style={{ maxWidth: 700 }}>
+            <div className="card" style={{ maxWidth: 700, maxHeight: "calc(100vh - 140px)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
                 <h2 style={{ marginBottom: 10 }}>Direct Chat</h2>
 
                 <p style={{ color: "var(--ink3)", marginBottom: 12 }}>
@@ -233,12 +240,13 @@ export function ChatPage() {
                 )}
 
                 <div
+                    ref={messagesContainerRef}
                     style={{
                         border: "1px solid var(--border)",
                         borderRadius: 10,
                         padding: 12,
                         minHeight: 220,
-                        maxHeight: 320,
+                        flex: 1,
                         overflowY: "auto",
                         display: "flex",
                         flexDirection: "column",
@@ -264,7 +272,7 @@ export function ChatPage() {
                             }}
                         >
                             <p style={{ fontSize: "0.7rem", color: "var(--ink3)", marginBottom: 4 }}>{message.from}</p>
-                            <p>{message.text}</p>
+							<p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.35 }}>{message.text}</p>
                         </div>
                     ))}
                 </div>

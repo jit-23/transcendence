@@ -160,8 +160,12 @@ export function CanvasesCard({
                     marginBottom: "4px",
                     width: "100%",
                     maxWidth: "100%",
+                    minWidth: 0,
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
+                    lineHeight: 1.2,
                     justifyContent: "flex-start",
                   }}
                 >
@@ -200,10 +204,28 @@ export function CanvasesCard({
                             className="btn btn-ghost btn-xs"
                             onClick={() => onInviteFriend(canvas.id, friend.id)}
                             disabled={invitingFriendId === friend.id}
-                            style={{ justifyContent: "space-between", fontSize: "0.72rem" }}
+                            style={{
+                              justifyContent: "space-between",
+                              fontSize: "0.72rem",
+                              minWidth: 0,
+                              width: "100%",
+                              gap: 8,
+                            }}
                           >
-                            <span>{friend.name}</span>
-                            <span>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
+                            <span
+                              style={{
+                                minWidth: 0,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                textAlign: "left",
+                                flex: 1,
+                              }}
+                              title={friend.name}
+                            >
+                              {friend.name}
+                            </span>
+                            <span style={{ flexShrink: 0 }}>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
                           </button>
                         ))}
                       </div>

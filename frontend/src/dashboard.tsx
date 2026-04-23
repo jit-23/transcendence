@@ -7,6 +7,7 @@ import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Avatar } from "./Avatar";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { TopBar } from "./components/ui/topbar";
 
 type EnableStep = "idle" | "scanning";
 
@@ -171,9 +172,11 @@ export function Dashboard() {
         }
     };
 
-    const fetchFriends = async () => {
-        setFriendsLoading(true);
-        setFriendsError(null);
+    const fetchFriends = async (silent = false) => {
+        if (!silent) {
+            setFriendsLoading(true);
+            setFriendsError(null);
+        }
         try {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(`${apiUrl}/users/friends`, {
@@ -181,16 +184,22 @@ export function Dashboard() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setFriendsError(data.error || "Failed to load friends");
-                setFriends([]);
+                if (!silent) {
+                    setFriendsError(data.error || "Failed to load friends");
+                    setFriends([]);
+                }
             } else {
                 setFriends(data);
             }
         } catch {
-            setFriendsError("Network error while loading friends");
-            setFriends([]);
+            if (!silent) {
+                setFriendsError("Network error while loading friends");
+                setFriends([]);
+            }
         } finally {
-            setFriendsLoading(false);
+            if (!silent) {
+                setFriendsLoading(false);
+            }
         }
     };
 
@@ -301,6 +310,16 @@ export function Dashboard() {
     }, []);
 
     useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            void fetchFriends(true);
+        }, 5000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, []);
+
+    useEffect(() => {
         if (!showAddFriendModal) return;
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -338,82 +357,9 @@ export function Dashboard() {
     }, [showRequestsPanel]);
 
     return (
-        <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2 px-3 py-1.5 text-sm text-ink">
-                            <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
-                            {user?.name}
-                        </div>
-
-                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>Profile</Button>
-
-                        <div className="relative" ref={requestsPanelRef}>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setShowRequestsPanel(prev => !prev)}
-                                title="Friend requests"
-                                aria-label="Friend requests"
-                                className="relative"
-                            >
-                                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
-                                    <path d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-5.2V11a7 7 0 1 0-14 0v5.8L3.6 18a1 1 0 0 0 .7 1.8h15.4a1 1 0 0 0 .7-1.8L19 16.8Z" />
-                                </svg>
-                                {requests.length > 0 && (
-                                    <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold text-bg">
-                                        {requests.length}
-                                    </span>
-                                )}
-                            </Button>
-
-                            {showRequestsPanel && (
-                                <Card className="absolute right-0 z-30 mt-2 w-[320px] max-w-[90vw]">
-                                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-                                        <CardTitle className="text-base">Friend Requests</CardTitle>
-                                        <Button variant="ghost" size="sm" onClick={fetchRequests} disabled={requestsLoading}>
-                                            {requestsLoading ? '...' : 'Refresh'}
-                                        </Button>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        {requestsError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{requestsError}</div>}
-
-                                        {!requestsLoading && requests.length === 0 && <p className="text-sm text-muted">No pending requests.</p>}
-
-                                        {requests.length > 0 && (
-                                            <div className="space-y-2">
-                                                {requests.map((request) => (
-                                                    <div key={request.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface2 p-2.5">
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-ink">{request.sender.name}</p>
-                                                            <p className="text-xs text-muted">{request.sender.email}</p>
-                                                        </div>
-                                                        <div className="flex gap-1.5">
-                                                            <Button size="sm" onClick={() => decideRequest(request.id, "accept")}>Accept</Button>
-                                                            <Button size="sm" variant="outline" onClick={() => decideRequest(request.id, "reject")}>Reject</Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-
-                        <Button variant="outline" size="sm" onClick={logout}>Sign out</Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
-
+    	<div className="min-h-screen w-full">
+            <TopBar />
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <main className="space-y-6">
                 <div>
                     <h1 className="font-display text-3xl">Welcome back, {user?.name}</h1>
@@ -426,11 +372,10 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <p className="mb-3 text-xs text-muted">Start by adding a friend or jump into your active spaces.</p>
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             <Button onClick={openAddFriendModal}>Add friend</Button>
                             <Button variant="outline" onClick={() => navigate('/conversations')}>Open conversations</Button>
                             <Button variant="outline" onClick={() => navigate('/Canvases')}>Open canvases</Button>
-                            <Button variant="outline" onClick={() => navigate('/profile/blocked')}>Blocked users</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -466,7 +411,7 @@ export function Dashboard() {
                             loading={friendsLoading}
                             error={friendsError}
                             unfriendingId={unfriendingId}
-                            onRefresh={fetchFriends}
+                            onRefresh={() => void fetchFriends()}
                             onViewProfile={(friendId) => navigate(`/users/${friendId}`)}
                             onChat={(friend) => navigate(`/chat?friendId=${friend.id}&name=${encodeURIComponent(friend.name)}`)}
                             onUnfriend={handleUnfriend}
@@ -523,7 +468,8 @@ export function Dashboard() {
                     </Card>
                 </div>
             )}
-        </div>
+        	</div>
+		</div>
     );
 }
 

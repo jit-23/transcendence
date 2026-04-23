@@ -5,6 +5,9 @@ import {
     deleteCanvas,
     getCanvasById,
     getCanvasCollaborators,
+    getReceivedCanvasInvites,
+    acceptCanvasInvite,
+    rejectCanvasInvite,
     getUserCanvases,
     removeCanvasCollaborator,
     saveCanvasContent,
@@ -15,6 +18,9 @@ const router = Router();
 
 router.post("/", createCanvas);
 router.get("/", getUserCanvases);
+router.get("/invites/received", getReceivedCanvasInvites);
+router.post("/:canvasId/invites/accept", acceptCanvasInvite);
+router.post("/:canvasId/invites/reject", rejectCanvasInvite);
 router.get("/:canvasId", getCanvasById);
 router.put("/:canvasId", updateCanvas);
 router.delete("/:canvasId", deleteCanvas);

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import p5 from "p5";
 import { useContext } from 'react';
 //nando
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import CanvasChatSidebar, { CanvasChatMessage, CanvasMember } from "./components/canvas/CanvasChatSidebar";
 import { AuthContext } from "./AuthContext";
@@ -188,9 +188,13 @@ type HandlePoint = {
 	y: number;
 };
 
-let shapeIdCounter = 0;
-
-const generateShapeId = () => `shape-${++shapeIdCounter}`;
+const generateShapeId = () => {
+	const randomPart =
+		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+			? crypto.randomUUID()
+			: `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	return `shape-${randomPart}`;
+};
 
 const isTextShape = (shape: Shape | null | undefined): shape is TextShape => {
 	if (!shape) return false;
@@ -837,8 +841,6 @@ function ColorPickerControl({
 
 	const currentColor = normalizeHexColor(value, defaultValue);
 	const currentRgb = hexToRgb(currentColor) ?? hexToRgb(defaultValue) ?? { r: 0, g: 0, b: 0 };
-	const draftRgb = hexToRgb(draftColor) ?? currentRgb;
-	const draftHsl = rgbToHsl(draftRgb);
 	const triangleTopColor = hslToRgb(wheelHue, 1, 0.5);
 	const triangleVertices = {
 		top: { x: 0.5, y: 0.02 },
@@ -1077,8 +1079,8 @@ function ColorPickerControl({
 								position: "absolute",
 								inset: "26px",
 								borderRadius: "50%",
-								background: "#2f2f2f",
-								boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+								background: "var(--surface2)",
+								boxShadow: "inset 0 0 0 1px var(--border)",
 							}}
 						/>
 						<div
@@ -1165,6 +1167,7 @@ export default function Canvas() {
 
 	//nando
 	const { user } = useContext(AuthContext);
+	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const canvasIdParam = searchParams.get("id");
 	const canvasId = canvasIdParam ? Number(canvasIdParam) : null;
@@ -1178,6 +1181,7 @@ export default function Canvas() {
 	const [chatStatus, setChatStatus] = useState<string | null>(null);
 	const [peerTyping, setPeerTyping] = useState<string | null>(null);
 	const [sendingMessage, setSendingMessage] = useState(false);
+	const [chatSidebarHeight, setChatSidebarHeight] = useState<number | undefined>(undefined);
 	const [activeMemberIds, setActiveMemberIds] = useState<number[]>([]);
 	const remoteDraftsRef = useRef<Map<number, Shape>>(new Map());
 	const remoteCursorsRef = useRef<Map<number, RemoteCursor>>(new Map());
@@ -1642,7 +1646,8 @@ export default function Canvas() {
 		width: "100%",
 		height: "100%",
 		whiteSpace: "nowrap" as const,
-		color: "#9ca3af",
+		color: "var(--ink2)",
+		fontWeight: 600,
 	};
 	const controlFieldStyle = {
 		display: "flex",
@@ -1650,6 +1655,27 @@ export default function Canvas() {
 		alignItems: "center" as const,
 		width: "100%",
 		height: "100%",
+	};
+	const toolbarActionButtonStyle = {
+		height: "34px",
+		padding: "0 14px",
+		borderRadius: "8px",
+		border: "1px solid var(--border)",
+		background: "var(--surface2)",
+		color: "var(--ink)",
+		fontWeight: 600,
+		cursor: "pointer",
+		whiteSpace: "nowrap" as const,
+	};
+	const toolbarCheckboxStyle = {
+		width: "16px",
+		height: "16px",
+		padding: 0,
+		margin: 0,
+		borderRadius: "4px",
+		accentColor: "var(--ink)",
+		cursor: "pointer",
+		flexShrink: 0,
 	};
 
 	useEffect(() => {
@@ -1701,6 +1727,32 @@ export default function Canvas() {
 		eraserTouchLatchRef.current = new Set();
 		eraserLastPointRef.current = null;
 	}, [isAnyColorPickerOpen]);
+
+	useEffect(() => {
+		const host = canvasHostRef.current;
+		if (!host) return;
+
+		const updateHeight = () => {
+			const nextHeight = host.clientHeight;
+			setChatSidebarHeight(nextHeight > 0 ? nextHeight : undefined);
+		};
+
+		updateHeight();
+
+		if (typeof ResizeObserver === "undefined") {
+			window.addEventListener("resize", updateHeight);
+			return () => {
+				window.removeEventListener("resize", updateHeight);
+			};
+		}
+
+		const observer = new ResizeObserver(() => updateHeight());
+		observer.observe(host);
+
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
 
 
 
@@ -2139,7 +2191,8 @@ export default function Canvas() {
 				dragStartRef.current = null;
 				resizeSessionRef.current = null;
 				rotationSessionRef.current = null;
-					markDirty();
+				markDirty();
+				emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-undo");
 				return;
 			}
 
@@ -2156,7 +2209,11 @@ export default function Canvas() {
 			dragStartRef.current = null;
 			resizeSessionRef.current = null;
 			rotationSessionRef.current = null;
-				markDirty();
+			markDirty();
+			const restoredShape = nextState[nextState.length - 1];
+			if (restoredShape) {
+				emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-redo", { shape: restoredShape });
+			}
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
@@ -3447,13 +3504,18 @@ export default function Canvas() {
 					gridTemplateColumns: "1fr auto 1fr",
 					alignItems: "center",
 					columnGap: "12px",
+					padding: "10px 12px",
+					borderRadius: "10px",
+					border: "1px solid var(--border)",
+					background: "linear-gradient(180deg, var(--surface), var(--surface2))",
+					boxShadow: "0 2px 10px rgba(0, 0, 0, 0.06)",
 				}}
 			>
 				<div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center" }}>
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Canvas</span>
 						<span style={controlFieldStyle}>
-							<button type="button" onClick={clearCanvasAndBroadcast} style={{ width: "80px" }}>
+							<button type="button" onClick={clearCanvasAndBroadcast} style={toolbarActionButtonStyle}>
 								Clear
 							</button>
 						</span>
@@ -3522,11 +3584,12 @@ export default function Canvas() {
 						</span>
 					</label>
 
-					<label style={controlLabelStyle}>
+					<div style={controlLabelStyle}>
 						<span style={controlNameStyle}>Fill Shape</span>
-						<span style={controlFieldStyle}>
+						<span style={{ ...controlFieldStyle, width: "auto", justifyContent: "center" }}>
 							<input
 								type="checkbox"
+								style={toolbarCheckboxStyle}
 								checked={fill}
 								onChange={(event) => {
 									setFill(event.target.checked);
@@ -3534,7 +3597,7 @@ export default function Canvas() {
 								}}
 							/>
 						</span>
-					</label>
+					</div>
 
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Text Font</span>
@@ -3590,13 +3653,18 @@ export default function Canvas() {
 					</label>
 				</div>
 
-				<div />
+				<div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", paddingLeft: "14px" }}>
+					<button type="button" onClick={() => navigate("/Canvases")} style={toolbarActionButtonStyle}>
+						Leave canvas
+					</button>
+				</div>
 			</div>
 			<div style={{ minHeight: "20px", fontSize: "12px", color: "var(--muted-foreground, #64748b)", padding: "0 4px" }}>
 				{saveStatus}
 			</div>
-			<div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "10px", alignItems: "stretch" }}>
-					<div ref={canvasHostRef} style={{ minHeight: "320px", border: "1px solid var(--border)", borderRadius: 8 }} />
+			<div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: "10px", alignItems: "stretch", minHeight: 0 }}>
+					<div ref={canvasHostRef} style={{ minHeight: "320px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)" }} />
+					<div style={{ minHeight: 0, height: "100%", display: "flex" }}>
 					<CanvasChatSidebar
 						canvasName={canvasName}
 						members={members}
@@ -3607,9 +3675,11 @@ export default function Canvas() {
 						chatInput={chatInput}
 						conversationLinked={Boolean(conversationId)}
 						sendingMessage={sendingMessage}
+						panelHeight={chatSidebarHeight}
 						onChatInputChange={handleChatInputChange}
 						onSend={handleSendChat}
 					/>
+					</div>
 				</div>
     </div>
   );

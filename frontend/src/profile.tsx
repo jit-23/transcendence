@@ -8,6 +8,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
+import { TopBar } from './components/ui/topbar';
 import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolicy';
 
 export function ProfilePage() {
@@ -16,6 +17,7 @@ export function ProfilePage() {
     const navigate               = useNavigate();
 
     const [showPicker, setShowPicker]           = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [username, setUsername]               = useState(user?.name  ?? '');
     const [email, setEmail]                     = useState(user?.email ?? '');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -33,6 +35,10 @@ export function ProfilePage() {
     const passwordPolicyError = newPassword ? getPasswordPolicyError(newPassword) : null;
     const usernameHasSpaces = /\s/.test(username.trim());
     const canSubmit = hasChanges && !passwordMismatch && !passwordPolicyError && !usernameHasSpaces && !!currentPassword.trim() && !loading;
+
+    const closePasswordModal = () => {
+        setShowPasswordModal(false);
+    };
 
     const saveAvatar = async (avatar: string) => {
         const token = sessionStorage.getItem("token");
@@ -121,25 +127,11 @@ export function ProfilePage() {
     };
 
     return (
-        <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            ← Dashboard
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen w-full">
+            <TopBar />
+            <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
 
-            <main className="space-y-5">
+                <main className="space-y-5">
                 <div>
                     <h1 className="font-display text-3xl">Profile Settings</h1>
                     <p className="mt-1 text-sm text-muted">Manage your account details, avatar, and security preferences.</p>
@@ -150,15 +142,12 @@ export function ProfilePage() {
                         <CardTitle className="text-base">Quick actions</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-2 sm:grid-cols-3">
-                            <Button type="button" onClick={() => setShowPicker(true)}>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Button className="w-full" type="button" onClick={() => setShowPicker(true)}>
                                 Change avatar
                             </Button>
-                            <Button variant="outline" type="button" onClick={() => navigate('/profile/blocked')}>
+                            <Button className="w-full" variant="outline" type="button" onClick={() => navigate('/profile/blocked')}>
                                 Blocked users
-                            </Button>
-                            <Button variant="outline" type="button" onClick={() => navigate('/dashboard')}>
-                                Dashboard
                             </Button>
                         </div>
                     </CardContent>
@@ -226,40 +215,10 @@ export function ProfilePage() {
 
                             <div className="h-px bg-border" />
 
-                            <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Password</p>
-                                <div className="space-y-3">
-                                    <div className="space-y-1.5">
-                                        <Label>New Password</Label>
-                                        <Input
-                                            type="password"
-                                            placeholder="8+ chars, upper, lower, number, symbol"
-                                            value={newPassword}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
-                                        />
-                                        <div className="space-y-1 text-xs text-muted">
-                                            <p>Password rules:</p>
-                                            <ul className="grid gap-1 sm:grid-cols-2">
-                                                <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• 8+ characters</li>
-                                                <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• 1 uppercase letter</li>
-                                                <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• 1 lowercase letter</li>
-                                                <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• 1 number</li>
-                                                <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• 1 symbol</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Confirm New Password</Label>
-                                        <Input
-                                            type="password"
-                                            placeholder="Repeat new password"
-                                            value={confirmNew}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmNew(e.target.value)}
-                                        />
-                                        {passwordMismatch && <p className="text-xs text-red-400">Passwords do not match.</p>}
-                                        {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
-                                    </div>
-                                </div>
+                            <div className="flex justify-start">
+                                <Button type="button" variant="outline" onClick={() => setShowPasswordModal(true)}>
+                                    Change password
+                                </Button>
                             </div>
 
                             <div className="h-px bg-border" />
@@ -294,7 +253,56 @@ export function ProfilePage() {
                     </CardContent>
                 </Card>
             </main>
-        </div>
+                </div>
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closePasswordModal}>
+                    <Card className="w-full max-w-lg shadow-xl" onClick={(event) => event.stopPropagation()}>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-base">Change password</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label>New Password</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="8+ chars, upper, lower, number, symbol"
+                                    value={newPassword}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
+                                />
+                                <div className="space-y-1 text-xs text-muted">
+                                    <p>Password rules:</p>
+                                    <ul className="grid gap-1 sm:grid-cols-2">
+                                        <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• 8+ characters</li>
+                                        <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• 1 uppercase letter</li>
+                                        <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• 1 lowercase letter</li>
+                                        <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• 1 number</li>
+                                        <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• 1 symbol</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label>Confirm New Password</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="Repeat new password"
+                                    value={confirmNew}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmNew(e.target.value)}
+                                />
+                                {passwordMismatch && <p className="text-xs text-red-400">Passwords do not match.</p>}
+                                {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
+                            </div>
+
+                            <div className="flex flex-wrap justify-end gap-2">
+                                <Button type="button" variant="outline" onClick={closePasswordModal}>
+                                    Close
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+            </div>
     );
 }
 

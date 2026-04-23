@@ -4,6 +4,7 @@ import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 import { Avatar } from "./Avatar";
 import { CanvasesCard } from "./components/dashboard/CanvasesCard";
+import TopBar from "./components/ui/topbar";
 
 type Canvas = {
   id: number;
@@ -192,23 +193,7 @@ export function CanvasesPage() {
 
   return (
 	<div className="dashboard-shell">
-	  <header className="topbar">
-		<div className="logo">
-		  <div className="logo-mark">W</div>
-		  whiteboard
-		</div>
-
-		<div className="topbar-right">
-		  <div className="user-chip">
-			<Avatar avatar={user?.avatar} name={user?.name ?? "?"} size={24} />
-			{user?.name}
-		  </div>
-		  <button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>Dashboard</button>
-		  <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-			{theme === "dark" ? "☀" : "☾"}
-		  </button>
-		</div>
-	  </header>
+	  <TopBar />
 
 	  <main className="dashboard-body">
 		<div className="page-title fade-up">
