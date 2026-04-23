@@ -70,8 +70,24 @@ export default function CanvasChatSidebar({
 					{messages.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>No messages yet.</p>}
 					{messages.map((message, index) => (
 						<div key={`${message.from}-${index}`} style={{ marginBottom: 8, textAlign: message.self ? "right" : "left" }}>
-							<p style={{ margin: 0, fontSize: "0.68rem", color: "var(--ink3)" }}>{message.from}</p>
-							<p style={{ margin: 0 }}>{message.text}</p>
+							<p style={{ margin: "0 0 2px", fontSize: "0.68rem", color: "var(--ink3)" }}>{message.from}</p>
+							<p
+								style={{
+									margin: 0,
+									display: "inline-block",
+									maxWidth: "88%",
+									padding: "6px 8px",
+									borderRadius: 8,
+									background: message.self ? "#827c7c" : "var(--surface)",
+									whiteSpace: "pre-wrap",
+									overflowWrap: "anywhere",
+									wordBreak: "break-word",
+									lineHeight: 1.35,
+									textAlign: "left",
+								}}
+							>
+								{message.text}
+							</p>
 						</div>
 					))}
 				</div>

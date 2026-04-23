@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
-import { useTheme } from './ThemeContext';
 import { Avatar } from './Avatar';
+import { AppTopbar } from './components/AppTopbar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
@@ -18,7 +18,6 @@ type PublicProfile = {
 
 export function UserPublicProfilePage() {
     const { user } = useContext(AuthContext);
-    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const { id } = useParams();
 
@@ -259,25 +258,7 @@ export function UserPublicProfilePage() {
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-                            ← Back
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <AppTopbar />
 
             <main className="space-y-5">
                 <div>

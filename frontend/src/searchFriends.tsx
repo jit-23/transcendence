@@ -1,7 +1,7 @@
 import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
+import { AppTopbar } from "./components/AppTopbar";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Input } from "./components/ui/input";
@@ -15,7 +15,6 @@ interface SearchResult {
 
 export function SearchFriends() {
     const { user } = useContext(AuthContext);
-    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -100,35 +99,9 @@ export function SearchFriends() {
         }
     };
 
-    const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
-
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2 px-3 py-1.5 text-sm text-ink">
-                            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-[0.65rem] font-semibold">
-                                {initials}
-                            </div>
-                            {user?.name}
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
-                            Profile
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <AppTopbar />
 
             <main className="space-y-5">
                 <div>
@@ -209,7 +182,7 @@ export function SearchFriends() {
                                             onClick={() => handleSendRequest(result.id)}
                                             disabled={pendingRequests.has(result.id)}
                                         >
-                                            {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
+                                            {pendingRequests.has(result.id) ? '✓ Requested' : '+ Adasdd'} 
                                         </Button>
                                     </div>
                                 </div>

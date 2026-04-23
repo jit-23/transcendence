@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from './ThemeContext';
+import { AppTopbar } from './components/AppTopbar';
 import { Avatar } from './Avatar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -15,7 +15,6 @@ type BlockedUser = {
 };
 
 export function BlockedUsersPage() {
-    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
@@ -93,25 +92,7 @@ export function BlockedUsersPage() {
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
-                            ← Profile
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <AppTopbar />
 
             <main className="space-y-5">
                 <div>

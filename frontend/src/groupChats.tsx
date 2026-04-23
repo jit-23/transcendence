@@ -1,8 +1,6 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
-import { createSharedCanvas } from "./utils/sharedCanvas";
+import { AppTopbar } from "./components/AppTopbar";
 
 type Friend = {
   id: number;
@@ -19,13 +17,12 @@ type Conversation = {
 };
 
 export function GroupChatsPage() {
-  const { user } = useContext(AuthContext);
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
+  const [selectedByGroup, setSelectedByGroup] = useState<Record<number, number[]>>({});
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +43,10 @@ export function GroupChatsPage() {
       ]);
 
       const friendsData = await friendsRes.json();
-      const convData = await convRes.json();
+      const convData = await conversationsRes.json();
 
       if (!friendsRes.ok) throw new Error(friendsData.error || "Failed to load friends");
-      if (!convRes.ok) throw new Error(convData.error || "Failed to load conversations");
+      if (!conversationsRes.ok) throw new Error(convData.error || "Failed to load conversations");
 
       setFriends(friendsData);
       setConversations(convData.filter((conversation: Conversation) => conversation.type === "GROUP"));
@@ -75,6 +72,7 @@ export function GroupChatsPage() {
     setLoading(true);
     setError(null);
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
       const res = await fetch(`${apiUrl}/conversations/${conversationId}`, {
         method: "DELETE",
         headers: authHeader(),
@@ -98,15 +96,24 @@ export function GroupChatsPage() {
     setLoading(true);
     setError(null);
     try {
-      const sharedCanvas = await createSharedCanvas({
-        groupName: groupName.trim(),
-        collaboratorIds: selected,
+      const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+      const res = await fetch(`${apiUrl}/conversations/group`, {
+        method: "POST",
+        headers: authHeader(),
+        body: JSON.stringify({
+          name: groupName.trim(),
+          memberIds: selected,
+        }),
       });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create group");
 
       setGroupName("");
       setSelected([]);
       await loadData();
-      navigate(`/canvas?id=${sharedCanvas.id}`);
+      const title = data.name || groupName.trim();
+      navigate(`/chat?conversationId=${data.id}&name=${encodeURIComponent(title)}`);
     } catch (err: any) {
       setError(err.message || "Failed to create group");
     } finally {
@@ -114,31 +121,58 @@ export function GroupChatsPage() {
     }
   };
 
-  const initials = user?.name?.slice(0, 2).toUpperCase() ?? "??";
+  const toggleSelectedForGroup = (conversationId: number, friendId: number) => {
+    setSelectedByGroup((prev) => {
+      const selectedForGroup = prev[conversationId] ?? [];
+      const updated = selectedForGroup.includes(friendId)
+        ? selectedForGroup.filter((id) => id !== friendId)
+        : [...selectedForGroup, friendId];
+
+      return {
+        ...prev,
+        [conversationId]: updated,
+      };
+    });
+  };
+
+  const addMembersToGroup = async (conversationId: number) => {
+    const memberIds = selectedByGroup[conversationId] ?? [];
+    if (memberIds.length === 0) {
+      setError("Select at least one friend to add");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+      const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, {
+        method: "POST",
+        headers: authHeader(),
+        body: JSON.stringify({ memberIds }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add members");
+
+      setSelectedByGroup((prev) => ({ ...prev, [conversationId]: [] }));
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || "Failed to add members");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="dashboard-shell">
-      <header className="topbar">
-        <div className="logo">
-          <div className="logo-mark">W</div>
-          whiteboard
-        </div>
-        <div className="topbar-right">
-          <div className="user-chip">
-            <div className="user-avatar">{initials}</div>
-            {user?.name}
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-            {theme === "dark" ? "☀" : "☾"}
-          </button>
-        </div>
-      </header>
+      <AppTopbar />
 
       <main className="dashboard-body">
         <div className="page-title fade-up">
           <h1>Group Chats</h1>
-          <p>Create groups and chat with multiple friends.</p>
+          <p>Create chat-only groups and add friends anytime.</p>
         </div>
 
         <div className="section-card fade-up fade-up-1">
@@ -190,6 +224,11 @@ export function GroupChatsPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {conversations.map((conversation) => {
                 const title = conversation.name || `Group ${conversation.id}`;
+                const availableFriends = friends.filter(
+                  (friend) => !conversation.members.some((member) => member.id === friend.id),
+                );
+                const selectedForGroup = selectedByGroup[conversation.id] ?? [];
+
                 return (
                   <div
                     key={conversation.id}
@@ -224,6 +263,35 @@ export function GroupChatsPage() {
                         {conversation.role === "owner" ? "Delete" : "Leave"}
                       </button>
                     </div>
+
+                    {conversation.role === "owner" && availableFriends.length > 0 && (
+                      <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                        <p style={{ marginBottom: 8, fontSize: "0.78rem", color: "var(--ink3)" }}>
+                          Add friends to this group
+                        </p>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                          {availableFriends.map((friend) => (
+                            <label key={friend.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedForGroup.includes(friend.id)}
+                                onChange={() => toggleSelectedForGroup(conversation.id, friend.id)}
+                              />
+                              <span>{friend.name} ({friend.email})</span>
+                            </label>
+                          ))}
+                        </div>
+
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => addMembersToGroup(conversation.id)}
+                          disabled={loading || selectedForGroup.length === 0}
+                        >
+                          Add Selected Friends
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

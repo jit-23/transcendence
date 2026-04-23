@@ -1,9 +1,8 @@
 import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
-import { Avatar } from "./Avatar";
 import { CanvasesCard } from "./components/dashboard/CanvasesCard";
+import { AppTopbar } from "./components/AppTopbar";
 
 type Canvas = {
   id: number;
@@ -22,7 +21,6 @@ type Friend = {
 
 export function CanvasesPage() {
   const { user } = useContext(AuthContext);
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [canvases, setCanvases] = useState<Canvas[]>([]);
@@ -124,7 +122,13 @@ export function CanvasesPage() {
 				setCanvasesError(data.error || "Failed to create canvas");
           return false;
             }
-            setCanvases(prev => [...prev, data]);
+            setCanvases((prev) => [
+              ...prev,
+              {
+                ...data,
+                isOwner: true,
+              },
+            ]);
         return true;
         } catch {
 			setCanvasesError("Network error while creating canvas");
@@ -178,6 +182,13 @@ export function CanvasesPage() {
         navigate(`/canvas?id=${canvasId}`);
       };
 
+      const handleOpenInviteCanvas = async (canvasId: number | null) => {
+        if (canvasId !== null) {
+          await fetchFriends();
+        }
+        setInviteCanvasId(canvasId);
+      };
+
       useEffect(() => {
         
         fetchCanvases();
@@ -192,33 +203,24 @@ export function CanvasesPage() {
 
   return (
 	<div className="dashboard-shell">
-	  <header className="topbar">
-		<div className="logo">
-		  <div className="logo-mark">W</div>
-		  whiteboard
-		</div>
-
-		<div className="topbar-right">
-		  <div className="user-chip">
-			<Avatar avatar={user?.avatar} name={user?.name ?? "?"} size={24} />
-			{user?.name}
-		  </div>
-		  <button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>Dashboard</button>
-		  <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-			{theme === "dark" ? "☀" : "☾"}
-		  </button>
-		</div>
-	  </header>
+    <AppTopbar />
 
 	  <main className="dashboard-body">
 		<div className="page-title fade-up">
 		  <h1>Plan Your Group Projects</h1>
-		  <p>Create canvases for project planning and collaboration.</p>
+		  <p>Manage your own canvases and the canvases where you were invited.</p>
 		</div>
-		 <div className="dashboard-layout">
-                    <section className="dashboard-main-column">
+		{(() => {
+			const myCanvases = canvases.filter((canvas) => canvas.isOwner || canvas.userId === user?.id);
+			const invitedCanvases = canvases.filter((canvas) => !canvas.isOwner && canvas.userId !== user?.id);
+
+			return (
+     <div className="dashboard-layout" style={{ width: "100%", maxWidth: 1200, margin: "0 auto" }}>
+          <section className="dashboard-main-column" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20, width: "100%", alignItems: "stretch" }}>
                         <CanvasesCard
-                            canvases={canvases}
+                            title="My Canvases"
+                            canCreateCanvas
+                            canvases={myCanvases}
                             canvasesLoading={canvasesLoading}
                           canvasesError={canvasesError}
                             onAddCanvas={handleAddCanvas}
@@ -230,21 +232,32 @@ export function CanvasesPage() {
                           inviteCanvasId={inviteCanvasId}
                           inviteError={inviteError}
                           invitingFriendId={invitingFriendId}
-                          onOpenInviteCanvas={setInviteCanvasId}
+                          onOpenInviteCanvas={handleOpenInviteCanvas}
                           onInviteFriend={handleInviteFriend}/>
+
+            <CanvasesCard
+              title="Invited Canvases"
+              canCreateCanvas={false}
+              canvases={invitedCanvases}
+              canvasesLoading={canvasesLoading}
+              canvasesError={canvasesError}
+              onAddCanvas={handleAddCanvas}
+              onDeleteCanvas={handleDeleteCanvas}
+              onOpenCanvas={handleOpenCanvas}
+              friends={friends}
+              friendsLoading={friendsLoading}
+              friendsError={friendsError}
+              inviteCanvasId={inviteCanvasId}
+              inviteError={inviteError}
+              invitingFriendId={invitingFriendId}
+              onOpenInviteCanvas={handleOpenInviteCanvas}
+              onInviteFriend={handleInviteFriend}
+            />
 					</section>
 			</div>
-		<div className="section-card fade-up fade-up-1" style={{ maxWidth: 785 }}>
-		  <div className="section-card-header" >
-			<h3>Chat Rooms</h3>
-		  </div>
-		  <p style={{ color: "var(--ink2)", marginBottom: 10, fontSize: "0.82rem" }}>
-			Use canvases to sketch, plan, and organize group work.
-		  </p>
-		  <div style={{ display: "flex", gap: 8 }}>
-			<button className="btn btn-ghost" onClick={() => navigate("/groups")}>Chat Room</button>
-		  </div>
-		</div>
+      );
+    })()}
+     
 	  </main>
 	</div>
   );

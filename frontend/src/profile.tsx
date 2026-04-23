@@ -2,6 +2,7 @@ import { useContext, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
+import { AppTopbar } from './components/AppTopbar';
 import { useTheme } from './ThemeContext';
 import { Avatar, AvatarPicker } from './Avatar';
 import { Button } from './components/ui/button';
@@ -11,7 +12,7 @@ import { Label } from './components/ui/label';
 import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolicy';
 
 export function ProfilePage() {
-    const { user, refreshUser }  = useContext(AuthContext);
+    const { user, refreshUser, logout }  = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
 
@@ -122,22 +123,7 @@ export function ProfilePage() {
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            ← Dashboard
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <AppTopbar />
 
             <main className="space-y-5">
                 <div>
@@ -150,7 +136,7 @@ export function ProfilePage() {
                         <CardTitle className="text-base">Quick actions</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-2 sm:grid-cols-3">
+                        <div className="grid gap-2 sm:grid-cols-5">
                             <Button type="button" onClick={() => setShowPicker(true)}>
                                 Change avatar
                             </Button>
@@ -159,6 +145,12 @@ export function ProfilePage() {
                             </Button>
                             <Button variant="outline" type="button" onClick={() => navigate('/dashboard')}>
                                 Dashboard
+                            </Button>
+                            <Button variant="outline" type="button" onClick={logout}>
+                                Sign out
+                            </Button>
+                            <Button variant="outline" type="button" onClick={toggleTheme}>
+                                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
                             </Button>
                         </div>
                     </CardContent>

@@ -1,4 +1,5 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 
 // export const AuthContext = createContext(null);
 interface User {
@@ -28,6 +29,7 @@ export const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }) {
 	const [user, setUser]         = useState<User | null>(null);
 	const [authReady, setAuthReady] = useState(false);
+	const presenceSocketRef = useRef<Socket | null>(null);
 
 		const fetchUserData = async (token: string) => {
 			try {
@@ -71,6 +73,31 @@ export function AuthProvider({ children }) {
 		}
 		fetchUserData(token);
 	}, []);
+
+	useEffect(() => {
+		if (!user?.name) {
+			if (presenceSocketRef.current) {
+				presenceSocketRef.current.disconnect();
+				presenceSocketRef.current = null;
+			}
+			return;
+		}
+
+		const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+		const socket = io(apiUrl, {
+			auth: { username: user.name },
+			withCredentials: true,
+		});
+
+		presenceSocketRef.current = socket;
+
+		return () => {
+			socket.disconnect();
+			if (presenceSocketRef.current === socket) {
+				presenceSocketRef.current = null;
+			}
+		};
+	}, [user?.name]);
 
 	return (
 		<AuthContext.Provider value={{ user, authReady, login, logout, refreshUser }}>

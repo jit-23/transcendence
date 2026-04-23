@@ -7,9 +7,9 @@ import { ProfilePage } from './profile.tsx';
 import PrivateRoute from "./PrivateRoute";
 import { useContext } from "react";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
 import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
+import { ChoseConversation } from "./choseConversation.tsx";
 import Canvas from "./Canvas.tsx";
 import { GroupChatsPage } from "./groupChats.tsx";
 import { ConversationsPage } from "./conversations.tsx";
@@ -55,20 +55,8 @@ function SiteFooter() {
 }
 
 function Home() {
-    const { theme, toggleTheme } = useTheme();
-
     return (
         <div className="flex min-h-screen items-center justify-center px-6 py-10">
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                title="Toggle theme"
-                className="fixed right-6 top-6"
-            >
-                {theme === 'dark' ? '☀' : '☾'}
-            </Button>
-
             <div className="text-center w-full max-w-md">
                 <div className="mb-8 flex items-center justify-center gap-2 font-display text-lg font-semibold text-ink">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
@@ -112,6 +100,7 @@ function App() {
                 <Route path="/profile/blocked" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
                 <Route path="/users/:id" element={<PrivateRoute><UserPublicProfilePage /></PrivateRoute>} />
                 <Route path="/search" element={<PrivateRoute><SearchFriends /></PrivateRoute>} />
+                <Route path="/choose-conversation" element={<PrivateRoute><ChoseConversation /></PrivateRoute>} />
                 <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
                 <Route path="/conversations" element={<PrivateRoute><ConversationsPage /></PrivateRoute>} />
                 <Route path="/Canvases" element={<PrivateRoute><CanvasesPage /></PrivateRoute>} />

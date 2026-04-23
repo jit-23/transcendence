@@ -1,29 +1,15 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
-import { Avatar } from "./Avatar";
+import { Friend } from "./components/dashboard/types";
+import { AppTopbar } from "./components/AppTopbar";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 
 type EnableStep = "idle" | "scanning";
-
-type ReceivedFriendRequest = {
-    id: number;
-    sender: {
-        id: number;
-        name: string;
-        email: string;
-    };
-};
-
-type Friend = {
-    id: number;
-    name: string;
-    email: string;
-};
 
 type SearchResult = {
     id: number;
@@ -32,8 +18,7 @@ type SearchResult = {
 };
 
 export function Dashboard() {
-    const { user, logout }          = useContext(AuthContext);
-    const { theme, toggleTheme }    = useTheme();
+    const { user }          = useContext(AuthContext);
     const navigate                  = useNavigate();
 
     const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled ?? false);
@@ -44,9 +29,7 @@ export function Dashboard() {
     const [disableCode, setDisableCode]   = useState("");
     const [loading, setLoading]           = useState(false);
     const [error, setError]               = useState<string | null>(null);
-    const [requests, setRequests]         = useState<ReceivedFriendRequest[]>([]);
     const [requestsLoading, setRequestsLoading] = useState(false);
-    const [requestsError, setRequestsError] = useState<string | null>(null);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [friendsLoading, setFriendsLoading] = useState(false);
     const [friendsError, setFriendsError] = useState<string | null>(null);
@@ -61,12 +44,11 @@ export function Dashboard() {
     const [searchError, setSearchError] = useState<string | null>(null);
     const [searched, setSearched] = useState(false);
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
-    const [showRequestsPanel, setShowRequestsPanel] = useState(false);
     const [canvases, setCanvases] = useState<any[]>([]);
     const [canvasesLoading, setCanvasesLoading] = useState(false);
     const [canvasesError, setCanvasesError] = useState<string | null>(null);
 
-    const requestsPanelRef = useRef<HTMLDivElement | null>(null);
+    const presenceSocketRef = useRef<Socket | null>(null);
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -128,46 +110,15 @@ export function Dashboard() {
 
     const fetchRequests = async () => {
         setRequestsLoading(true);
-        setRequestsError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(`${apiUrl}/users/friend-request/received`, {
                 headers: authHeader(),
             });
-            const data = await res.json();
-            if (!res.ok) {
-                setRequestsError(data.error || "Failed to load friend requests");
-                setRequests([]);
-            } else {
-                setRequests(data);
-            }
+            await res.json();
         } catch {
-            setRequestsError("Network error while loading friend requests");
-            setRequests([]);
         } finally {
             setRequestsLoading(false);
-        }
-    };
-
-    const decideRequest = async (requestId: number, action: "accept" | "reject") => {
-        setRequestsError(null);
-        try {
-            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
-            const res = await fetch(`${apiUrl}/users/friend-request/${requestId}/${action}`, {
-                method: "POST",
-                headers: authHeader(),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setRequestsError(data.error || "Failed to update request");
-                return;
-            }
-            setRequests(prev => prev.filter(request => request.id !== requestId));
-            if (action === "accept") {
-                fetchFriends();
-            }
-        } catch {
-            setRequestsError("Network error while updating request");
         }
     };
 
@@ -301,6 +252,50 @@ export function Dashboard() {
     }, []);
 
     useEffect(() => {
+        const interval = window.setInterval(() => {
+            void fetchFriends();
+        }, 15000);
+
+        return () => window.clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!user?.name) {
+            if (presenceSocketRef.current) {
+                presenceSocketRef.current.disconnect();
+                presenceSocketRef.current = null;
+            }
+            return;
+        }
+
+        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+        const socket = io(apiUrl, {
+            auth: { username: user.name },
+            withCredentials: true,
+        });
+
+        presenceSocketRef.current = socket;
+
+        socket.on("friend-presence", ({ userId, online }) => {
+            const normalizedUserId = Number(userId);
+            if (!Number.isInteger(normalizedUserId)) return;
+
+            setFriends((prev) =>
+                prev.map((friend) =>
+                    friend.id === normalizedUserId ? { ...friend, online: Boolean(online) } : friend,
+                ),
+            );
+        });
+
+        return () => {
+            socket.disconnect();
+            if (presenceSocketRef.current === socket) {
+                presenceSocketRef.current = null;
+            }
+        };
+    }, [user?.name]);
+
+    useEffect(() => {
         if (!showAddFriendModal) return;
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -314,105 +309,12 @@ export function Dashboard() {
     }, [showAddFriendModal]);
 
     useEffect(() => {
-        if (!showRequestsPanel) return;
-
-        const onClickOutside = (event: MouseEvent) => {
-            if (requestsPanelRef.current && !requestsPanelRef.current.contains(event.target as Node)) {
-                setShowRequestsPanel(false);
-            }
-        };
-
-        const onEscape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                setShowRequestsPanel(false);
-            }
-        };
-
-        window.addEventListener("mousedown", onClickOutside);
-        window.addEventListener("keydown", onEscape);
-
-        return () => {
-            window.removeEventListener("mousedown", onClickOutside);
-            window.removeEventListener("keydown", onEscape);
-        };
-    }, [showRequestsPanel]);
+        return;
+    }, []);
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2 px-3 py-1.5 text-sm text-ink">
-                            <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
-                            {user?.name}
-                        </div>
-
-                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>Profile</Button>
-
-                        <div className="relative" ref={requestsPanelRef}>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setShowRequestsPanel(prev => !prev)}
-                                title="Friend requests"
-                                aria-label="Friend requests"
-                                className="relative"
-                            >
-                                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
-                                    <path d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-5.2V11a7 7 0 1 0-14 0v5.8L3.6 18a1 1 0 0 0 .7 1.8h15.4a1 1 0 0 0 .7-1.8L19 16.8Z" />
-                                </svg>
-                                {requests.length > 0 && (
-                                    <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold text-bg">
-                                        {requests.length}
-                                    </span>
-                                )}
-                            </Button>
-
-                            {showRequestsPanel && (
-                                <Card className="absolute right-0 z-30 mt-2 w-[320px] max-w-[90vw]">
-                                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-                                        <CardTitle className="text-base">Friend Requests</CardTitle>
-                                        <Button variant="ghost" size="sm" onClick={fetchRequests} disabled={requestsLoading}>
-                                            {requestsLoading ? '...' : 'Refresh'}
-                                        </Button>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        {requestsError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{requestsError}</div>}
-
-                                        {!requestsLoading && requests.length === 0 && <p className="text-sm text-muted">No pending requests.</p>}
-
-                                        {requests.length > 0 && (
-                                            <div className="space-y-2">
-                                                {requests.map((request) => (
-                                                    <div key={request.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface2 p-2.5">
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-ink">{request.sender.name}</p>
-                                                            <p className="text-xs text-muted">{request.sender.email}</p>
-                                                        </div>
-                                                        <div className="flex gap-1.5">
-                                                            <Button size="sm" onClick={() => decideRequest(request.id, "accept")}>Accept</Button>
-                                                            <Button size="sm" variant="outline" onClick={() => decideRequest(request.id, "reject")}>Reject</Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-
-                        <Button variant="outline" size="sm" onClick={logout}>Sign out</Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <AppTopbar />
 
             <main className="space-y-6">
                 <div>

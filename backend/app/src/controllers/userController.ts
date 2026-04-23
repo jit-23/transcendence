@@ -5,6 +5,7 @@ import speakeasy from "speakeasy";
 import { Request, Response } from "express";
 import jwt from 'jsonwebtoken';
 import bcrypt from "bcrypt";
+import { isUserOnline } from "../presenceStore";
 
 const prisma = new PrismaClient();
 
@@ -556,8 +557,8 @@ export const searchUsers = async (req: Request, res: Response) => {
         const users = await prisma.my_users.findMany({
             where: {
                 OR: [
-                    { name: { contains: query, mode: 'insensitive' } },
-                    { email: { contains: query, mode: 'insensitive' } },
+                    { name: { startsWith: query, mode: 'insensitive' } },
+                    { email: { startsWith: query, mode: 'insensitive' } },
                 ],
                 NOT: {
                     id: {
@@ -729,7 +730,11 @@ export const getFriends = async (req: Request, res: Response) => {
                 if (seen.has(friend.id)) return false;
                 seen.add(friend.id);
                 return true;
-            });
+            })
+            .map((friend) => ({
+                ...friend,
+                online: isUserOnline(friend.id),
+            }));
 
         return res.json(friends);
     } catch (error: any) {

@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import CanvasChatSidebar, { CanvasChatMessage, CanvasMember } from "./components/canvas/CanvasChatSidebar";
 import { AuthContext } from "./AuthContext";
+import { AppTopbar } from "./components/AppTopbar";
 import { emitCanvasEvent, joinCanvasRoom, registerCanvasRealtimeHandlers } from "./utils/canvasRealtime";
 //nando
 
@@ -188,9 +189,13 @@ type HandlePoint = {
 	y: number;
 };
 
-let shapeIdCounter = 0;
-
-const generateShapeId = () => `shape-${++shapeIdCounter}`;
+const generateShapeId = () => {
+	const randomPart =
+		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+			? crypto.randomUUID()
+			: `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	return `shape-${randomPart}`;
+};
 
 const isTextShape = (shape: Shape | null | undefined): shape is TextShape => {
 	if (!shape) return false;
@@ -837,8 +842,6 @@ function ColorPickerControl({
 
 	const currentColor = normalizeHexColor(value, defaultValue);
 	const currentRgb = hexToRgb(currentColor) ?? hexToRgb(defaultValue) ?? { r: 0, g: 0, b: 0 };
-	const draftRgb = hexToRgb(draftColor) ?? currentRgb;
-	const draftHsl = rgbToHsl(draftRgb);
 	const triangleTopColor = hslToRgb(wheelHue, 1, 0.5);
 	const triangleVertices = {
 		top: { x: 0.5, y: 0.02 },
@@ -1117,8 +1120,8 @@ function ColorPickerControl({
 						<div
 							className="color-picker__cursor"
 							style={{
-								left: `${50 + Math.cos((draftHsl.h - 90) * (Math.PI / 180)) * 41}%`,
-								top: `${50 + Math.sin((draftHsl.h - 90) * (Math.PI / 180)) * 41}%`,
+								left: `${50 + Math.cos((wheelHue - 90) * (Math.PI / 180)) * 41}%`,
+								top: `${50 + Math.sin((wheelHue - 90) * (Math.PI / 180)) * 41}%`,
 								background: currentColor,
 							}}
 						/>
@@ -1169,6 +1172,7 @@ export default function Canvas() {
 	const canvasIdParam = searchParams.get("id");
 	const canvasId = canvasIdParam ? Number(canvasIdParam) : null;
 	const [saveStatus, setSaveStatus] = useState("");
+		const [canvasEntryBlocked, setCanvasEntryBlocked] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [canvasName, setCanvasName] = useState("");
 	const [members, setMembers] = useState<CanvasMember[]>([]);
@@ -1179,6 +1183,8 @@ export default function Canvas() {
 	const [peerTyping, setPeerTyping] = useState<string | null>(null);
 	const [sendingMessage, setSendingMessage] = useState(false);
 	const [activeMemberIds, setActiveMemberIds] = useState<number[]>([]);
+	const conversationIdRef = useRef<number | null>(null);
+	const userIdRef = useRef<number | null>(user?.id ?? null);
 	const remoteDraftsRef = useRef<Map<number, Shape>>(new Map());
 	const remoteCursorsRef = useRef<Map<number, RemoteCursor>>(new Map());
 	const lastDraftEmitAtRef = useRef(0);
@@ -1188,6 +1194,7 @@ export default function Canvas() {
 	const hydratingRef = useRef(false);
 	const chatSocketRef = useRef<Socket | null>(null);
 	const chatTypingTimeoutRef = useRef<number | null>(null);
+		const canvasEntryBlockedRef = useRef(false);
 	//nando
 
 
@@ -1242,7 +1249,6 @@ export default function Canvas() {
 	const shapesRef = useRef<Shape[]>([]);
 	const redoShapesRef = useRef<Shape[][]>([]);
 	const undoStatesRef = useRef<Shape[][]>([]);
-	const undoDepthRef = useRef(0);
 	const draftShapeRef = useRef<Shape | null>(null);
 	const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 	const draggedShapeIdRef = useRef<string | null>(null);
@@ -1326,7 +1332,6 @@ export default function Canvas() {
 		viewRef.current = snapshot.view ?? { scale: 1, offsetX: 0, offsetY: 0 };
 		shapesRef.current = Array.isArray(snapshot.shapes) ? snapshot.shapes : [];
 		redoShapesRef.current = [];
-		undoDepthRef.current = Math.min(HISTORY_LIMIT, shapesRef.current.length);
 		dirtyVersionRef.current = 0;
 		draftShapeRef.current = null;
 		dragStartRef.current = null;
@@ -1427,7 +1432,6 @@ export default function Canvas() {
 		eraserLastPointRef.current = null;
 		//nando
 		dotRef.current = true;
-		undoDepthRef.current = 0;
 		markDirty();
 
 		//nando
@@ -1571,6 +1575,7 @@ export default function Canvas() {
 
 	//nando
 	const clearCanvasAndBroadcast = () => {
+		if (canvasEntryBlockedRef.current) return;
 		clearCanvas();
 		emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-clear");
 	};
@@ -1601,28 +1606,37 @@ export default function Canvas() {
 		emitCursor(x, y, visible);
 	};
 
+	const applyHistoryState = (nextState: Shape[]) => {
+		shapesRef.current = cloneShapesState(nextState);
+		syncSelectionAfterStateChange();
+		stopTextEditing();
+		draftShapeRef.current = null;
+		dragStartRef.current = null;
+		resizeSessionRef.current = null;
+		rotationSessionRef.current = null;
+		markDirty();
+	};
+
 	const undoCanvas = (broadcast: boolean) => {
-		if (undoDepthRef.current <= 0) return;
-		const removedShape = shapesRef.current.pop();
-		if (!removedShape) return;
-		redoShapesRef.current.push(removedShape);
+		const previousState = undoStatesRef.current.pop();
+		if (!previousState) return;
+		redoShapesRef.current.push(cloneShapesState(shapesRef.current));
 		if (redoShapesRef.current.length > HISTORY_LIMIT) {
 			redoShapesRef.current.shift();
 		}
-		undoDepthRef.current -= 1;
-		draftShapeRef.current = null;
-		dragStartRef.current = null;
-		markDirty();
+		applyHistoryState(previousState);
 		if (broadcast) emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-undo");
 	};
 
 	const redoCanvas = (broadcast: boolean) => {
-		const restoredShape = redoShapesRef.current.pop();
-		if (!restoredShape) return;
-		shapesRef.current.push(restoredShape);
-		undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
-		markDirty();
-		if (broadcast) emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-redo", { shape: restoredShape });
+		const nextState = redoShapesRef.current.pop();
+		if (!nextState) return;
+		undoStatesRef.current.push(cloneShapesState(shapesRef.current));
+		if (undoStatesRef.current.length > HISTORY_LIMIT) {
+			undoStatesRef.current.shift();
+		}
+		applyHistoryState(nextState);
+		if (broadcast) emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-redo");
 	};
 	//nando
 
@@ -1651,10 +1665,39 @@ export default function Canvas() {
 		width: "100%",
 		height: "100%",
 	};
+	const clearButtonStyle = {
+		width: "92px",
+		height: "34px",
+		border: "2px solid #380909",
+		borderRadius: "6px",
+		background: "#fff5f5",
+		color: "#000000",
+		fontWeight: 700,
+		cursor: "pointer",
+	};
+	const fillToggleStyle = {
+		width: "16px",
+		height: "16px",
+		margin: 0,
+		cursor: "pointer",
+		accentColor: "#64748b",
+	};
 
 	useEffect(() => {
 		selectedShapeIdRef.current = selectedShapeId;
 	}, [selectedShapeId]);
+
+	useEffect(() => {
+		canvasEntryBlockedRef.current = canvasEntryBlocked;
+	}, [canvasEntryBlocked]);
+
+	useEffect(() => {
+		conversationIdRef.current = conversationId;
+	}, [conversationId]);
+
+	useEffect(() => {
+		userIdRef.current = user?.id ?? null;
+	}, [user?.id]);
 
 	useEffect(() => {
 		settingsRef.current = {
@@ -1809,6 +1852,7 @@ export default function Canvas() {
 
 	useEffect(() => {
 		if (!user?.name) return;
+		setCanvasEntryBlocked(false);
 
 		const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
 		const socket = io(apiUrl, {
@@ -1822,32 +1866,28 @@ export default function Canvas() {
 				// Check if shape with this ID already exists (update instead of adding)
 				const existingIndex = shapesRef.current.findIndex((s) => s.id === shape.id);
 				if (existingIndex >= 0) {
+					const previousShape = shapesRef.current[existingIndex];
+					const didChange = JSON.stringify(previousShape) !== JSON.stringify(shape);
+					if (!didChange) return;
+					pushUndoSnapshot();
 					shapesRef.current[existingIndex] = shape;
 					markDirty();
 				} else {
-					commitShapeAndBroadcast(shape);
+					commitShape(shape);
 				}
 			},
 			onShapeDelete: (shapeIds) => {
 				const idsToDelete = new Set(shapeIds);
+				const hasAnyMatch = shapesRef.current.some((shape) => idsToDelete.has(shape.id));
+				if (!hasAnyMatch) return;
+				pushUndoSnapshot();
 				shapesRef.current = shapesRef.current.filter((shape) => !idsToDelete.has(shape.id));
 				syncSelectionAfterStateChange();
 				markDirty();
 			},
-			onClear: () => clearCanvasAndBroadcast(),
-			onUndo: () => {
-				if (undoDepthRef.current <= 0) return;
-				shapesRef.current.pop();
-				redoShapesRef.current = [];
-				undoDepthRef.current = Math.max(0, undoDepthRef.current - 1);
-				markDirty();
-			},
-			onRedo: (shape) => {
-				shapesRef.current.push(shape);
-				redoShapesRef.current = [];
-				undoDepthRef.current = Math.min(HISTORY_LIMIT, undoDepthRef.current + 1);
-				markDirty();
-			},
+			onClear: () => clearCanvas(),
+			onUndo: () => undoCanvas(false),
+			onRedo: () => redoCanvas(false),
 			onBackground: (color) => {
 				setBackgroundColor(color);
 				markDirty();
@@ -1884,24 +1924,41 @@ export default function Canvas() {
 		});
 
 		socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
-			if (!conversationId || Number(incomingConversationId) !== conversationId) return;
+			const activeConversationId = conversationIdRef.current;
+			if (!activeConversationId || Number(incomingConversationId) !== activeConversationId) return;
+			const currentUserId = userIdRef.current;
 			setChatMessages((prev) => [
 				...prev,
 				{
 					from: message.sender?.name ?? "Unknown",
 					text: message.content,
-					self: message.sender?.id === user.id,
+					self: message.sender?.id === currentUserId,
 				},
 			]);
 		});
 
 		socket.on("conversation-typing", ({ conversationId: incomingConversationId, from, isTyping }) => {
-			if (!conversationId || Number(incomingConversationId) !== conversationId) return;
+			const activeConversationId = conversationIdRef.current;
+			if (!activeConversationId || Number(incomingConversationId) !== activeConversationId) return;
 			setPeerTyping(isTyping ? from : null);
+		});
+
+		socket.on("canvas-entry-blocked", ({ canvasId: blockedCanvasId }) => {
+			if (!canvasId || Number(blockedCanvasId) !== canvasId) return;
+			setCanvasEntryBlocked(true);
+			setSaveStatus("This canvas is already open in another window with this account.");
+		});
+
+		socket.on("canvas-joined", ({ canvasId: joinedCanvasId }) => {
+			if (!canvasId || Number(joinedCanvasId) !== canvasId) return;
+			setCanvasEntryBlocked(false);
+			setSaveStatus("");
 		});
 
 		socket.on("connect", () => {
 			setChatStatus(null);
+			setCanvasEntryBlocked(false);
+			if (canvasEntryBlockedRef.current) return;
 			joinCanvasRoom(socket, canvasId);
 		});
 		socket.on("disconnect", () => {
@@ -1910,8 +1967,6 @@ export default function Canvas() {
 			remoteDraftsRef.current.clear();
 			remoteCursorsRef.current.clear();
 		});
-
-		joinCanvasRoom(socket, canvasId);
 
 		return () => {
 			detachCanvasHandlers();
@@ -1925,7 +1980,7 @@ export default function Canvas() {
 			remoteDraftsRef.current.clear();
 			remoteCursorsRef.current.clear();
 		};
-	}, [canvasId, conversationId, user?.id, user?.name]);
+	}, [canvasId, user?.id, user?.name]);
 
 	const handleChatInputChange = (value: string) => {
 		setChatInput(value);
@@ -1980,6 +2035,7 @@ export default function Canvas() {
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
+			if (canvasEntryBlockedRef.current) return;
 			if (settingsRef.current.isAnyColorPickerOpen) return;
 			if (isEditableElement(event.target)) return;
 
@@ -2126,37 +2182,11 @@ export default function Canvas() {
 			event.preventDefault();
 
 			if (shouldUndo) {
-				const previousState = undoStatesRef.current.pop();
-				if (!previousState) return;
-				redoShapesRef.current.push(cloneShapesState(shapesRef.current));
-				if (redoShapesRef.current.length > HISTORY_LIMIT) {
-					redoShapesRef.current.shift();
-				}
-				shapesRef.current = cloneShapesState(previousState);
-				syncSelectionAfterStateChange();
-				stopTextEditing();
-				draftShapeRef.current = null;
-				dragStartRef.current = null;
-				resizeSessionRef.current = null;
-				rotationSessionRef.current = null;
-					markDirty();
+				undoCanvas(true);
 				return;
 			}
 
-			const nextState = redoShapesRef.current.pop();
-			if (!nextState) return;
-			undoStatesRef.current.push(cloneShapesState(shapesRef.current));
-			if (undoStatesRef.current.length > HISTORY_LIMIT) {
-				undoStatesRef.current.shift();
-			}
-			shapesRef.current = cloneShapesState(nextState);
-			syncSelectionAfterStateChange();
-			stopTextEditing();
-			draftShapeRef.current = null;
-			dragStartRef.current = null;
-			resizeSessionRef.current = null;
-			rotationSessionRef.current = null;
-				markDirty();
+			redoCanvas(true);
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
@@ -2255,8 +2285,7 @@ export default function Canvas() {
 				return bestIndex;
 			};
 
-			const getTouchedShapeIdsAtPoint = (x: number, y: number) => {
-				const eraserTolerance = Math.max(4, settingsRef.current.strokeWeight / 2);
+			const getTouchedShapeIdsAtPoint = (x: number, y: number, eraserTolerance: number) => {
 				const touched = new Set<string>();
 				for (let index = shapesRef.current.length - 1; index >= 0; index -= 1) {
 					const shape = shapesRef.current[index];
@@ -2268,20 +2297,45 @@ export default function Canvas() {
 				return touched;
 			};
 
-			const toggleEraserMarksAtPoint = (x: number, y: number) => {
-				const touchedNow = getTouchedShapeIdsAtPoint(x, y);
+			const getTouchedShapeIdsFromEraserPath = (points: Array<{ x: number; y: number }>, strokeWeight: number) => {
+				const touched = new Set<string>();
+				if (points.length === 0) return touched;
+				const eraserTolerance = Math.max(4, strokeWeight / 2);
+
+				const addTouchedAtPoint = (x: number, y: number) => {
+					const idsAtPoint = getTouchedShapeIdsAtPoint(x, y, eraserTolerance);
+					for (const id of idsAtPoint) touched.add(id);
+				};
+
+				addTouchedAtPoint(points[0]!.x, points[0]!.y);
+				for (let index = 1; index < points.length; index += 1) {
+					const previous = points[index - 1]!;
+					const current = points[index]!;
+					const dx = current.x - previous.x;
+					const dy = current.y - previous.y;
+					const distance = Math.hypot(dx, dy);
+					const step = Math.max(2, strokeWeight / 2);
+					const steps = Math.max(1, Math.ceil(distance / step));
+
+					for (let i = 1; i <= steps; i += 1) {
+						const t = i / steps;
+						addTouchedAtPoint(previous.x + dx * t, previous.y + dy * t);
+					}
+				}
+
+				return touched;
+			};
+
+			const markTouchedObjectsAtPoint = (x: number, y: number) => {
+				const touchedNow = getTouchedShapeIdsAtPoint(x, y, Math.max(4, settingsRef.current.strokeWeight / 2));
 				for (const shapeId of touchedNow) {
 					if (eraserTouchLatchRef.current.has(shapeId)) continue;
-					if (eraserMarkedShapeIdsRef.current.has(shapeId)) {
-						eraserMarkedShapeIdsRef.current.delete(shapeId);
-					} else {
-						eraserMarkedShapeIdsRef.current.add(shapeId);
-					}
+					eraserMarkedShapeIdsRef.current.add(shapeId);
 				}
 				eraserTouchLatchRef.current = touchedNow;
 			};
 
-			const toggleEraserMarksAlongSegment = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+			const markTouchedObjectsAlongSegment = (start: { x: number; y: number }, end: { x: number; y: number }) => {
 				const dx = end.x - start.x;
 				const dy = end.y - start.y;
 				const distance = Math.hypot(dx, dy);
@@ -2292,7 +2346,7 @@ export default function Canvas() {
 					const t = i / steps;
 					const sampleX = start.x + dx * t;
 					const sampleY = start.y + dy * t;
-					toggleEraserMarksAtPoint(sampleX, sampleY);
+					markTouchedObjectsAtPoint(sampleX, sampleY);
 				}
 			};
 
@@ -2788,11 +2842,16 @@ export default function Canvas() {
 				s.push();
 				s.translate(viewRef.current.offsetX, viewRef.current.offsetY);
 				s.scale(viewRef.current.scale);
+				const applyErasePreviewStyle = () => {
+					const context = s.drawingContext as CanvasRenderingContext2D;
+					context.globalAlpha = 0.62;
+					context.filter = "grayscale(1) brightness(0.75)";
+				};
 				for (const shape of shapesRef.current) {
 					const isMarkedForErase = eraserMarkedShapeIdsRef.current.has(shape.id);
 					if (isMarkedForErase) {
 						s.push();
-						(s.drawingContext as CanvasRenderingContext2D).globalAlpha = 0.35;
+						applyErasePreviewStyle();
 					}
 
 					drawShape(shape, {
@@ -2804,7 +2863,7 @@ export default function Canvas() {
 						s.pop();
 					}
 				}
-				if (draftShapeRef.current) {
+				if (draftShapeRef.current && draftShapeRef.current.kind !== "eraser") {
 					drawShape(draftShapeRef.current, {
 						isSelected: false,
 						isHovered: false,
@@ -2812,6 +2871,20 @@ export default function Canvas() {
 					});
 				}
 				for (const remoteDraftShape of remoteDraftsRef.current.values()) {
+					if (remoteDraftShape.kind === "eraser") {
+						const touchedIds = getTouchedShapeIdsFromEraserPath(remoteDraftShape.points, remoteDraftShape.strokeWeight);
+						for (const shape of shapesRef.current) {
+							if (!touchedIds.has(shape.id)) continue;
+							s.push();
+							applyErasePreviewStyle();
+							drawShape(shape, {
+								isSelected: selectedShapeIdsRef.current.has(shape.id),
+								isHovered: shape.id === hoveredShapeIdRef.current,
+							});
+							s.pop();
+						}
+						continue;
+					}
 					s.push();
 					(s.drawingContext as CanvasRenderingContext2D).globalAlpha = 0.45;
 					drawShape(remoteDraftShape, {
@@ -2853,6 +2926,7 @@ export default function Canvas() {
 			};
 
 			s.mousePressed = (event: MouseEvent) => {
+								if (canvasEntryBlockedRef.current) return;
 				if (settingsRef.current.isAnyColorPickerOpen) {
 					dragStartRef.current = null;
 					marqueeSelectionStartRef.current = null;
@@ -2912,7 +2986,7 @@ export default function Canvas() {
 			if (settingsRef.current.tool === "eraser") {
 				eraserTouchLatchRef.current = new Set();
 				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
-				toggleEraserMarksAtPoint(worldPoint.x, worldPoint.y);
+				markTouchedObjectsAtPoint(worldPoint.x, worldPoint.y);
 				draftShapeRef.current = {
 					kind: "eraser",
 					id: generateShapeId(),
@@ -3093,6 +3167,7 @@ export default function Canvas() {
 			};
 
 				s.mouseDragged = (event: MouseEvent) => {
+										if (canvasEntryBlockedRef.current) return;
 					if (settingsRef.current.isAnyColorPickerOpen) return;
 					if ((event.buttons & 1) === 0) return;
 			if (!dragStartRef.current) return;
@@ -3123,9 +3198,9 @@ export default function Canvas() {
 			if (settingsRef.current.tool === "eraser") {
 				const previousPoint = eraserLastPointRef.current;
 				if (previousPoint) {
-					toggleEraserMarksAlongSegment(previousPoint, worldPoint);
+					markTouchedObjectsAlongSegment(previousPoint, worldPoint);
 				} else {
-					toggleEraserMarksAtPoint(worldPoint.x, worldPoint.y);
+					markTouchedObjectsAtPoint(worldPoint.x, worldPoint.y);
 				}
 				eraserLastPointRef.current = { x: worldPoint.x, y: worldPoint.y };
 				if (draftShapeRef.current && draftShapeRef.current.kind === "eraser") {
@@ -3139,7 +3214,7 @@ export default function Canvas() {
 						lastDraftEmitAtRef.current = now;
 					}
 				}
-					emitCursorFromPointer(worldPoint.x, worldPoint.y, true);
+				emitCursorFromPointer(worldPoint.x, worldPoint.y, true);
 				return;
 			}
 
@@ -3275,6 +3350,7 @@ export default function Canvas() {
 			};
 
 			s.mouseReleased = () => {
+								if (canvasEntryBlockedRef.current) return;
 				
 				if (settingsRef.current.isAnyColorPickerOpen) {
 					dragStartRef.current = null;
@@ -3438,7 +3514,9 @@ export default function Canvas() {
   }, []);
 
   return (
-		<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+		<div className="mx-auto min-h-screen w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+			<AppTopbar />
+			<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 			<div
 				ref={controlsRef}
 				style={{
@@ -3451,9 +3529,9 @@ export default function Canvas() {
 			>
 				<div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center" }}>
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Canvas</span>
+						<span style={controlNameStyle}>Canvas: {canvasName.trim() || "Canvas"}</span>
 						<span style={controlFieldStyle}>
-							<button type="button" onClick={clearCanvasAndBroadcast} style={{ width: "80px" }}>
+							<button type="button" onClick={clearCanvasAndBroadcast} style={clearButtonStyle} disabled={canvasEntryBlocked}>
 								Clear
 							</button>
 						</span>
@@ -3522,19 +3600,20 @@ export default function Canvas() {
 						</span>
 					</label>
 
-					<label style={controlLabelStyle}>
+					<div style={controlLabelStyle}>
 						<span style={controlNameStyle}>Fill Shape</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="checkbox"
 								checked={fill}
+								style={fillToggleStyle}
 								onChange={(event) => {
 									setFill(event.target.checked);
 									markDirty();
 								}}
 							/>
 						</span>
-					</label>
+					</div>
 
 					<label style={controlLabelStyle}>
 						<span style={controlNameStyle}>Text Font</span>
@@ -3596,7 +3675,38 @@ export default function Canvas() {
 				{saveStatus}
 			</div>
 			<div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "10px", alignItems: "stretch" }}>
-					<div ref={canvasHostRef} style={{ minHeight: "320px", border: "1px solid var(--border)", borderRadius: 8 }} />
+					<div style={{ position: "relative" }}>
+						<div
+							ref={canvasHostRef}
+							style={{
+								minHeight: "320px",
+								border: "1px solid var(--border)",
+								borderRadius: 8,
+								opacity: canvasEntryBlocked ? 0.6 : 1,
+								pointerEvents: canvasEntryBlocked ? "none" : "auto",
+							}}
+						/>
+						{canvasEntryBlocked ? (
+							<div
+								style={{
+									position: "absolute",
+									inset: 0,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									fontSize: "14px",
+									fontWeight: 600,
+									color: "#7f1d1d",
+									background: "rgba(255,255,255,0.65)",
+									borderRadius: 8,
+									textAlign: "center",
+									padding: "12px",
+								}}
+							>
+								Canvas locked: this account already has this canvas open in another window.
+							</div>
+						) : null}
+					</div>
 					<CanvasChatSidebar
 						canvasName={canvasName}
 						members={members}
@@ -3611,6 +3721,7 @@ export default function Canvas() {
 						onSend={handleSendChat}
 					/>
 				</div>
+			</div>
     </div>
   );
 }

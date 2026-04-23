@@ -2,6 +2,7 @@ import { FormEvent, useContext, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
+import { AppTopbar } from "./components/AppTopbar";
 
 type ChatBubble = {
     from: string;
@@ -13,8 +14,9 @@ export function ChatPage() {
     const { user } = useContext(AuthContext);
     const [searchParams] = useSearchParams();
     const friendIdParam = searchParams.get("friendId");
-    const friendNameParam = searchParams.get("name") ?? "";
-    const initialTarget = friendNameParam;
+    const conversationIdParam = searchParams.get("conversationId");
+    const chatNameParam = searchParams.get("name") ?? "";
+    const initialTarget = chatNameParam;
 
     const [target, setTarget] = useState(initialTarget);
     const [text, setText] = useState("");
@@ -68,12 +70,12 @@ export function ChatPage() {
 
                 if (cancelled) return;
 
-                const displayName = friendNameParam || data.name || `User ${friendId}`;
+                const displayName = chatNameParam || data.name || `User ${friendId}`;
                 setConversationId(Number(data.id));
                 setTarget(displayName);
                 setMessages([]);
                 setPeerTyping(null);
-                setStatus(`Chatting with ${displayName}`);
+                setStatus(` ${displayName}`);
             } catch {
                 if (!cancelled) {
                     setStatus("Network error while opening conversation");
@@ -90,7 +92,27 @@ export function ChatPage() {
         return () => {
             cancelled = true;
         };
-    }, [friendIdParam, friendNameParam, user?.name]);
+    }, [friendIdParam, chatNameParam, user?.name]);
+
+    useEffect(() => {
+        if (friendIdParam) return;
+        if (!conversationIdParam) return;
+
+        const existingConversationId = Number(conversationIdParam);
+        if (!Number.isInteger(existingConversationId) || existingConversationId <= 0) {
+            setStatus("Invalid conversationId in URL");
+            return;
+        }
+
+        const displayName = chatNameParam || `Conversation ${existingConversationId}`;
+        setConversationLoading(true);
+        setConversationId(existingConversationId);
+        setTarget(displayName);
+        setMessages([]);
+        setPeerTyping(null);
+        setStatus(`Chatting in ${displayName}`);
+        setConversationLoading(false);
+    }, [friendIdParam, conversationIdParam, chatNameParam]);
 
     useEffect(() => {
         if (!conversationId) return;
@@ -144,8 +166,8 @@ export function ChatPage() {
 
         socketRef.current = socket;
 
-        socket.on("connect", () => setStatus("Connected"));
-        socket.on("disconnect", () => setStatus("Disconnected"));
+        socket.on("connect", () => setStatus(""));
+        socket.on("disconnect", () => setStatus("disconnected"));
 
         socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
             const normalizedIncoming = Number(incomingConversationId);
@@ -194,7 +216,7 @@ export function ChatPage() {
 
         typingTimeoutRef.current = window.setTimeout(() => {
             if (!socketRef.current) return;
-            socketRef.current.emit("typing", { to: cleanTarget, isTyping: false });
+            socketRef.current.emit("conversation-typing", { conversationId, isTyping: false });
             typingTimeoutRef.current = null;
         }, 900);
     };
@@ -218,20 +240,10 @@ export function ChatPage() {
     };
 
     return (
-        <div id="center">
-            <div className="card" style={{ maxWidth: 700 }}>
-                <h2 style={{ marginBottom: 10 }}>Direct Chat</h2>
-
-                <p style={{ color: "var(--ink3)", marginBottom: 12 }}>
-                    {target ? `Talking to: ${target}` : "Open this page from your friends list."}
-                </p>
-
-                {status && (
-                    <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>
-                        {status}
-                    </p>
-                )}
-
+        <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+            <AppTopbar />
+            <div className="card" style={{ maxWidth: 700, margin: "0 auto" }}>
+                <h2 style={{ marginBottom: 10 }}>{friendIdParam ? `${target}` : "Conversation"}</h2>
                 <div
                     style={{
                         border: "1px solid var(--border)",
@@ -264,7 +276,16 @@ export function ChatPage() {
                             }}
                         >
                             <p style={{ fontSize: "0.7rem", color: "var(--ink3)", marginBottom: 4 }}>{message.from}</p>
-                            <p>{message.text}</p>
+                            <p
+                                style={{
+                                    maxWidth: "30ch",
+                                    whiteSpace: "pre-wrap",
+                                    overflowWrap: "anywhere",
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {message.text}
+                            </p>
                         </div>
                     ))}
                 </div>
