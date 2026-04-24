@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 import { createSharedCanvas } from "./utils/sharedCanvas";
+import LanguageSwitcher from "./components/i18n";
+import { useTranslation } from "react-i18next";
 
 type Friend = {
   id: number;
@@ -19,6 +21,7 @@ type Conversation = {
 };
 
 export function GroupChatsPage() {
+  const {t} = useTranslation();
   const { user } = useContext(AuthContext);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -128,22 +131,23 @@ export function GroupChatsPage() {
             <div className="user-avatar">{initials}</div>
             {user?.name}
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>{t("CO_dashboard")}</button>
+          {/* <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
             {theme === "dark" ? "☀" : "☾"}
-          </button>
+          </button> */}
+          <LanguageSwitcher />
         </div>
       </header>
 
       <main className="dashboard-body">
         <div className="page-title fade-up">
-          <h1>Group Chats</h1>
-          <p>Create groups and chat with multiple friends.</p>
+          <h1>{t("GCS_group_chats")}</h1>
+          <p>{t("GCS_create_groups")}</p>
         </div>
 
         <div className="section-card fade-up fade-up-1">
           <div className="section-card-header">
-            <h3>Create Group</h3>
+            <h3>{t("GCS_create_group")}</h3>
           </div>
 
           {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
@@ -157,7 +161,7 @@ export function GroupChatsPage() {
             />
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {friends.length === 0 && <p style={{ color: "var(--ink3)" }}>You need friends to create a group.</p>}
+              {friends.length === 0 && <p style={{ color: "var(--ink3)" }}>{t("GCS_you_need_friends")}</p>}
               {friends.map((friend) => (
                 <label key={friend.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input
@@ -171,19 +175,19 @@ export function GroupChatsPage() {
             </div>
 
             <button className="btn btn-primary" onClick={createGroup} disabled={loading}>
-              {loading ? "Creating..." : "Create Group"}
+              {loading ? t("GCS_creating") : t("GCS_create")}
             </button>
           </div>
         </div>
 
         <div className="section-card fade-up fade-up-2">
           <div className="section-card-header">
-            <h3>My Groups</h3>
-            <button className="btn btn-ghost btn-sm" onClick={loadData} disabled={loading}>Refresh</button>
+            <h3>{t("GCS_my_groups")}</h3>
+            <button className="btn btn-ghost btn-sm" onClick={loadData} disabled={loading}>{t("GCS_refresh")}</button>
           </div>
 
           {conversations.length === 0 && !loading && (
-            <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>No groups yet.</p>
+            <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>{t("GCS_no_groups")}</p>
           )}
 
           {conversations.length > 0 && (
@@ -205,7 +209,7 @@ export function GroupChatsPage() {
                     <div>
                       <p style={{ marginBottom: 4, fontWeight: 600 }}>{title}</p>
                       <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>
-                        {conversation.members.length} members
+                        {conversation.members.length} {t("GCS_members")}
                       </p>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
@@ -213,7 +217,7 @@ export function GroupChatsPage() {
                         className="btn btn-primary btn-sm"
                         onClick={() => navigate(`/chat?conversationId=${conversation.id}&name=${encodeURIComponent(title)}`)}
                       >
-                        Open Chat
+                        {t("GCS_open_chat")}
                       </button>
                       <button
                         className="btn btn-ghost btn-sm"
@@ -221,7 +225,7 @@ export function GroupChatsPage() {
                         disabled={loading}
                         style={{ color: "var(--error)" }}
                       >
-                        {conversation.role === "owner" ? "Delete" : "Leave"}
+                        {conversation.role === "owner" ? t("GCS_delete"): t("GCS_leave")}
                       </button>
                     </div>
                   </div>

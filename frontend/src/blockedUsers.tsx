@@ -4,6 +4,8 @@ import { useTheme } from './ThemeContext';
 import { Avatar } from './Avatar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 
 type BlockedUser = {
     id: number;
@@ -15,6 +17,7 @@ type BlockedUser = {
 };
 
 export function BlockedUsersPage() {
+    const {t} = useTranslation();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
@@ -101,40 +104,41 @@ export function BlockedUsersPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
-                            ← Profile
+                            {t("BLU_prof")}
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
+                            {t("BLU_dash")}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                        {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                             {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
+                        </Button> */}
+                        <LanguageSwitcher />
                     </div>
                 </div>
             </header>
 
             <main className="space-y-5">
                 <div>
-                    <h1 className="font-display text-3xl">Blocked Users</h1>
-                    <p className="mt-1 text-sm text-muted">Manage users you have blocked.</p>
+                    <h1 className="font-display text-3xl">{t("BLU_blocked")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("BLU_manage")}</p>
                 </div>
 
                 <Card>
                     <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-                        <CardTitle className="text-base">Blocked list</CardTitle>
+                        <CardTitle className="text-base">{t("BLU_list")}</CardTitle>
                         <Button variant="outline" size="sm" onClick={loadBlockedUsers} disabled={loading}>
-                            {loading ? 'Refreshing...' : 'Refresh'}
+                            {loading ? t("BLU_refreshing") : t("BLU_refresh")}
                         </Button>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
 
-                        {loading && <p className="text-sm text-muted">Loading blocked users...</p>}
+                        {loading && <p className="text-sm text-muted">{t("BLU_loading")}</p>}
 
                         {!loading && blockedUsers.length === 0 && (
                             <div className="rounded-md border border-border bg-surface2 px-4 py-5 text-center">
-                                <p className="text-sm font-medium text-ink">You have no blocked users.</p>
-                                <p className="mt-1 text-xs text-muted">When you block someone, they will appear here.</p>
+                                <p className="text-sm font-medium text-ink">{t("BLU_no_blocked")}</p>
+                                <p className="mt-1 text-xs text-muted">{t("BLU_when")}</p>
                             </div>
                         )}
 
@@ -158,7 +162,7 @@ export function BlockedUsersPage() {
                                                 size="sm"
                                             onClick={() => navigate(`/users/${blockedUser.id}`)}
                                             >
-                                                View profile
+                                                {t("BLU_view")}
                                             </Button>
                                             <Button
                                                 variant="outline"
@@ -166,7 +170,7 @@ export function BlockedUsersPage() {
                                             onClick={() => handleUnblock(blockedUser.id)}
                                             disabled={actionLoadingId === blockedUser.id}
                                             >
-                                                {actionLoadingId === blockedUser.id ? 'Unblocking...' : 'Unblock'}
+                                                {actionLoadingId === blockedUser.id ? t("BLU_unblocking") : t("BLU_unblock")}
                                             </Button>
                                         </div>
                                     </div>

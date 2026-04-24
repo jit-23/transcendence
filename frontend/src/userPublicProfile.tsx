@@ -5,6 +5,8 @@ import { useTheme } from './ThemeContext';
 import { Avatar } from './Avatar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 
 type PublicProfile = {
     id: number;
@@ -17,6 +19,7 @@ type PublicProfile = {
 };
 
 export function UserPublicProfilePage() {
+    const {t} = useTranslation();
     const { user } = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
@@ -267,30 +270,31 @@ export function UserPublicProfilePage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-                            ← Back
+                            {t("UPF_back")}
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
+                            {t("UPF_dash")}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                        {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                             {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
+                        </Button> */}
+                        <LanguageSwitcher />
                     </div>
                 </div>
             </header>
 
             <main className="space-y-5">
                 <div>
-                    <h1 className="font-display text-3xl">User Profile</h1>
-                    <p className="mt-1 text-sm text-muted">View profile information</p>
+                    <h1 className="font-display text-3xl">{t("UPF_prof")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("UPF_view")}</p>
                 </div>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Public details</CardTitle>
+                        <CardTitle className="text-base">{t("UPF_public")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {loading && <p className="text-sm text-muted">Loading profile...</p>}
+                        {loading && <p className="text-sm text-muted">{t("UPF_loading")}</p>}
 
                         {!loading && error && (
                             <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>
@@ -306,10 +310,10 @@ export function UserPublicProfilePage() {
                                 <div className="min-w-[220px] flex-1">
                                     <p className="font-display text-xl font-semibold leading-tight text-ink">{profile.name}</p>
                                     <p className="mt-1 text-sm text-muted">{profile.email}</p>
-                                    <p className="mt-1 text-xs text-muted">Joined {new Date(profile.createdAt).toLocaleDateString()}</p>
+                                    <p className="mt-1 text-xs text-muted">{t("UPF_joined")} {new Date(profile.createdAt).toLocaleDateString()}</p>
 
                                     {profile.blockedByUser && (
-                                        <p className="mt-3 text-sm text-red-400">You are blocked by this user.</p>
+                                        <p className="mt-3 text-sm text-red-400">{t("UPF_blocked")}</p>
                                     )}
 
                                     <div className="mt-4 flex flex-wrap gap-2">
@@ -320,7 +324,7 @@ export function UserPublicProfilePage() {
                                                 onClick={handleUnblock}
                                                 disabled={actionLoading}
                                             >
-                                                {actionLoading ? 'Unblocking...' : 'Unblock'}
+                                                {actionLoading ? t("UPF_unblocking") : t("UPF_block")}
                                             </Button>
                                         ) : profile.blockedByUser ? null : isFriend ? (
                                             <>
@@ -329,7 +333,7 @@ export function UserPublicProfilePage() {
                                                     onClick={handleMessage}
                                                     disabled={actionLoading}
                                                 >
-                                                    Message
+                                                    {t("UPF_message")}
                                                 </Button>
                                                 <Button
                                                     variant="outline"
@@ -337,7 +341,7 @@ export function UserPublicProfilePage() {
                                                     onClick={handleUnfriend}
                                                     disabled={actionLoading}
                                                 >
-                                                    {actionLoading ? 'Removing...' : 'Remove friend'}
+                                                    {actionLoading ? t("UPF_removing") : t("UPF_remove")}
                                                 </Button>
                                                 <Button
                                                     variant="outline"
@@ -345,7 +349,7 @@ export function UserPublicProfilePage() {
                                                     onClick={handleBlock}
                                                     disabled={actionLoading}
                                                 >
-                                                    Block
+                                                    {t("UPF_block")}
                                                 </Button>
                                             </>
                                         ) : (
@@ -355,7 +359,7 @@ export function UserPublicProfilePage() {
                                                     onClick={handleAddFriend}
                                                     disabled={actionLoading || requestPending}
                                                 >
-                                                    {requestPending ? '✓ Requested' : (actionLoading ? 'Sending...' : 'Add friend')}
+                                                    {requestPending ? t("UPF_request") : (actionLoading ? t("UPF_sending") : t("UPF_add"))}
                                                 </Button>
                                                 <Button
                                                     variant="outline"
@@ -363,7 +367,7 @@ export function UserPublicProfilePage() {
                                                     onClick={handleBlock}
                                                     disabled={actionLoading}
                                                 >
-                                                    Block
+                                                    {t("UPF_block2")}
                                                 </Button>
                                             </>
                                         )}

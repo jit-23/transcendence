@@ -5,6 +5,8 @@ import { useTheme } from "./ThemeContext";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Input } from "./components/ui/input";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/i18n";
 
 interface SearchResult {
     id: number;
@@ -14,6 +16,7 @@ interface SearchResult {
 }
 
 export function SearchFriends() {
+    const {t} = useTranslation();
     const { user } = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
@@ -118,33 +121,34 @@ export function SearchFriends() {
                             {user?.name}
                         </div>
                         <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
+                            {t("FRS_dashboard")}
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
-                            Profile
+                            {t("FRS_profile")}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                        {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                             {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
+                        </Button> */}
+                        <LanguageSwitcher />
                     </div>
                 </div>
             </header>
 
             <main className="space-y-5">
                 <div>
-                    <h1 className="font-display text-3xl">Search for Friends</h1>
-                    <p className="mt-1 text-sm text-muted">Find users by username or email.</p>
+                    <h1 className="font-display text-3xl">{t("FRS_search")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("FRS_find")}</p>
                 </div>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Search</CardTitle>
+                        <CardTitle className="text-base">{t("FRS_search_button")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <form onSubmit={handleSearch} className="flex gap-2">
                             <Input
                                 type="text"
-                                placeholder="Search by username or email..."
+                                placeholder={t("FRS_search_user")}
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 className="flex-1"
@@ -154,7 +158,7 @@ export function SearchFriends() {
                                 type="submit"
                                 disabled={loading}
                             >
-                                {loading ? 'Searching...' : 'Search'}
+                                {loading ? t("FRS_searching") : t("FRS_search_button")}
                             </Button>
                         </form>
 
@@ -170,7 +174,7 @@ export function SearchFriends() {
                     <Card>
                         <CardContent className="pt-6 text-center">
                             <p className="text-sm text-muted">
-                            {error ? 'No results found' : 'No users match your search'}
+                            {error ? t("FRS_no_results") : t("FRS_no_user_match")}
                             </p>
                         </CardContent>
                     </Card>
@@ -179,7 +183,7 @@ export function SearchFriends() {
                 {results.length > 0 && (
                     <Card>
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Results ({results.length})</CardTitle>
+                            <CardTitle className="text-base">{t("FRS_results")} ({results.length})</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
@@ -202,14 +206,14 @@ export function SearchFriends() {
                                             size="sm"
                                             onClick={() => navigate(`/users/${result.id}`)}
                                         >
-                                            Profile
+                                            {t("FRS_profile")}
                                         </Button>
                                         <Button
                                             size="sm"
                                             onClick={() => handleSendRequest(result.id)}
                                             disabled={pendingRequests.has(result.id)}
                                         >
-                                            {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
+                                            {pendingRequests.has(result.id) ? t("FRS_requested") : t("FRS_add")}
                                         </Button>
                                     </div>
                                 </div>

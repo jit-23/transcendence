@@ -15,7 +15,7 @@ export const changeLanguage = (): void => {
 
 i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 	debug: true,
-	lng: "pt",
+	lng: "en",
 	resources: {
 		en: {
 			translation: {
@@ -189,30 +189,30 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 				CO_group_chat: "Group Chats",
 
 				//groupChats
-				group_chats_gcs: "Group Chats",
-				create_groups_gcs: "Create groups and chat with multiple friends.",
-				create_group_gcs: "Create Group",
-				you_need_friends_gcs: "You need friends to create a group",
-				creating_gcs: "Creating...",
-				create_button_gcs: "Create Group",
-				refresh_gcs: "Refresh",
-				no_groups_gcs: "No groups yet.",
-				members_gcs: "members",
-				open_chat_gcs: "Open Chat",
+				GCS_group_chats: "Group Chats",
+				GCS_create_groups: "Create groups and chat with multiple friends.",
+				GCS_create_group: "Create Group",
+				GCS_you_need_friends: "You need friends to create a group",
+				GCS_creating: "Creating...",
+				GCS_create: "Create Group",
+				GCS_refresh: "Refresh",
+				GCS_no_groups: "No groups yet.",
+				GCS_members: "members",
+				GCS_open_chat: "Open Chat",
 				
 				//searchFriends
-				dashboard_friends: "Dashboard",
-				profile_friends: "Profile",
-				search_friends: "Search for Friends",
-				find_friends: "Find users by username or email",
-				search_user: "Search by username or email...",
-				searching_friends: "Searching...",
-				search_button: "Search",
-				no_results_friends: "No results found",
-				no_user_match_friends: "No users match your search",
-				results_friends: "Results",
-				requested_friends: "✓ Requested",
-				add_friends: "+ Add",
+				FRS_dashboard: "Dashboard",
+				FRS_profile: "Profile",
+				FRS_search: "Search for Friends",
+				FRS_find: "Find users by username or email",
+				FRS_search_user: "Search by username or email...",
+				FRS_searching: "Searching...",
+				FRS_search_button: "Search",
+				FRS_no_results: "No results found",
+				FRS_no_user_match: "No users match your search",
+				FRS_results: "Results",
+				FRS_requested: "✓ Requested",
+				FRS_add: "+ Add",
 
 				//OTHERS...... to translate....................
 				SU_8chars: "8+ characters",
@@ -321,8 +321,162 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 				CVS_no_friends: "No friends available to invite.",
 				CVS_inviting: "Inviting...",
 
-				CV_save: "Saving..."
-			},
+				CV_save: "Saving...",
+
+				GCS_my_groups: "My groups",
+				GCS_delete: "Delete",
+				GCS_leave: "Leave",
+
+				BLU_prof: "← Profile",
+				BLU_dash: "Dashboard",
+				BLU_blocked: "Blocked Users",
+				BLU_manage: "Manage users you have blocked.",
+				BLU_list: "Blocked list",
+				BLU_refreshing: "Refreshing...",
+				BLU_refresh: "Refresh",
+				BLU_loading: "Loading blocked users...",
+				BLU_no_blocked: "You have no blocked users.",
+				BLU_when: "When you block someone, they will appear here.",
+				BLU_view: "View profile",
+				BLU_unblocking: "Unblocking...",
+				BLU_unblock: "Unblock",
+
+				UPF_back: "← Back",
+				UPF_dash: "Dashboard",
+				UPF_prof: "User Profile",
+				UPF_view: "View profile information",
+				UPF_public: "Public details",
+				UPF_loading: "Loading profile...",
+				UPF_joined: "Joined",
+				UPF_blocked: "You are blocked by this user.",
+				UPF_unblocking: "Unblocking...",
+				UPF_unblock: "Unblocked",
+				UPF_message: "Message",
+				UPF_removing: "Removing...",
+				UPF_remove: "Remove friend",
+				UPF_block: "Block",
+				UPF_request: "✓ Requested",
+				UPF_sending: "Sending...",
+				UPF_add: "Add friend",
+				UPF_block2: "Block",
+
+
+
+				//PRIVACY
+				privacy_priv: "Privacy Policy",
+				privacy_last: "Last Updated: April 13, 2026",
+				privacy_back: "← Back to home",
+				privacy_details: "Policy details",
+				privacy_1: "1. Introduction\n\
+					This Privacy Policy explains how Transcendence (\"we,\" \"us,\" \"our,\" or \"Company\") \
+					collects, uses, discloses, and otherwise processes personal information in connection \
+					with our website, mobile applications, and services (collectively, the \"Services\"). \
+					Please read this Privacy Policy carefully. If you do not agree with our policies and practices, \
+					please do not use our Services.\n\n",
+				privacy_2: "2. Information We Collect\n\
+					2.1 Information You Provide Directly\n\
+					We may collect account information such as your name, email address, password, and profile information when you register; authentication information if you use OAuth 2.0 authentication through Google or 42 School; communication data such as messages, conversations, and chat content; canvas data such as content, drawings, and collaborative information related to our canvas features; and user preferences such as your account settings, theme preferences, and notification preferences.\n\
+					2.2 Information Collected Automatically\n\
+					We may collect device information such as device type, operating system, and browser type; usage data such as pages visited, features used, actions taken, and time spent on the Services; IP address and approximate geographic location; and cookies and similar tracking technologies used to track user activity and preferences.\n\
+					2.3 Third-Party Information\n\
+					We may receive information from OAuth providers such as Google and 42 School, as well as information other users provide about you when using our Services, such as friend requests or mentions in conversations.\n\n",
+				privacy_3: "3. How We Use Your Information\n\
+					We use the information we collect to provide, maintain, and improve the Services; create and manage your account; send service-related announcements and respond to your inquiries; customize your experience and deliver personalized content; understand how users interact with our Services and improve functionality; detect, prevent, and address fraud and security issues; comply with applicable laws and regulations; and monitor system performance and user activity through Prometheus metrics.\n\n",
+				privacy_4: "4. How We Share Your Information\n\
+					4.1 Information Sharing\n\
+					We may share your information with canvas collaborators and friends who can see your profile information and shared content; with service providers who assist us in operating the Services and conducting our business; when required by law or in response to legal process; if we merge with or are acquired by another company; with limited information to enforce user blocking features; and with other users for information you choose to make public.\n\
+					4.2 Information We Do Not Share\n\
+					We do not sell or rent your personal information to third parties. We do not share passwords or authentication credentials. We do not share private messages without your consent unless required by law.\n\n",
+				privacy_5: "5. Data Security\n\
+					We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.\n\n",
+				privacy_6: "6. Data Retention\n\
+					We retain your personal information for as long as your account is active or as necessary to provide the Services. When you delete your account, we will delete or anonymize your information within 30 days, except where we are required to retain it by law or for legitimate business purposes.\n\n",
+				privacy_7: "7. Two-Factor Authentication\n\
+					We offer two-factor authentication (2FA) to enhance account security. Enabling 2FA adds an additional layer of protection to your account using time-based one-time passwords (TOTP).\n\n",
+				privacy_8: "8. User Control and Rights\n\
+					You have the right to access and review your personal information through your account settings, update or correct inaccurate information, request deletion of your account and associated data, request a copy of your data in a portable format, and withdraw consent for specific processing activities. To exercise these rights, please contact us using the information in Section 10.\n\n",
+				privacy_9: "9. Children&apos;s Privacy\n\
+					Our Services are not intended for children under 13 years of age, and we do not knowingly collect personal information from children under 13. If we become aware that we have collected information from a child under 13, we will take steps to delete such information.\n\n",
+				privacy_10: "10. Contact Us\n\
+					If you have questions about this Privacy Policy or our privacy practices, please contact us at: Email: privacy@transcendence.local. Address: Transcendence Services, 42 School, Paris, France.\n\n",
+				privacy_11: "11. Changes to This Privacy Policy\n\
+					We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy and changing the \"Last Updated\" date. Your continued use of the Services following the posting of changes constitutes your acceptance of those changes.\n\n",
+				privacy_12: "End of Privacy Policy",
+
+				
+				//TERMS
+				terms_terms: "Terms of Service",
+				terms_last: "Last Updated: April 13, 2026",
+				terms_back: "← Back to home",
+				terms_serv: "Service terms",
+				terms_1: "1. Acceptance of Terms\n\
+					By accessing and using Transcendence (\"Service,\" \"we,\" \"us,\" \"our,\" or \"Company\"), you agree to be bound by these Terms of Service. If you do not agree to these terms, you may not access or use the Service. We reserve the right to modify these terms at any time, and your continued use of the Service following modifications constitutes your acceptance of the modified terms.\n\n",
+				terms_2: "2. Use License\n\
+					2.1 Grant of License\n\
+					We grant you a limited, non-exclusive, revocable license to access and use the Service for lawful purposes only, subject to your compliance with these Terms of Service.\n\
+					2.2 Restrictions\n\
+					You agree not to reproduce, distribute, or transmit any content without proper authorization. You agree not to modify, adapt, translate, or create derivative works based on the Service. You agree not to reverse engineer, decompile, or attempt to discover the source code or underlying technology. You agree not to use the Service for any illegal or unauthorized purpose. You agree not to introduce viruses, malware, or other malicious code. You agree not to attempt to gain unauthorized access to the Service or its systems. You agree not to harass, abuse, defame, or threaten other users. You agree not to spam or send unsolicited messages. You agree not to use automated tools (bots, scrapers) without authorization. You agree not to circumvent security measures or access restrictions.\n\n",
+				terms_3: "3. User Accounts\n\
+					3.1 Account Registration\n\
+					To access certain features of the Service, you must create an account. You are responsible for maintaining the confidentiality of your password and account information. You agree to provide accurate, current, and complete information during registration and to update such information as necessary.\n\
+					3.2 Account Security\n\
+					You are responsible for all activities that occur under your account. You agree to immediately notify us of any unauthorized use of your account or any other breach of security.\n\
+					3.3 Account Termination\n\
+					We reserve the right to suspend or terminate your account if we determine that you have violated these Terms of Service or engaged in illegal or harmful behavior.\n\n",
+				terms_4: "4. Authentication\n\
+					4.1 OAuth 2.0\n\
+					The Service supports authentication through Google OAuth 2.0 and 42 School OAuth 2.0. When you use OAuth authentication, you are granting us permission to access the information from those services as indicated by the authorization prompts.\n\
+					4.2 Two-Factor Authentication\n\
+					We strongly recommend enabling two-factor authentication (2FA) for enhanced security. You are responsible for managing and protecting your 2FA credentials (TOTP codes).\n\n",
+				terms_5: "5. User Content\n\
+					5.1 Content Ownership\n\
+					You retain all rights to content you create and upload to the Service (\"Your Content\"). By uploading content, you grant us a worldwide, non-exclusive, royalty-free license to use, copy, modify, and display Your Content for the purpose of operating and improving the Service.\n\
+					5.2 Content Standards\n\
+					Your Content must not violate any applicable law or regulation, infringe upon intellectual property rights of third parties, contain defamatory, obscene, offensive, or harmful material, constitute spam or unsolicited promotion, or contain personal information of others without consent.\n\
+					5.3 Moderation\n\
+					We reserve the right to remove, edit, or refuse to publish any content that violates these Terms of Service or applicable laws.\n\n",
+				terms_6: "6. Canvas and Collaborative Features\n\
+					6.1 Canvas Sharing\n\
+					When you share a canvas with other users, those users gain access rights as specified by you. You are responsible for managing canvas permissions.\n\
+					6.2 Collaborative Responsibility\n\
+					Users who collaborate on a canvas agree to respect intellectual property rights and not use the collaborative features for harassment or abuse.\n\
+					6.3 Canvas Data\n\
+					Canvases and associated data may be stored on our servers. While we implement security measures, we are not liable for data loss or unauthorized access.\n\n",
+				terms_7: "7. Communications and Chat\n\
+					7.1 Privacy of Messages\n\
+					Private messages between users are intended to be private. However, we may access messages for security, legal, or abuse prevention purposes.\n\
+					7.2 Conversation Records\n\
+					Conversations may be temporarily stored on our servers for service delivery purposes. You may delete your conversations at any time.\n\
+					7.3 Blocking and Reporting\n\
+					You can block other users to prevent them from contacting you. If you experience harassment or abuse, you can report users to our moderation team.\n\n",
+				terms_8: "8. Limitation of Liability\n\
+					8.1 No Consequential Damages\n\
+					To the fullest extent permitted by law, we shall not be liable for indirect, incidental, special, consequential, or punitive damages, or for loss of profits, revenue, data, or business opportunity.\n\
+					8.2 Liability Cap\n\
+					Our total liability to you for all claims arising from these Terms of Service shall not exceed $100 or the amounts you have paid to us in the 12 months preceding the claim, whichever is greater.\n\n",
+				terms_9: "9. User Conduct\n\
+					You agree to use the Service only for lawful purposes and in ways that do not infringe upon the rights of others. Prohibited behavior includes harassing or threatening other users, attempting unauthorized access, collecting personal information without consent, and violating applicable laws.\n\n",
+				terms_10: "10. Dispute Resolution\n\
+					10.1 Governing Law\n\
+					These Terms of Service are governed by and construed in accordance with the laws of France, without regard to its conflict of law principles.\n\
+					10.2 Informal Resolution\n\
+					Before pursuing formal dispute resolution, you agree to attempt to resolve disputes informally by contacting us.\n\n",
+				terms_11: "11. Termination\n\
+					11.1 Termination by You\n\
+					You may terminate your account at any time by contacting us or using account settings.\n\
+					11.2 Termination by Us\n\
+					We may suspend or terminate your access to the Service immediately if we determine that you have violated these Terms of Service or engaged in illegal or harmful behavior.\n\n",
+				terms_12: "12. Contact Information\n\
+					For questions about these Terms of Service, please contact us at: Email: legal@transcendence.local. Address: Transcendence Services, 42 School, Paris, France.\n\n",
+				terms_13: "13. Entire Agreement\n\
+					These Terms of Service, together with our Privacy Policy, constitute the entire agreement between you and us regarding the Service.\n\n",
+				terms_14: "BY USING THE SERVICE, YOU ACKNOWLEDGE THAT YOU HAVE READ THESE TERMS OF SERVICE, UNDERSTAND THEM, AND AGREE TO BE BOUND BY THEM.`;\n\n",
+
+
+
+
+
+				},
 		},
 		pt: {
 			// translation: {
