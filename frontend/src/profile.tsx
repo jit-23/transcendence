@@ -9,8 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolicy';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 
 export function ProfilePage() {
+    const {t} = useTranslation();
     const { user, refreshUser }  = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
@@ -130,35 +133,36 @@ export function ProfilePage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            ← Dashboard
+                            {t("dashboard_prof")}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                        {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                             {theme === 'dark' ? '☀' : '☾'}
-                        </Button>
+                        </Button> */}
+                        <LanguageSwitcher />
                     </div>
                 </div>
             </header>
 
             <main className="space-y-5">
                 <div>
-                    <h1 className="font-display text-3xl">Profile Settings</h1>
-                    <p className="mt-1 text-sm text-muted">Manage your account details, avatar, and security preferences.</p>
+                    <h1 className="font-display text-3xl">{t("PF_settings")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("PF_manage")}</p>
                 </div>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Quick actions</CardTitle>
+                        <CardTitle className="text-base">{t("PF_quick")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-2 sm:grid-cols-3">
                             <Button type="button" onClick={() => setShowPicker(true)}>
-                                Change avatar
+                                {t("PF_avatar")}
                             </Button>
                             <Button variant="outline" type="button" onClick={() => navigate('/profile/blocked')}>
-                                Blocked users
+                                {t("PF_blocked")}
                             </Button>
                             <Button variant="outline" type="button" onClick={() => navigate('/dashboard')}>
-                                Dashboard
+                                {t("PF_dash")}
                             </Button>
                         </div>
                     </CardContent>
@@ -170,7 +174,7 @@ export function ProfilePage() {
                             <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface2 p-3">
                                 <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={60} />
                                 <div>
-                                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Current avatar</p>
+                                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{t("PF_curr_avatar")}</p>
                                     <p className="text-sm font-semibold text-ink">{user?.name}</p>
                                     <p className="text-xs text-muted">{user?.email}</p>
                                     <Button
@@ -180,7 +184,7 @@ export function ProfilePage() {
                                         type="button"
                                         onClick={() => setShowPicker(true)}
                                     >
-                                        Change avatar
+                                        {t("PF_avatar")}
                                     </Button>
                                 </div>
                             </div>
@@ -197,7 +201,7 @@ export function ProfilePage() {
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Account Details</CardTitle>
+                        <CardTitle className="text-base">{t("PF_account")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {success && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">{success}</div>}
@@ -205,17 +209,17 @@ export function ProfilePage() {
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Identity</p>
+                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("PF_identity")}</p>
                                 <div className="space-y-3">
                                     <div className="space-y-1.5">
-                                        <Label>Username</Label>
+                                        <Label>{t("PF_username")}</Label>
                                         <Input
                                             type="text"
                                             value={username}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value.replace(/\s+/g, ''))}
                                         />
-                                        <p className="text-xs text-muted">Spaces aren’t allowed in usernames.</p>
-                                        {usernameHasSpaces && <p className="text-xs text-red-400">Username cannot contain spaces.</p>}
+                                        <p className="text-xs text-muted">{t("SU_spaces_not")}</p>
+                                        {usernameHasSpaces && <p className="text-xs text-red-400">{t("SU_user_cannot")}</p>}
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label>Email</Label>
@@ -227,36 +231,36 @@ export function ProfilePage() {
                             <div className="h-px bg-border" />
 
                             <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Password</p>
+                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("SU_password")}</p>
                                 <div className="space-y-3">
                                     <div className="space-y-1.5">
-                                        <Label>New Password</Label>
+                                        <Label>{t("PF_new_pass")}</Label>
                                         <Input
                                             type="password"
-                                            placeholder="8+ chars, upper, lower, number, symbol"
+                                            placeholder={t("SU_pass_place")}
                                             value={newPassword}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                                         />
                                         <div className="space-y-1 text-xs text-muted">
-                                            <p>Password rules:</p>
+                                            <p>{t("PF_pass_rules")}</p>
                                             <ul className="grid gap-1 sm:grid-cols-2">
-                                                <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• 8+ characters</li>
-                                                <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• 1 uppercase letter</li>
-                                                <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• 1 lowercase letter</li>
-                                                <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• 1 number</li>
-                                                <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• 1 symbol</li>
+                                                <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• {t("SU_8chars")}</li>
+                                                <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• {t("SU_1up")}</li>
+                                                <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• {t("SU_1low")}</li>
+                                                <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• {t("SU_1num")}</li>
+                                                <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• {t("SU_1sym")}</li>
                                             </ul>
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label>Confirm New Password</Label>
+                                        <Label>{t("confirm_new_pass")}</Label>
                                         <Input
                                             type="password"
-                                            placeholder="Repeat new password"
+                                            placeholder={t("PF_repeat_new")}
                                             value={confirmNew}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmNew(e.target.value)}
                                         />
-                                        {passwordMismatch && <p className="text-xs text-red-400">Passwords do not match.</p>}
+                                        {passwordMismatch && <p className="text-xs text-red-400">{t("PF_pass_mismatch")}</p>}
                                         {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
                                     </div>
                                 </div>
@@ -265,14 +269,14 @@ export function ProfilePage() {
                             <div className="h-px bg-border" />
 
                             <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Verification</p>
+                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("PF_verification")}</p>
                                 <div className="space-y-1.5">
                                     <Label>
-                                        Current Password <span className="text-red-400">required</span>
+                                        {t("PF_curr_pass")} <span className="text-red-400">{t("PF_pass_req")}</span>
                                     </Label>
                                     <Input
                                         type="password"
-                                        placeholder="Required to save any changes"
+                                        placeholder={t("PF_req_save")}
                                         value={currentPassword}
                                         onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
                                         required
@@ -282,14 +286,14 @@ export function ProfilePage() {
 
                             <div className="flex flex-wrap gap-2">
                                 <Button type="submit" disabled={!canSubmit}>
-                                    {loading ? 'Saving...' : 'Save Changes'}
+                                    {loading ? t("PF_saving_change") : t("PF_save_change")}
                                 </Button>
                                 <Button type="button" variant="outline" onClick={() => navigate('/dashboard')}>
-                                    Cancel
+                                    {t("PF_cancel")}
                                 </Button>
                             </div>
-                            {!hasChanges && <p className="text-xs text-muted">Make a change to enable saving.</p>}
-                            {hasChanges && !currentPassword.trim() && <p className="text-xs text-muted">Enter your current password to save changes.</p>}
+                            {!hasChanges && <p className="text-xs text-muted">{t("PF_make")}</p>}
+                            {hasChanges && !currentPassword.trim() && <p className="text-xs text-muted">{t("PF_curr_pass_save")}</p>}
                         </form>
                     </CardContent>
                 </Card>

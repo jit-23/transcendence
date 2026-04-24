@@ -1,6 +1,7 @@
 import { Friend } from "./types";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { useTranslation } from "react-i18next";
 
 type FriendsCardProps = {
   friends: Friend[];
@@ -23,12 +24,13 @@ export function FriendsCard({
   onChat,
   onUnfriend,
 }: FriendsCardProps) {
+  const {t} = useTranslation();
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-base">My Friends</CardTitle>
+        <CardTitle className="text-base">{t("FRC_my_friends")}</CardTitle>
         <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
-          {loading ? "Loading..." : "Refresh"}
+          {loading ? t("FRC_loading") : t("FRC_refresh")}
         </Button>
       </CardHeader>
 
@@ -36,7 +38,7 @@ export function FriendsCard({
         {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
 
         {!loading && friends.length === 0 && (
-          <p className="text-sm text-muted">You do not have friends yet.</p>
+          <p className="text-sm text-muted">{t("FRC_no_friends")}</p>
         )}
 
         {friends.length > 0 && (
@@ -52,10 +54,10 @@ export function FriendsCard({
 
                 <div className="flex gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => onViewProfile(friend.id)}>
-                    Profile
+                    {t("FRC_profile")}
                   </Button>
                   <Button size="sm" onClick={() => onChat(friend)}>
-                    Chat
+                    {t("FRC_chat")}
                   </Button>
                   <Button
                     variant="outline"
@@ -63,7 +65,7 @@ export function FriendsCard({
                     onClick={() => onUnfriend(friend.id)}
                     disabled={unfriendingId === friend.id}
                   >
-                    {unfriendingId === friend.id ? "Removing..." : "Unfriend"}
+                    {unfriendingId === friend.id ? t("FRC_remove") : t("FRC_unfriend")}
                   </Button>
                 </div>
               </div>

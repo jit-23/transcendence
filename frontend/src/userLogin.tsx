@@ -127,7 +127,7 @@ export function     LoginForm() {
                         whiteboard
                     </div>
                     <div className="text-center">
-                        <CardTitle>{needs2FA ? t("LI_two_auth"): t("sign_in_workspace")}</CardTitle>
+                        <CardTitle>{needs2FA ? t("LI_two_auth"): t("LI_sign_in_workspace")}</CardTitle>
                         <CardDescription className="mt-1">{t("LI_secure")}</CardDescription>
                     </div>
                 </CardHeader>
@@ -175,12 +175,12 @@ export function     LoginForm() {
                             </div>
 
                             <Button type="submit" className="w-full" disabled={loading || !!oauthLoading}>
-                                {loading ? t("signing_in") : t("sign_in_confirm")}
+                                {loading ? t("LI_signing_in") : t("LI_sign_in_confirm")}
                             </Button>
 
                             <div className="flex items-center gap-3 text-xs text-muted">
                                 <span className="h-px flex-1 bg-border" />
-                                or
+                                {t("LI_or")}
                                 <span className="h-px flex-1 bg-border" />
                             </div>
 
@@ -225,7 +225,7 @@ export function     LoginForm() {
                         </form>
                     ) : (
                         <div className="space-y-4">
-                            <p className="text-sm text-muted">{t("open_auth_app")}</p>
+                            <p className="text-sm text-muted">{t("LI_open_auth_app")}</p>
                             <div className="space-y-1.5">
                                 <Label>{t("auth_code")}</Label>
                                 <Input
@@ -268,8 +268,8 @@ export function     LoginForm() {
                     )}
 
                     <p className="pt-2 text-center text-sm text-muted">
-                        {t("dont_have_acc")}{' '}
-                        <Link to="/signup" className="text-ink underline underline-offset-4">{t("create_one")}</Link>
+                        {t("LI_dont_have_acc")}{' '}
+                        <Link to="/signup" className="text-ink underline underline-offset-4">{t("LI_create_one")}</Link>
                     </p>
                 </CardContent>
             </Card>

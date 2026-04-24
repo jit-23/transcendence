@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 type Canvas = {
   id: number;
@@ -48,6 +49,7 @@ export function CanvasesCard({
   onOpenInviteCanvas,
   onInviteFriend,
 }: CanvasesCardProps) {
+  const {t} = useTranslation();
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
   const [creatingCanvas, setCreatingCanvas] = React.useState(false);
@@ -72,14 +74,14 @@ export function CanvasesCard({
   return (
     <div className="section-card fade-up fade-up-2">
       <div className="section-card-header">
-        <h3>Your Canvases</h3>
+        <h3>{t("CVS_your_canvases")}</h3>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => setShowNameInput(true)}
             disabled={canvases.length >= 3 || canvasesLoading}
           >
-            {canvasesLoading ? "Loading..." : canvases.length >= 3 ? "Max 3 Canvases" : "Add Canvas"}
+            {canvasesLoading ? t("CVS_loading_canvases") : canvases.length >= 3 ? t("CVS_max_3_canvases") : t("CVS_add_canvas")}
           </button>
         </div>
       </div>
@@ -89,7 +91,7 @@ export function CanvasesCard({
           <div style={{ display: "flex", gap: 8 }}>
             <input
               type="text"
-              placeholder="Canvas name (optional)"
+              placeholder={t("CVS_canvas_name_opt")}
               value={newCanvasName}
               onChange={(e) => setNewCanvasName(e.target.value)}
               onKeyDown={(e) => {
@@ -115,7 +117,7 @@ export function CanvasesCard({
               }}
               disabled={canvasesLoading || creatingCanvas}
             >
-              {creatingCanvas ? "Creating..." : "Create"}
+              {creatingCanvas ? t("CVS_creating_canvas") : t("CVS_create_canvas")}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -124,7 +126,7 @@ export function CanvasesCard({
                 setNewCanvasName("");
               }}
             >
-              Cancel
+              {t("CVS_delete_canvas")}
             </button>
           </div>
         </div>
@@ -180,7 +182,7 @@ export function CanvasesCard({
                     onClick={() => onOpenInviteCanvas(inviteCanvasId === canvas.id ? null : canvas.id)}
                     style={{ marginTop: 4, fontSize: "0.75rem" }}
                   >
-                    {inviteCanvasId === canvas.id ? "Close Invite" : "Invite"}
+                    {inviteCanvasId === canvas.id ? t("CVS_close_invite") : t("CVS_invite")}
                   </button>
                 )}
 
@@ -190,7 +192,7 @@ export function CanvasesCard({
                     {friendsError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{friendsError}</div>}
                     {friendsLoading && <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>Loading friends...</p>}
                     {!friendsLoading && friends.length === 0 && (
-                      <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>No friends available to invite.</p>
+                      <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>{t("CVS_no_friends")}</p>
                     )}
                     {!friendsLoading && friends.length > 0 && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -203,7 +205,7 @@ export function CanvasesCard({
                             style={{ justifyContent: "space-between", fontSize: "0.72rem" }}
                           >
                             <span>{friend.name}</span>
-                            <span>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
+                            <span>{invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}</span>
                           </button>
                         ))}
                       </div>
@@ -218,7 +220,7 @@ export function CanvasesCard({
 
       {canvases.length === 0 && !showNameInput && (
         <div style={{ marginTop: 12, textAlign: "center", color: "var(--ink-secondary)" }}>
-          <p>No canvases yet. Create one to get started!</p>
+          <p>{t("CVS_no_canvas")}</p>
         </div>
       )}
     </div>
