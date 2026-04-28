@@ -128,7 +128,7 @@ export function SignupForm() {
                         whiteboard
                     </div>
                     <div className="text-center">
-                        <CardTitle>{step === 'credentials' ? t("create_account") : t("choose_avatar")}</CardTitle>
+                        <CardTitle>{step === 'credentials' ? t("SU_create_account") : t("SU_choose_avatar")}</CardTitle>
                         <CardDescription className="mt-1">{t("SU_fast_setup")}</CardDescription>
                     </div>
                     <div className="mx-auto flex w-fit gap-2">

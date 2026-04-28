@@ -133,7 +133,7 @@ export function ProfilePage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            {t("dashboard_prof")}
+                            {t("PF_dashboard")}
                         </Button>
                         {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                             {theme === 'dark' ? '☀' : '☾'}
@@ -253,7 +253,7 @@ export function ProfilePage() {
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label>{t("confirm_new_pass")}</Label>
+                                        <Label>{t("PF_confirm_new_pass")}</Label>
                                         <Input
                                             type="password"
                                             placeholder={t("PF_repeat_new")}

@@ -227,7 +227,7 @@ export function     LoginForm() {
                         <div className="space-y-4">
                             <p className="text-sm text-muted">{t("LI_open_auth_app")}</p>
                             <div className="space-y-1.5">
-                                <Label>{t("auth_code")}</Label>
+                                <Label>{t("LI_auth_code")}</Label>
                                 <Input
                                     type="text"
                                     inputMode="numeric"
@@ -253,7 +253,7 @@ export function     LoginForm() {
                                 <p className="text-xs text-muted">{t("LI_tip_code")}</p>
                             </div>
                             <Button className="w-full" type="button" onClick={handle2FA} disabled={!tempToken || loading}>
-                                {loading ? t("verifying") : t("verify")}
+                                {loading ? t("LI_verifying") : t("LI_verify")}
                             </Button>
                             <Button
                                 className="w-full"
@@ -262,7 +262,7 @@ export function     LoginForm() {
                                 onClick={() => { setNeeds2FA(false); setError(null); setCode(''); }}
                                 disabled={loading}
                             >
-                                {t("back_to_login")}
+                                {t("LI_back_to_login")}
                             </Button>
                         </div>
                     )}
