@@ -198,13 +198,22 @@ export function CanvasesCard({
                   {canvas.name}
                 </button>
                 {canManageCanvas && (
-                  <button
-                    className="btn btn-ghost btn-xs"
-                    onClick={() => onDeleteCanvas(canvas.id)}
-                    style={{ color: "var(--error)", fontSize: "0.75rem" }}
-                  >
-                    Delete
-                  </button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => onOpenInviteCanvas(canvas.id)}
+                      style={{ flex: 1, fontSize: "0.75rem" }}
+                    >
+                      Invite Friends
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => onDeleteCanvas(canvas.id)}
+                      style={{ color: "var(--error)", fontSize: "0.75rem" }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 )}
 
                 {canvas.isOwner && inviteCanvasId === canvas.id && (

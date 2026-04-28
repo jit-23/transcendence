@@ -8,6 +8,8 @@ interface User {
 	email: string;
 	twoFactorEnabled: boolean;
 	avatar?: string | null;
+	hasPassword?: boolean;
+	hasOAuthLogin?: boolean;
 }
 
 interface AuthContextType {

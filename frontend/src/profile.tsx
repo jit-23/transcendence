@@ -28,14 +28,17 @@ export function ProfilePage() {
     const [success, setSuccess]                 = useState<string | null>(null);
     const [error, setError]                     = useState<string | null>(null);
 
-    const hasIdentityChanges = username !== (user?.name ?? '') || email !== (user?.email ?? '');
+    const canChangePassword = user?.hasPassword !== false;
+    const canChangeEmail = user?.hasOAuthLogin !== true;
+    const hasIdentityChanges = username !== (user?.name ?? '') || (canChangeEmail && email !== (user?.email ?? ''));
     const hasPasswordChange = newPassword.length > 0 || confirmNew.length > 0;
     const hasChanges = hasIdentityChanges || hasPasswordChange;
     const passwordMismatch = !!newPassword && newPassword !== confirmNew;
     const passwordChecks = getPasswordChecks(newPassword);
     const passwordPolicyError = newPassword ? getPasswordPolicyError(newPassword) : null;
     const usernameHasSpaces = /\s/.test(username.trim());
-    const canSubmit = hasChanges && !passwordMismatch && !passwordPolicyError && !usernameHasSpaces && !!currentPassword.trim() && !loading;
+    const needsCurrentPassword = canChangePassword && hasPasswordChange;
+    const canSubmit = hasChanges && !passwordMismatch && !passwordPolicyError && !usernameHasSpaces && (!needsCurrentPassword || !!currentPassword.trim()) && !loading;
 
     const closePasswordModal = () => {
         setShowPasswordModal(false);
@@ -76,10 +79,20 @@ export function ProfilePage() {
             return;
         }
 
+        if (newPassword && !canChangePassword) {
+            setError('Password changes are not supported for this account.');
+            return;
+        }
+
         if (newPassword) {
             const policyError = getPasswordPolicyError(newPassword);
             if (policyError) {
                 setError(policyError);
+                return;
+            }
+
+            if (!currentPassword.trim()) {
+                setError('Current password is required to change your password.');
                 return;
             }
         }
@@ -89,12 +102,15 @@ export function ProfilePage() {
             return;
         }
 
-        const body: Record<string, string> = { currentPassword };
+        const body: Record<string, string> = {};
         if (username !== user?.name)  body.username    = username;
-        if (email    !== user?.email) body.email       = email;
-        if (newPassword)              body.newPassword = newPassword;
+        if (canChangeEmail && email !== user?.email) body.email = email;
+        if (newPassword) {
+            body.currentPassword = currentPassword;
+            body.newPassword = newPassword;
+        }
 
-        if (Object.keys(body).length === 1) {
+        if (Object.keys(body).length === 0) {
             setError("Change at least one field");
             return;
         }
@@ -163,15 +179,6 @@ export function ProfilePage() {
                                     <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Current avatar</p>
                                     <p className="text-sm font-semibold text-ink">{user?.name}</p>
                                     <p className="text-xs text-muted">{user?.email}</p>
-                                    <Button
-                                        className="mt-2"
-                                        variant="outline"
-                                        size="sm"
-                                        type="button"
-                                        onClick={() => setShowPicker(true)}
-                                    >
-                                        Change avatar
-                                    </Button>
                                 </div>
                             </div>
                         ) : (
@@ -209,36 +216,56 @@ export function ProfilePage() {
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label>Email</Label>
-                                        <Input type="email" value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} />
+                                        <Input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                                            disabled={!canChangeEmail}
+                                        />
+                                        {!canChangeEmail && (
+                                            <p className="text-xs text-muted">Email is managed by your OAuth provider and can’t be changed here.</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="h-px bg-border" />
+                            {canChangePassword ? (
+                                <>
+                                    <div className="h-px bg-border" />
 
-                            <div className="flex justify-start">
-                                <Button type="button" variant="outline" onClick={() => setShowPasswordModal(true)}>
-                                    Change password
-                                </Button>
-                            </div>
+                                    <div className="flex justify-start">
+                                        <Button type="button" variant="outline" onClick={() => setShowPasswordModal(true)}>
+                                            Change password
+                                        </Button>
+                                    </div>
 
-                            <div className="h-px bg-border" />
-
-                            <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Verification</p>
-                                <div className="space-y-1.5">
-                                    <Label>
-                                        Current Password <span className="text-red-400">required</span>
-                                    </Label>
-                                    <Input
-                                        type="password"
-                                        placeholder="Required to save any changes"
-                                        value={currentPassword}
-                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                            </div>
+                                    {hasPasswordChange && (
+                                        <>
+                                            <div className="h-px bg-border" />
+                                            <div>
+                                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Verification</p>
+                                                <div className="space-y-1.5">
+                                                    <Label>
+                                                        Current Password <span className="text-red-400">required</span>
+                                                    </Label>
+                                                    <Input
+                                                        type="password"
+                                                        placeholder="Required to change password"
+                                                        value={currentPassword}
+                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
+                                                        required={hasPasswordChange}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="h-px bg-border" />
+                                    <p className="text-xs text-muted">This account uses OAuth sign-in. Password changes are not available.</p>
+                                </>
+                            )}
 
                             <div className="flex flex-wrap gap-2">
                                 <Button type="submit" disabled={!canSubmit}>
@@ -249,7 +276,7 @@ export function ProfilePage() {
                                 </Button>
                             </div>
                             {!hasChanges && <p className="text-xs text-muted">Make a change to enable saving.</p>}
-                            {hasChanges && !currentPassword.trim() && <p className="text-xs text-muted">Enter your current password to save changes.</p>}
+                            {needsCurrentPassword && !currentPassword.trim() && <p className="text-xs text-muted">Enter your current password to change your password.</p>}
                         </form>
                     </CardContent>
                 </Card>
