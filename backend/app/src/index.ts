@@ -29,8 +29,11 @@ const allowedOrigins = new Set([
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
     if (allowedOrigins.has(origin)) return callback(null, true);
+    console.error(`CORS blocked for origin: ${origin}`);
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -65,7 +68,6 @@ try {
     cert: fs.readFileSync(certPath)
   };
   server = https.createServer(options, app);
-  console.log("SSL certificates loaded successfully");
 } catch (err: any) {
   console.error("✗ Failed to load SSL certificates:", err.message);
   console.error("Cert path:", certPath);
@@ -74,15 +76,11 @@ try {
 }
 
 server.listen(PORT, () => { 
-  console.log("SSL server connected on port", PORT);
-  console.log("CORS enabled for origins:", Array.from(allowedOrigins).join(', '));
 });
 
 setupChatSocket(server, prisma);
 
 process.on("SIGINT", async () => {
-  console.log("\nStopping the server...");
   await prisma.$disconnect();
-  console.log("Prisma disconnected.");
   process.exit(0);
 });

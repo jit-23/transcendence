@@ -49,14 +49,16 @@ type Tool =
 	| "rectangle"
 	| "rounded-rectangle"
 	| "circle"
+	| "circle-text"
 	| "freehand"
+	| "highlighter"
 	| "eraser"
 	| "text"
 	| "textbox"
 	| "rounded-textbox"
 	| "cursor";
 
-type TextShapeKind = "text" | "textbox" | "rounded-textbox";
+type TextShapeKind = "text" | "textbox" | "rounded-textbox" | "circle-text";
 type TextFont = "Arial" | "Georgia" | "Courier New";
 
 type LineShape = {
@@ -199,7 +201,7 @@ const generateShapeId = () => {
 
 const isTextShape = (shape: Shape | null | undefined): shape is TextShape => {
 	if (!shape) return false;
-	return shape.kind === "text" || shape.kind === "textbox" || shape.kind === "rounded-textbox";
+	return shape.kind === "text" || shape.kind === "textbox" || shape.kind === "rounded-textbox" || shape.kind === "circle-text";
 };
 
 const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6): boolean => {
@@ -273,7 +275,8 @@ const isPointInShape = (px: number, py: number, shape: Shape, hitTolerance = 6):
 
 		case "text":
 		case "textbox":
-		case "rounded-textbox": {
+		case "rounded-textbox":
+		case "circle-text": {
 			const minX = Math.min(shape.x1, shape.x2);
 			const maxX = Math.max(shape.x1, shape.x2);
 			const minY = Math.min(shape.y1, shape.y2);
@@ -360,6 +363,7 @@ const getConstrainedDraftEndPoint = (
 		case "text":
 		case "textbox":
 		case "rounded-textbox":
+		case "circle-text":
 			return getEqualSizeEndPoint(start, end);
 		default:
 			return end;
@@ -448,6 +452,7 @@ const moveShape = (shape: Shape, deltaX: number, deltaY: number): Shape => {
 		case "rectangle":
 		case "rounded-rectangle":
 		case "circle":
+		case "circle-text":
 		case "text":
 		case "textbox":
 		case "rounded-textbox":
@@ -486,6 +491,23 @@ const getShapeBounds = (shape: Shape): Bounds => {
 				maxY = Math.max(maxY, point.y);
 			}
 			return { minX, minY, maxX, maxY };
+		}
+		case "circle-text": {
+			const rawMinX = Math.min(shape.x1, shape.x2);
+			const rawMaxX = Math.max(shape.x1, shape.x2);
+			const rawMinY = Math.min(shape.y1, shape.y2);
+			const rawMaxY = Math.max(shape.y1, shape.y2);
+			const rawWidth = Math.max(1, rawMaxX - rawMinX);
+			const rawHeight = Math.max(1, rawMaxY - rawMinY);
+			const circleSide = Math.min(rawWidth, rawHeight);
+			const centerX = (rawMinX + rawMaxX) / 2;
+			const centerY = (rawMinY + rawMaxY) / 2;
+			return {
+				minX: centerX - circleSide / 2,
+				minY: centerY - circleSide / 2,
+				maxX: centerX + circleSide / 2,
+				maxY: centerY + circleSide / 2,
+			};
 		}
 		default:
 			return {
@@ -609,6 +631,19 @@ const resizeShapeFromBounds = (shape: Shape, sourceBounds: Bounds, targetBounds:
 				y1: p1.y,
 				x2: p2.x,
 				y2: p2.y,
+			};
+		}
+		case "circle-text": {
+			const targetSize = getBoundsSize(targetBounds);
+			const squareSize = Math.min(targetSize.width, targetSize.height);
+			const centerX = (targetBounds.minX + targetBounds.maxX) / 2;
+			const centerY = (targetBounds.minY + targetBounds.maxY) / 2;
+			return {
+				...shape,
+				x1: centerX - squareSize / 2,
+				y1: centerY - squareSize / 2,
+				x2: centerX + squareSize / 2,
+				y2: centerY + squareSize / 2,
 			};
 		}
 		default: {
@@ -2250,6 +2285,22 @@ export default function Canvas() {
 		initializedSketchRef.current = true;
 		let removeWheelListener: (() => void) | null = null;
 		let removeDoubleClickListener: (() => void) | null = null;
+		const createP5Instance = () => {
+			const motionEventTypes = new Set(["deviceorientation", "devicemotion"]);
+			const originalAddEventListener = window.addEventListener;
+			window.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
+				if (motionEventTypes.has(type)) {
+					return undefined;
+				}
+				return originalAddEventListener.call(window, type, listener, options);
+			}) as typeof window.addEventListener;
+
+			try {
+				return new p5(sketch);
+			} finally {
+				window.addEventListener = originalAddEventListener;
+			}
+		};
 
     const sketch = (s: p5) => {
 			const resizeToViewport = () => {
@@ -2277,15 +2328,25 @@ export default function Canvas() {
 			};
 
 			const getTextBoxLayout = (shape: TextShape) => {
-				const minX = Math.min(shape.x1, shape.x2);
-				const maxX = Math.max(shape.x1, shape.x2);
-				const minY = Math.min(shape.y1, shape.y2);
-				const maxY = Math.max(shape.y1, shape.y2);
-				const boxWidth = Math.max(1, maxX - minX);
-				const boxHeight = Math.max(1, maxY - minY);
-				const padding = Math.max(4, Math.min(12, boxWidth * 0.05));
-				const textSize = Math.max(12, shape.strokeWeight * 4);
-				const lineHeight = textSize * 1.25;
+				const rawMinX = Math.min(shape.x1, shape.x2);
+				const rawMaxX = Math.max(shape.x1, shape.x2);
+				const rawMinY = Math.min(shape.y1, shape.y2);
+				const rawMaxY = Math.max(shape.y1, shape.y2);
+				const rawWidth = Math.max(1, rawMaxX - rawMinX);
+				const rawHeight = Math.max(1, rawMaxY - rawMinY);
+				const isCircleText = shape.kind === "circle-text";
+				const boxSide = isCircleText ? Math.min(rawWidth, rawHeight) : rawWidth;
+				const boxWidth = isCircleText ? Math.max(1, boxSide) : rawWidth;
+				const boxHeight = isCircleText ? Math.max(1, boxSide) : rawHeight;
+				const centerX = (rawMinX + rawMaxX) / 2;
+				const centerY = (rawMinY + rawMaxY) / 2;
+				const minX = isCircleText ? centerX - boxWidth / 2 : rawMinX;
+				const maxX = isCircleText ? centerX + boxWidth / 2 : rawMaxX;
+				const minY = isCircleText ? centerY - boxHeight / 2 : rawMinY;
+				const maxY = isCircleText ? centerY + boxHeight / 2 : rawMaxY;
+				const padding = Math.max(4, Math.min(12, Math.min(boxWidth, boxHeight) * 0.08));
+				const textSize = Math.max(12, Math.min(shape.strokeWeight * 4, Math.min(boxWidth, boxHeight) * 0.28));
+				const lineHeight = textSize * 1.2;
 				return {
 					minX,
 					maxX,
@@ -2293,9 +2354,12 @@ export default function Canvas() {
 					maxY,
 					boxWidth,
 					boxHeight,
+					centerX,
+					centerY,
 					padding,
 					textSize,
 					lineHeight,
+					isCircleText,
 				};
 			};
 
@@ -2309,12 +2373,17 @@ export default function Canvas() {
 				const lines = wrapTextToWidth(s, contentBeforeCaret, Math.max(1, layout.boxWidth - layout.padding * 2));
 				const lineIndex = Math.max(0, lines.length - 1);
 				const lineText = lines[lineIndex] ?? "";
-				const x = layout.minX + layout.padding + s.textWidth(lineText);
+				const lineWidth = s.textWidth(lineText);
+				const x = layout.isCircleText ? layout.centerX - (layout.boxWidth - layout.padding * 2) / 2 + layout.padding + lineWidth : layout.minX + layout.padding + lineWidth;
 				s.pop();
 
 				return {
-					x: Math.min(layout.maxX - layout.padding, Math.max(layout.minX + layout.padding, x)),
-					y: layout.minY + layout.padding + lineIndex * layout.lineHeight,
+					x: layout.isCircleText
+						? x
+						: Math.min(layout.maxX - layout.padding, Math.max(layout.minX + layout.padding, x)),
+					y: layout.isCircleText
+						? layout.centerY - (lines.length * layout.lineHeight) / 2 + lineIndex * layout.lineHeight
+						: layout.minY + layout.padding + lineIndex * layout.lineHeight,
 					textSize: layout.textSize,
 				};
 			};
@@ -2722,7 +2791,7 @@ export default function Canvas() {
 					return;
 				}
 
-				if (shape.kind === "text" || shape.kind === "textbox" || shape.kind === "rounded-textbox") {
+				if (shape.kind === "text" || shape.kind === "textbox" || shape.kind === "rounded-textbox" || shape.kind === "circle-text") {
 					const layout = getTextBoxLayout(shape);
 					const isEditing = editingTextShapeIdRef.current === shape.id;
 					const selection = textSelectionRangeRef.current;
@@ -2757,17 +2826,31 @@ export default function Canvas() {
 						);
 					}
 
+					if (shape.kind === "circle-text") {
+						s.noFill();
+						s.stroke(isEditing ? "#f59e0b" : shape.color);
+						s.strokeWeight(Math.max(1, shape.strokeWeight));
+						s.ellipseMode(s.CORNERS);
+						s.ellipse(layout.minX, layout.minY, layout.maxX, layout.maxY);
+					}
+
 					s.push();
 					const context = s.drawingContext as CanvasRenderingContext2D;
 					context.save();
 					context.beginPath();
-					context.rect(layout.minX + 1, layout.minY + 1, layout.boxWidth - 2, layout.boxHeight - 2);
+					if (layout.isCircleText) {
+						const clipRadiusX = Math.max(1, layout.boxWidth / 2 - 1);
+						const clipRadiusY = Math.max(1, layout.boxHeight / 2 - 1);
+						context.ellipse(layout.centerX, layout.centerY, clipRadiusX, clipRadiusY, 0, 0, Math.PI * 2);
+					} else {
+						context.rect(layout.minX + 1, layout.minY + 1, layout.boxWidth - 2, layout.boxHeight - 2);
+					}
 					context.clip();
 					s.textAlign(s.LEFT, s.TOP);
 					s.textFont(shape.font || DEFAULT_TEXT_FONT);
 					s.textSize(layout.textSize);
 
-					if (hasSelection) {
+					if (hasSelection && !layout.isCircleText) {
 						s.noStroke();
 						s.fill("rgba(59,130,246,0.25)");
 						s.rectMode(s.CORNERS);
@@ -2784,10 +2867,18 @@ export default function Canvas() {
 
 					const displayText = shape.content.length > 0 ? shape.content : isEditing || isDraft ? "Type here..." : "";
 					const lines = wrapTextToWidth(s, displayText, Math.max(1, layout.boxWidth - layout.padding * 2));
+					const totalTextHeight = lines.length * layout.lineHeight;
+					const startY = layout.isCircleText ? layout.centerY - totalTextHeight / 2 : layout.minY + layout.padding;
 					for (let index = 0; index < lines.length; index += 1) {
-						const lineY = layout.minY + layout.padding + index * layout.lineHeight;
+						const line = lines[index]!;
+						const lineY = startY + index * layout.lineHeight;
 						if (lineY > layout.maxY - layout.padding) break;
-						s.text(lines[index]!, layout.minX + layout.padding, lineY);
+						if (layout.isCircleText) {
+							const lineWidth = s.textWidth(line);
+							s.text(line, layout.centerX - lineWidth / 2, lineY);
+						} else {
+							s.text(line, layout.minX + layout.padding, lineY);
+						}
 					}
 
 					if (isEditing && !hasSelection && Math.floor(s.millis() / 500) % 2 === 0) {
@@ -2865,7 +2956,8 @@ export default function Canvas() {
 						settingsRef.current.tool === "cursor" ||
 						settingsRef.current.tool === "text" ||
 						settingsRef.current.tool === "textbox" ||
-						settingsRef.current.tool === "rounded-textbox";
+						settingsRef.current.tool === "rounded-textbox" ||
+						settingsRef.current.tool === "circle-text";
 					if (!canEditText) return;
 					const canvasRect = renderer.elt.getBoundingClientRect();
 					const worldPoint = screenToWorld(event.clientX - canvasRect.left, event.clientY - canvasRect.top);
@@ -2992,17 +3084,17 @@ export default function Canvas() {
 				if ((event.buttons & 1) === 0) return;
 				if (s.mouseX < 0 || s.mouseX > s.width || s.mouseY < 0 || s.mouseY > s.height) return;
 				const worldPoint = screenToWorld(s.mouseX, s.mouseY);
-				const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
-				const isEditingText =
-					isTextShape(clickedShape) &&
-					(
-						settingsRef.current.tool === "cursor" ||
-						settingsRef.current.tool === "text" ||
-						settingsRef.current.tool === "textbox" ||
-						settingsRef.current.tool === "rounded-textbox"
-					);
-
-				if (!isEditingText) {
+			const clickedShape = findShapeAtPoint(worldPoint.x, worldPoint.y);
+			const isEditingText =
+				isTextShape(clickedShape) &&
+				clickedShape.kind !== "circle-text" &&
+				(
+					settingsRef.current.tool === "cursor" ||
+					settingsRef.current.tool === "text" ||
+					settingsRef.current.tool === "textbox" ||
+					settingsRef.current.tool === "rounded-textbox" ||
+					settingsRef.current.tool === "circle-text"
+				);				if (!isEditingText) {
 					stopTextEditing();
 				}
 
@@ -3011,12 +3103,14 @@ export default function Canvas() {
 				if (
 					clickedShape &&
 					isTextShape(clickedShape) &&
+					clickedShape.kind !== "circle-text" &&
 					editingTextShapeIdRef.current === clickedShape.id &&
 					(
 						settingsRef.current.tool === "cursor" ||
 						settingsRef.current.tool === "text" ||
 						settingsRef.current.tool === "textbox" ||
-						settingsRef.current.tool === "rounded-textbox"
+						settingsRef.current.tool === "rounded-textbox" ||
+						settingsRef.current.tool === "circle-text"
 					)
 				) {
 					textCaretIndexRef.current = getClosestTextCaretIndex(clickedShape, worldPoint);
@@ -3179,10 +3273,24 @@ export default function Canvas() {
 					return;
 				}
 
+				if (settingsRef.current.tool === "highlighter") {
+					draftShapeRef.current = {
+						kind: "freehand",
+						id: generateShapeId(),
+						points: [{ x: worldPoint.x, y: worldPoint.y }],
+						color: "rgba(250, 204, 21, 0.35)",
+						strokeWeight: 12,
+						angle: 0,
+					} as FreeHandShape;
+					emitDraftShape(draftShapeRef.current);
+					return;
+				}
+
 				if (
 					settingsRef.current.tool === "text" ||
 					settingsRef.current.tool === "textbox" ||
-					settingsRef.current.tool === "rounded-textbox"
+					settingsRef.current.tool === "rounded-textbox" ||
+					settingsRef.current.tool === "circle-text"
 				) {
 					draftShapeRef.current = {
 						kind: settingsRef.current.tool,
@@ -3499,6 +3607,8 @@ export default function Canvas() {
 				}
 
 				const shapeToCommit = { ...draftShapeRef.current };
+				// Minimal size enforcement
+				const MIN_SIZE = 8;
 				if (isTextShape(shapeToCommit)) {
 					const dragDistance = Math.hypot(shapeToCommit.x2 - shapeToCommit.x1, shapeToCommit.y2 - shapeToCommit.y1);
 					const minimumTextDragDistance = 3 / viewRef.current.scale;
@@ -3518,6 +3628,28 @@ export default function Canvas() {
 					const nextHeight = Math.abs(height) < minimumHeight ? minimumHeight * heightDirection : height;
 					shapeToCommit.x2 = shapeToCommit.x1 + nextWidth;
 					shapeToCommit.y2 = shapeToCommit.y1 + nextHeight;
+
+					if (shapeToCommit.kind === "circle-text") {
+						const squareEndPoint = getEqualSizeEndPoint(
+							{ x: shapeToCommit.x1, y: shapeToCommit.y1 },
+							{ x: shapeToCommit.x2, y: shapeToCommit.y2 },
+						);
+						shapeToCommit.x2 = squareEndPoint.x;
+						shapeToCommit.y2 = squareEndPoint.y;
+					}
+				} else if (
+					shapeToCommit.kind !== "freehand" &&
+					shapeToCommit.kind !== "eraser"
+				) {
+					// For all other shapes, enforce minimal size
+					const bounds = getShapeBounds(shapeToCommit);
+					const width = bounds.maxX - bounds.minX;
+					const height = bounds.maxY - bounds.minY;
+					if (width < MIN_SIZE || height < MIN_SIZE) {
+						draftShapeRef.current = null;
+						dragStartRef.current = null;
+						return;
+					}
 				}
 
 				commitShapeAndBroadcast(shapeToCommit);
@@ -3550,7 +3682,7 @@ export default function Canvas() {
 			};
     };
 
-		p5Ref.current = new p5(sketch);
+		p5Ref.current = createP5Instance();
 
 		return () => {
 			removeWheelListener?.();
@@ -3642,12 +3774,14 @@ export default function Canvas() {
 							>
 								<option value="cursor">🖱️ Cursor</option>
 								<option value="freehand">✏️ Free Hand</option>
+								<option value="highlighter">🖍️ Highlighter</option>
 								<option value="eraser">🧽 Eraser</option>
 								<option value="line">📏 Line</option>
 								<option value="arrow">➡️ Arrow</option>
 								<option value="rectangle">▭ Rectangle</option>
 								<option value="rounded-rectangle">▢ Rounded Rectangle</option>
 								<option value="circle">◯ Circle</option>
+								<option value="circle-text">◉ Circle Text</option>
 								<option value="text">🔤 Text</option>
 								<option value="textbox">📝 Text Box</option>
 								<option value="rounded-textbox">📄 Rounded Text Box</option>

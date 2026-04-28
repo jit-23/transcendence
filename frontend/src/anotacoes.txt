@@ -39,15 +39,22 @@ eraser no canvas se tiveres tempo, eu vejo isso se n tie=veres tempo para tal.
 
 -> confirmar as traducoes e estabelece las. F
 
--> canvas individual (3) e separa lo dos canvass por convite N
 
--> arranjar a borracha quando o obj e pequeno N 
 
--> adicionar mais 3 obj na palete do canvas (circulo com texto/ trapezio etc) N
 
--> compatibilidade de browsers N
 
--> confirmar a separacao de chat groups/ e canvas com chat. N
+
+
+//! -> arranjar a borracha quando o obj e pequeno  CERTOOOO
+
+-> canvas individual (3) e separa lo dos canvass por convite 
+
+
+-> adicionar mais 3 obj na palete do canvas (circulo com texto/ losangulo etc) 
+
+-> compatibilidade de browsers 
+
+-> confirmar a separacao de chat groups/ e canvas com chat. 
 
 -> erros de consola -> F/N 
 
