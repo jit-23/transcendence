@@ -1,0 +1,58 @@
+quando o username e muito comprido, sai do scope em algumas caixas.
+se der login com o goodle ou 42 e o user name for comprido e preciso criar um limite nas box onde esse nome e introduzido
+
+adicionar sockets no friend request para aparecer logo nas notificacoes.
+
+adicionar invites para entrar no canvas em vez de entrar logo.
+tal convite vai ser enviado no "bell" em cima 
+
+organizar e deixar coerente a diferenca do prorpio canvas e de canvas no qual es convidado.
+
+os TEUS canvas sao no maximo 3 
+os canvas no qual es convidado n tem limite.(ou mete limite e-me indiferente desde que n seja um numero sem sentido)
+
+implementar o top bar nas paginas (mete top bar so quando ja se esta logado)
+
+retira todos os botoes "dashboard" e profile -> o topbar vai ter ja o profile e o dashboard no nome da paginas
+
+o profile page tem botoes repetidos. trata disso plez
+
+
+retira o blocked users no quick actinos e mete dentro do profile.
+
+X  corrige a estetica do dark/light mode. -> o dar tem bom asspeto, mas o light mode n tem bordas visiveis em muitos dos casos
+
+quando mandas convite a alguem e essa pessoa aceita , no dashboard, no "my friends" se a pagina n der refresh logo, o usuario acabado de ser designado de friend aparece de estouro dps de uns 6 secs. verifica isso se der tempo
+
+eraser no canvas se tiveres tempo, eu vejo isso se n tie=veres tempo para tal.
+
+ 
+ 
+ 
+ . (botoes duplicados)
+
+ - estetica do profile'
+ 
+- > canvas individual (3) e separa lo dos canvass por convite
+
+-> erros de consola
+
+-> atualizacao da info do profile quando o login e por google -> pk pede passe 
+
+-> arranjar a borracha quando o obj e pequeno
+
+-> confirmar as notificacoes de pedido de amizade/convite para canvass
+
+-> adicionar mais 3 obj na palete do canvas (circulo com texto/ trapezio etc)
+
+-> contas dos modulos
+
+-> eval sheet
+
+-> readMe 
+
+-> compatibilidade de browsers
+
+-> confirmar a separacao de chat groups/ e canvas com chat.
+
+-> confirmar as traducoes e estabelece las.
