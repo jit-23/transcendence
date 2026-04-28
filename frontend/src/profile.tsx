@@ -213,18 +213,14 @@ export function ProfilePage() {
                                         <p className="text-xs text-muted">Spaces aren’t allowed in usernames.</p>
                                         {usernameHasSpaces && <p className="text-xs text-red-400">Username cannot contain spaces.</p>}
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Email</Label>
-                                        <Input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                                            disabled={!canChangeEmail}
-                                        />
-                                        {!canChangeEmail && (
-                                            <p className="text-xs text-muted">Email is managed by your OAuth provider and can’t be changed here.</p>
-                                        )}
-                                    </div>
+                                   <div className="border rounded-2xl p-4 ">
+  									<div className="space-y-1.5">
+    								<Label>Email</Label>
+						    		<p className="text-sm text-gray-700">
+										<span className="font-medium">{user?.email}</span>
+									</p>
+								</div>
+								</div>
                                 </div>
                             </div>
 
