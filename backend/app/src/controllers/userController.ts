@@ -292,9 +292,19 @@ export const getMe = async (req: Request, res: Response) => {
 
         const user = await prisma.my_users.findUnique({
             where: { id: auth.userId },
-            select: { id: true, name: true, email: true, twoFactorEnabled: true, avatar: true },
+            select: { id: true, name: true, email: true, twoFactorEnabled: true, avatar: true, password: true },
         });
-        return res.json(user);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        return res.json({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            twoFactorEnabled: user.twoFactorEnabled,
+            avatar: user.avatar,
+            hasPassword: !!user.password,
+            hasOAuthLogin: !!user.googleId || !!user.fortyTwoId,
+        });
     } catch {
         return res.status(401).json({ error: "Unauthorized" });
     }
@@ -458,22 +468,27 @@ export const updateMe = async (req: Request, res: Response) => {
         const user = await prisma.my_users.findUnique({ where: { id: auth.userId } });
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        // Always verify current password first
-        if (!currentPassword)
-            return res.status(400).json({ error: "Current password is required" });
-        if (!user.password) {
-            const providers: string[] = [];
-            if (user.googleId) providers.push("Google");
-            if (user.fortyTwoId) providers.push("42 login");
-            const providerText = providers.length ? providers.join("/") : "OAuth";
+        const isChangingPassword = typeof newPassword === "string" && newPassword.length > 0;
 
-            return res.status(400).json({
-                error: `This account uses ${providerText}. Password changes are not supported.`,
-            });
+        if (isChangingPassword) {
+            if (!user.password) {
+                const providers: string[] = [];
+                if (user.googleId) providers.push("Google");
+                if (user.fortyTwoId) providers.push("42 login");
+                const providerText = providers.length ? providers.join("/") : "OAuth";
+
+                return res.status(400).json({
+                    error: `This account uses ${providerText}. Password changes are not supported.`,
+                });
+            }
+
+            if (!currentPassword)
+                return res.status(400).json({ error: "Current password is required" });
+
+            const validPassword = await bcrypt.compare(currentPassword, user.password);
+            if (!validPassword)
+                return res.status(401).json({ error: "Current password is incorrect" });
         }
-        const validPassword = await bcrypt.compare(currentPassword, user.password);
-        if (!validPassword)
-            return res.status(401).json({ error: "Current password is incorrect" });
 
         // Check uniqueness only if the value is actually changing
         if (username && username !== user.name) {
@@ -484,6 +499,9 @@ export const updateMe = async (req: Request, res: Response) => {
                 return res.status(409).json({ error: "Username already taken" });
         }
         if (email && email !== user.email) {
+            if (user.googleId || user.fortyTwoId) {
+                return res.status(400).json({ error: "Email changes are not supported for OAuth accounts" });
+            }
             if (await prisma.my_users.findUnique({ where: { email } }))
                 return res.status(409).json({ error: "Email already in use" });
         }
@@ -491,7 +509,7 @@ export const updateMe = async (req: Request, res: Response) => {
         const data: any = {};
         if (username) data.name     = username;
         if (email)    data.email    = email;
-        if (newPassword) {
+        if (isChangingPassword) {
             const passwordPolicyError = getPasswordPolicyError(newPassword);
             if (passwordPolicyError)
                 return res.status(422).json({ error: passwordPolicyError });
