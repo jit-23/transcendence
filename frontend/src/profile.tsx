@@ -179,15 +179,6 @@ export function ProfilePage() {
                                     <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Current avatar</p>
                                     <p className="text-sm font-semibold text-ink">{user?.name}</p>
                                     <p className="text-xs text-muted">{user?.email}</p>
-                                    <Button
-                                        className="mt-2"
-                                        variant="outline"
-                                        size="sm"
-                                        type="button"
-                                        onClick={() => setShowPicker(true)}
-                                    >
-                                        Change avatar
-                                    </Button>
                                 </div>
                             </div>
                         ) : (
