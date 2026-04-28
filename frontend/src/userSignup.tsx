@@ -156,7 +156,7 @@ export function SignupForm() {
                                     required
                                     autoFocus
                                 />
-                                <p className="text-xs text-muted">{t("SU_SU_spaces_not")}</p>
+                                <p className="text-xs text-muted">{t("SU_spaces_not")}</p>
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Email</Label>
