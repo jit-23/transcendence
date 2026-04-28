@@ -29,30 +29,36 @@ eraser no canvas se tiveres tempo, eu vejo isso se n tie=veres tempo para tal.
  
  
  
- . (botoes duplicados)
+ . (botoes duplicados) F
 
- - estetica do profile'
+ - estetica do profile' F
  
-- > canvas individual (3) e separa lo dos canvass por convite
+-> atualizacao da info do profile quando o login e por google -> pk pede passe  F
 
--> erros de consola
+-> confirmar as notificacoes de pedido de amizade/convite para canvass F
 
--> atualizacao da info do profile quando o login e por google -> pk pede passe 
+-> confirmar as traducoes e estabelece las. F
 
--> arranjar a borracha quando o obj e pequeno
+-> canvas individual (3) e separa lo dos canvass por convite N
 
--> confirmar as notificacoes de pedido de amizade/convite para canvass
+-> arranjar a borracha quando o obj e pequeno N 
 
--> adicionar mais 3 obj na palete do canvas (circulo com texto/ trapezio etc)
+-> adicionar mais 3 obj na palete do canvas (circulo com texto/ trapezio etc) N
 
--> contas dos modulos
+-> compatibilidade de browsers N
 
+-> confirmar a separacao de chat groups/ e canvas com chat. N
+
+-> erros de consola -> F/N 
+
+-> contas dos modulos 
 -> eval sheet
-
 -> readMe 
 
--> compatibilidade de browsers
 
--> confirmar a separacao de chat groups/ e canvas com chat.
 
--> confirmar as traducoes e estabelece las.
+nando
+->
+
+
+filipe->
