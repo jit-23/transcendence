@@ -54,6 +54,10 @@ services:
         condition: service_healthy
     networks:
       - observability
+    command: >
+      sh -c "
+      npx prisma db push  --schema=./src/prisma/schema.prisma && node dist/index.js"
+
   db:
     privileged: true
     image: postgres:13.2

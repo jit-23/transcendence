@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { CanvasesCard } from "./components/dashboard/CanvasesCard";
+import { CanvasInviteFriendsModal } from "./components/CanvasInviteFriendsModal";
 import TopBar from "./components/ui/topbar";
 
 type Canvas = {
@@ -189,6 +190,12 @@ export function CanvasesPage() {
         setInviteCanvasId(canvasId);
       };
 
+      const handleInviteFriendWithCanvas = (friendId: number) => {
+        if (inviteCanvasId) {
+          handleInviteFriend(inviteCanvasId, friendId);
+        }
+      };
+
       useEffect(() => {
         
         fetchCanvases();
@@ -204,6 +211,18 @@ export function CanvasesPage() {
   return (
 	<div className="dashboard-shell">
 	  <TopBar />
+
+      <CanvasInviteFriendsModal
+        isOpen={inviteCanvasId !== null}
+        onClose={() => setInviteCanvasId(null)}
+        friends={friends}
+        friendsLoading={friendsLoading}
+        friendsError={friendsError}
+        invitingFriendId={invitingFriendId}
+        inviteError={inviteError}
+        onInviteFriend={handleInviteFriendWithCanvas}
+        onRefreshFriends={fetchFriends}
+      />
 
 	  <main className="dashboard-body">
 		<div className="page-title fade-up">
