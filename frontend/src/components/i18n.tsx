@@ -2,6 +2,7 @@ import i18n from "i18next";
 import I18nextBrowserLanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 import React from "react";
+import { Button } from "./ui/button";
 
 export const changeLanguage = (): void => {
 	const order = ["en", "es", "pt"] as const;
@@ -1333,23 +1334,17 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 	}
 })
 
-
-
-
-
 const LanguageSwitcher: React.FC = ({
-	top = 15,
-	right = 15,
 }) => {
 	return (
-		<button
-			className="theme-toggle"
-			title="Change language"
-			style={{ position: "fixed", top, right }}
+		<Button
+			variant="ghost"
+			size="icon"
 			onClick={changeLanguage}
+			title="Language Switcher"
 		>
-		{i18n.language === "pt" ? "🇵🇹" : "🇬🇧"}
-		</button>
+		{i18n.language === "pt" ? "🇵🇹" : i18n.language == "en" ? "🇬🇧" : "🇪🇸"}
+		</Button>
 	);
 };
 
