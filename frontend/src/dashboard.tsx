@@ -8,6 +8,7 @@ import { Friend } from "./components/dashboard/types";
 import { AppTopbar } from "./components/AppTopbar";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { TopBar } from "./components/ui/topbar";
 
 type EnableStep = "idle" | "scanning";
 
@@ -122,9 +123,33 @@ export function Dashboard() {
         }
     };
 
-    const fetchFriends = async () => {
-        setFriendsLoading(true);
-        setFriendsError(null);
+    const decideRequest = async (requestId: number, action: "accept" | "reject") => {
+        setRequestsError(null);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/${requestId}/${action}`, {
+                method: "POST",
+                headers: authHeader(),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setRequestsError(data.error || "Failed to update request");
+                return;
+            }
+            setRequests(prev => prev.filter(request => request.id !== requestId));
+            if (action === "accept") {
+                fetchFriends();
+            }
+        } catch {
+            setRequestsError("Network error while updating request");
+        }
+    };
+
+    const fetchFriends = async (silent = false) => {
+        if (!silent) {
+            setFriendsLoading(true);
+            setFriendsError(null);
+        }
         try {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(`${apiUrl}/users/friends`, {
@@ -132,16 +157,22 @@ export function Dashboard() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setFriendsError(data.error || "Failed to load friends");
-                setFriends([]);
+                if (!silent) {
+                    setFriendsError(data.error || "Failed to load friends");
+                    setFriends([]);
+                }
             } else {
                 setFriends(data);
             }
         } catch {
-            setFriendsError("Network error while loading friends");
-            setFriends([]);
+            if (!silent) {
+                setFriendsError("Network error while loading friends");
+                setFriends([]);
+            }
         } finally {
-            setFriendsLoading(false);
+            if (!silent) {
+                setFriendsLoading(false);
+            }
         }
     };
 
@@ -296,6 +327,16 @@ export function Dashboard() {
     }, [user?.name]);
 
     useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            void fetchFriends(true);
+        }, 5000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, []);
+
+    useEffect(() => {
         if (!showAddFriendModal) return;
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -313,9 +354,9 @@ export function Dashboard() {
     }, []);
 
     return (
-        <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <AppTopbar />
-
+    	<div className="min-h-screen w-full">
+            <TopBar />
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <main className="space-y-6">
                 <div>
                     <h1 className="font-display text-3xl">Welcome back, {user?.name}</h1>
@@ -328,11 +369,10 @@ export function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <p className="mb-3 text-xs text-muted">Start by adding a friend or jump into your active spaces.</p>
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             <Button onClick={openAddFriendModal}>Add friend</Button>
                             <Button variant="outline" onClick={() => navigate('/conversations')}>Open conversations</Button>
                             <Button variant="outline" onClick={() => navigate('/Canvases')}>Open canvases</Button>
-                            <Button variant="outline" onClick={() => navigate('/profile/blocked')}>Blocked users</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -368,7 +408,7 @@ export function Dashboard() {
                             loading={friendsLoading}
                             error={friendsError}
                             unfriendingId={unfriendingId}
-                            onRefresh={fetchFriends}
+                            onRefresh={() => void fetchFriends()}
                             onViewProfile={(friendId) => navigate(`/users/${friendId}`)}
                             onChat={(friend) => navigate(`/chat?friendId=${friend.id}&name=${encodeURIComponent(friend.name)}`)}
                             onUnfriend={handleUnfriend}
@@ -425,7 +465,8 @@ export function Dashboard() {
                     </Card>
                 </div>
             )}
-        </div>
+        	</div>
+		</div>
     );
 }
 

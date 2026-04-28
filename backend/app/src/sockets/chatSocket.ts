@@ -297,6 +297,20 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       });
     });
 
+    socket.on("canvas-shape-delete", async ({ canvasId, shapeIds }) => {
+      if (!connectedUserId) return;
+      const id = Number(canvasId);
+      if (!id || !Array.isArray(shapeIds) || shapeIds.length === 0) return;
+
+      const allowed = await canAccessCanvas(connectedUserId, id);
+      if (!allowed) return;
+
+      socket.to(`canvas:${id}`).emit("canvas-shape-delete", {
+        canvasId: id,
+        shapeIds,
+      });
+    });
+
     socket.on("canvas-draft", async ({ canvasId, shape }) => {
       if (!connectedUserId) return;
       const id = Number(canvasId);

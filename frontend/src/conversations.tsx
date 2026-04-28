@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { Avatar } from "./Avatar";
-import { AppTopbar } from "./components/AppTopbar";
+import TopBar from "./components/ui/topbar";
 
 type ConversationMember = {
   id: number;
@@ -97,7 +97,7 @@ export function ConversationsPage() {
 
   return (
     <div className="dashboard-shell">
-      <AppTopbar />
+      <TopBar />
 
       <main className="dashboard-body">
         <div className="page-title fade-up">

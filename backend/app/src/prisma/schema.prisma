@@ -116,6 +116,7 @@ model canvas {
 model canvas_collaborator {
 	canvasId Int
 	userId Int
+	status String @default("pending")
 	addedAt DateTime @default(now())
 
 	canvas canvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)

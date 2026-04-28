@@ -186,8 +186,12 @@ export function CanvasesCard({
                     marginBottom: "8px",
                     width: "100%",
                     maxWidth: "100%",
+                    minWidth: 0,
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
+                    lineHeight: 1.2,
                     justifyContent: "flex-start",
                   }}
                 >
@@ -202,14 +206,50 @@ export function CanvasesCard({
                     Delete
                   </button>
                 )}
-                {canManageCanvas && (
-                  <button
-                    className="btn btn-ghost btn-xs"
-                    onClick={() => onOpenInviteCanvas(canvas.id)}
-                    style={{ marginTop: 4, fontSize: "0.75rem" }}
-                  >
-                    Search
-                  </button>
+
+                {canvas.isOwner && inviteCanvasId === canvas.id && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+                    {inviteError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{inviteError}</div>}
+                    {friendsError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{friendsError}</div>}
+                    {friendsLoading && <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>Loading friends...</p>}
+                    {!friendsLoading && friends.length === 0 && (
+                      <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>No friends available to invite.</p>
+                    )}
+                    {!friendsLoading && friends.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {friends.map((friend) => (
+                          <button
+                            key={friend.id}
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => onInviteFriend(canvas.id, friend.id)}
+                            disabled={invitingFriendId === friend.id}
+                            style={{
+                              justifyContent: "space-between",
+                              fontSize: "0.72rem",
+                              minWidth: 0,
+                              width: "100%",
+                              gap: 8,
+                            }}
+                          >
+                            <span
+                              style={{
+                                minWidth: 0,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                textAlign: "left",
+                                flex: 1,
+                              }}
+                              title={friend.name}
+                            >
+                              {friend.name}
+                            </span>
+                            <span style={{ flexShrink: 0 }}>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
                 );

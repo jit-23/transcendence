@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { CanvasesCard } from "./components/dashboard/CanvasesCard";
-import { AppTopbar } from "./components/AppTopbar";
+import TopBar from "./components/ui/topbar";
 
 type Canvas = {
   id: number;
@@ -203,7 +203,7 @@ export function CanvasesPage() {
 
   return (
 	<div className="dashboard-shell">
-    <AppTopbar />
+	  <TopBar />
 
 	  <main className="dashboard-body">
 		<div className="page-title fade-up">
