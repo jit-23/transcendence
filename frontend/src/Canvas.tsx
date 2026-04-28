@@ -50,6 +50,7 @@ type Tool =
 	| "rounded-rectangle"
 	| "circle"
 	| "circle-text"
+		| "diamond"
 	| "freehand"
 	| "highlighter"
 	| "eraser"
@@ -124,6 +125,20 @@ type CircleShape = {
 	angle: number;
 };
 
+type DiamondShape = {
+	kind: "diamond";
+	id: string;
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+	color: string;
+	filled: boolean;
+	strokeWeight: number;
+	angle: number;
+};
+type Shape = LineShape | ArrowShape | RectangleShape | RoundedRectangleShape | CircleShape  | TextShape | FreeHandShape | DotShape | EraserShape;
+
 type TextShape = {
 	kind: TextShapeKind;
 	id: string;
@@ -165,7 +180,6 @@ type EraserShape = {
 	angle: number;
 };
 
-type Shape = LineShape | ArrowShape | RectangleShape | RoundedRectangleShape | CircleShape | TextShape | FreeHandShape | DotShape | EraserShape;
 const HISTORY_LIMIT = 50;
 
 type RgbColor = {
