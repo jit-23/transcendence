@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { Avatar } from './Avatar';
-import { AppTopbar } from './components/AppTopbar';
+import { TopBar } from './components/ui/topbar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
@@ -258,7 +258,7 @@ export function UserPublicProfilePage() {
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <AppTopbar />
+            <TopBar />
 
             <main className="space-y-5">
                 <div>
@@ -336,7 +336,7 @@ export function UserPublicProfilePage() {
                                                     onClick={handleAddFriend}
                                                     disabled={actionLoading || requestPending}
                                                 >
-                                                    {requestPending ? '✓ Requested' : (actionLoading ? 'Sending...' : 'Add friend')}
+                                                    {requestPending ? 'Requested' : (actionLoading ? 'Sending...' : 'Add friend')}
                                                 </Button>
                                                 <Button
                                                     variant="outline"

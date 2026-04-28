@@ -2,7 +2,6 @@ import { useContext, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
-import { AppTopbar } from './components/AppTopbar';
 import { useTheme } from './ThemeContext';
 import { Avatar, AvatarPicker } from './Avatar';
 import { Button } from './components/ui/button';

@@ -179,6 +179,27 @@ export function CanvasesPage() {
         }
       };
 
+      const handleRemoveCollaborator = async (canvasId: number, collaboratorId: number) => {
+        setCanvasesError(null);
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+          const res = await fetch(`${apiUrl}/canvases/${canvasId}/collaborators/${collaboratorId}`, {
+            method: "DELETE",
+            headers: authHeader(),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setCanvasesError(data.error || "Failed to remove collaborator");
+            return;
+          }
+
+          // Refresh the collaborators for this canvas
+          groupChat(canvasId);
+        } catch (err: any) {
+          setCanvasesError(err.message || "Failed to remove collaborator");
+        }
+      };
+
       const handleOpenCanvas = (canvasId: number) => {
         navigate(`/canvas?id=${canvasId}`);
       };
@@ -229,6 +250,41 @@ export function CanvasesPage() {
 		  <h1>Plan Your Group Projects</h1>
 		  <p>Manage your own canvases and the canvases where you were invited.</p>
 		</div>
+
+		{groupIntegrators.length > 0 && (
+		  <div className="section-card fade-up fade-up-1">
+			<div className="section-card-header">
+			  <h3>Canvas Collaborators</h3>
+			</div>
+			{canvasesError && <div className="msg msg-error" style={{ marginBottom: 12 }}>{canvasesError}</div>}
+
+			<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+			  {groupIntegrators.map((collaborator) => (
+				<div key={collaborator.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 12px", backgroundColor: "var(--surface2)", borderRadius: 6, border: "1px solid var(--border)" }}>
+				  <div>
+					<p style={{ fontSize: "0.85rem", fontWeight: 600 }}>{collaborator.name}</p>
+					<p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>
+					  {collaborator.role === "owner" ? "Owner" : "Collaborator"}
+					</p>
+				  </div>
+				  {collaborator.role === "owner" && groupIntegrators.some(c => c.id === user?.id && c.role === "owner") && collaborator.id !== user?.id && (
+					<button
+					  className="btn btn-ghost btn-sm"
+					  onClick={() => {
+						const canvasId = Number(new URLSearchParams(window.location.search).get("id"));
+						if (canvasId) handleRemoveCollaborator(canvasId, collaborator.id);
+					  }}
+					  disabled={canvasesLoading}
+					  style={{ color: "var(--error)" }}
+					>
+					  Remove
+					</button>
+				  )}
+				</div>
+			  ))}
+			</div>
+		  </div>
+		)}
 		{(() => {
 			const myCanvases = canvases.filter((canvas) => canvas.isOwner || canvas.userId === user?.id);
 			const invitedCanvases = canvases.filter((canvas) => !canvas.isOwner && canvas.userId !== user?.id);

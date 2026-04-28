@@ -1,7 +1,7 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { AppTopbar } from "./components/AppTopbar";
+import { B } from "./components/ui/B";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Input } from "./components/ui/input";
@@ -23,6 +23,7 @@ export function SearchFriends() {
     const [error, setError] = useState<string | null>(null);
     const [searched, setSearched] = useState(false);
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
+    const [friendsSet, setFriendsSet] = useState<Set<number>>(new Set());
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -71,6 +72,7 @@ export function SearchFriends() {
         setPendingRequests(prev => new Set(prev).add(receiverId));
         
         try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: "POST",
                 headers: authHeader(),
@@ -79,7 +81,17 @@ export function SearchFriends() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Failed to send request");
+                // If backend reports user is already a friend, mark locally so invite button disappears
+                const msg = (data && data.error) || "Failed to send request";
+                if (res.status === 400 && /friend/i.test(msg)) {
+                    setFriendsSet(prev => {
+                        const updated = new Set(prev);
+                        updated.add(receiverId);
+                        return updated;
+                    });
+                }
+
+                setError(msg);
                 setPendingRequests(prev => {
                     const updated = new Set(prev);
                     updated.delete(receiverId);
@@ -99,9 +111,28 @@ export function SearchFriends() {
         }
     };
 
+    useEffect(() => {
+        const fetchFriends = async () => {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                const res = await fetch(`${apiUrl}/users/friends`, { headers: authHeader() });
+                const data = await res.json();
+                if (res.ok && Array.isArray(data)) {
+                    setFriendsSet(new Set(data.map((f: any) => f.id)));
+                }
+            } catch {
+                // ignore
+            }
+        };
+        // only fetch when we have a logged-in user (token available)
+        if (sessionStorage.getItem("token")) {
+            void fetchFriends();
+        }
+    }, [user]);
+
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-            <AppTopbar />
+            <TopBar />
 
             <main className="space-y-5">
                 <div>
@@ -177,13 +208,17 @@ export function SearchFriends() {
                                         >
                                             Profile
                                         </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleSendRequest(result.id)}
-                                            disabled={pendingRequests.has(result.id)}
-                                        >
-                                            {pendingRequests.has(result.id) ? '✓ Requested' : '+ Adasdd'} 
-                                        </Button>
+                                        {friendsSet.has(result.id) ? (
+                                            <Button size="sm" variant="ghost" disabled>(Friend)</Button>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSendRequest(result.id)}
+                                                disabled={pendingRequests.has(result.id)}
+                                            >
+                                                {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}

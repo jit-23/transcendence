@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar } from "./Avatar";
-import { AppTopbar } from "./components/AppTopbar";
+import { TopBar } from "./components/ui/topbar";
 
 type Friend = {
 	id: number;
@@ -88,7 +88,7 @@ export function ChoseConversation() {
 
 	return (
 		<div className="dashboard-shell">
-			<AppTopbar />
+			<TopBar />
 
 			<main className="dashboard-body">
 				<div className="page-title fade-up">

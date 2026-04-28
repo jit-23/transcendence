@@ -2,7 +2,7 @@ import { FormEvent, useContext, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
-import { AppTopbar } from "./components/AppTopbar";
+import { TopBar } from "./components/ui/topbar";
 
 type ChatBubble = {
     from: string;
@@ -247,13 +247,11 @@ export function ChatPage() {
     };
 
     return (
-        <div id="center">
-            <div className="card" style={{ maxWidth: 700, maxHeight: "calc(100vh - 140px)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-                <h2 style={{ marginBottom: 10 }}>Direct Chat</h2>
-
-                <p style={{ color: "var(--ink3)", marginBottom: 12 }}>
-                    {target ? `Talking to: ${target}` : "Open this page from your friends list."}
-                </p>
+		<div className="min-h-screen w-full">
+			<TopBar />
+			<div id="center">
+				<div className="card" style={{ maxWidth: 700, maxHeight: "calc(100vh - 140px)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+					<h2 style={{ marginBottom: 10 }}>{target}</h2>
 
                 {status && (
                     <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>
@@ -317,5 +315,6 @@ export function ChatPage() {
 
             </div>
         </div>
+		</div>
     );
 }

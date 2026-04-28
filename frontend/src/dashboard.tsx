@@ -5,7 +5,6 @@ import { AuthContext } from "./AuthContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Friend } from "./components/dashboard/types";
-import { AppTopbar } from "./components/AppTopbar";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { TopBar } from "./components/ui/topbar";
@@ -261,7 +260,13 @@ export function Dashboard() {
             const data = await res.json();
 
             if (!res.ok) {
-                setSearchError(data.error || "Failed to send request");
+                const msg = (data && data.error) || "Failed to send request";
+                // If backend reports user is already a friend, refresh the friends list
+                if (res.status === 400 && /friend/i.test(msg)) {
+                    fetchFriends();
+                }
+
+                setSearchError(msg);
                 setPendingRequests(prev => {
                     const updated = new Set(prev);
                     updated.delete(receiverId);
@@ -370,7 +375,7 @@ export function Dashboard() {
                     <CardContent>
                         <p className="mb-3 text-xs text-muted">Start by adding a friend or jump into your active spaces.</p>
                         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            <Button onClick={openAddFriendModal}>Add friend</Button>
+                            <Button onClick={openAddFriendModal}>Search for People</Button>
                             <Button variant="outline" onClick={() => navigate('/conversations')}>Open conversations</Button>
                             <Button variant="outline" onClick={() => navigate('/Canvases')}>Open canvases</Button>
                         </div>
@@ -421,7 +426,7 @@ export function Dashboard() {
                 <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closeAddFriendModal}>
                     <Card className="w-full max-w-xl" onClick={(event) => event.stopPropagation()}>
                         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-base">Add Friend</CardTitle>
+                            <CardTitle className="text-base">Search for People</CardTitle>
                             <Button variant="ghost" size="sm" onClick={closeAddFriendModal}>Close</Button>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -453,9 +458,13 @@ export function Dashboard() {
                                             </div>
                                             <div className="flex gap-2">
                                                 <Button size="sm" variant="outline" onClick={() => navigate(`/users/${result.id}`)}>Profile</Button>
-                                                <Button size="sm" onClick={() => handleSendRequest(result.id)} disabled={pendingRequests.has(result.id)}>
-                                                    {pendingRequests.has(result.id) ? 'Requested' : 'Invite'}
-                                                </Button>
+                                                {friends.some(f => f.id === result.id) ? (
+                                                    <Button size="sm" variant="ghost" disabled>(Friend)</Button>
+                                                ) : (
+                                                    <Button size="sm" onClick={() => handleSendRequest(result.id)} disabled={pendingRequests.has(result.id)}>
+                                                        {pendingRequests.has(result.id) ? 'Requested' : 'Invite'}
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

@@ -6,8 +6,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import CanvasChatSidebar, { CanvasChatMessage, CanvasMember } from "./components/canvas/CanvasChatSidebar";
 import { AuthContext } from "./AuthContext";
-import { AppTopbar } from "./components/AppTopbar";
 import { emitCanvasEvent, joinCanvasRoom, registerCanvasRealtimeHandlers } from "./utils/canvasRealtime";
+import {TopBar } from "./components/ui/topbar";
 //nando
 
 
@@ -3711,7 +3711,7 @@ export default function Canvas() {
 
   return (
 		<div className="mx-auto min-h-screen w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-			<AppTopbar />
+			<TopBar />
 			<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 			<div
 				ref={controlsRef}

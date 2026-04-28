@@ -213,10 +213,18 @@ export function TopBar() {
 
 	return (
 		<header className="topbar">
-			<div className="logo">
-				<div className="logo-mark">W</div>
-				whiteboard
-			</div>
+			<button
+				type="button"
+				onClick={() => navigate("/dashboard")}
+				className="logo-button"
+				title="Go to dashboard"
+				aria-label="Go to dashboard"
+			>
+				<div className="logo">
+					<div className="logo-mark">W</div>
+					whiteboard
+				</div>
+			</button>
 
 			<div className="topbar-right">
 				<div
@@ -236,7 +244,6 @@ export function TopBar() {
 					<Avatar avatar={user?.avatar} name={user?.name ?? "?"} size={24} />
 					{user?.name}
 				</div>
-				<button className="btn btn-ghost btn-sm" onClick={() => navigate("/dashboard")}>Dashboard</button>
 				<div className="topbar-notification" ref={requestsPanelRef}>
 					<Button
 						variant="outline"
