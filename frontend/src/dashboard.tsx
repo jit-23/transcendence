@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./components/i18n";
 import { TopBar } from "./components/ui/topbar";
+import { useTheme } from "./ThemeContext";
 
 type EnableStep = "idle" | "scanning";
 
@@ -21,7 +22,6 @@ type SearchResult = {
 
 export function Dashboard() {
     const {t} = useTranslation();
-    const { user, logout }          = useContext(AuthContext);
     const { theme, toggleTheme }    = useTheme();
     const { user }          = useContext(AuthContext);
     const navigate                  = useNavigate();
