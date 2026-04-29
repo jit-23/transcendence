@@ -1,18 +1,21 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useTheme } from './ThemeContext';
+// import { useTheme } from './ThemeContext';
 import { Avatar, DEFAULT_AVATARS } from './Avatar';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolicy';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 
 // ── Two-step signup: step 1 = credentials, step 2 = pick avatar ───────────────
 type Step = 'credentials' | 'avatar';
 
 export function SignupForm() {
+    const {t} = useTranslation();
     const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
 
     const [step, setStep]         = useState<Step>('credentials');
@@ -32,16 +35,16 @@ export function SignupForm() {
     const [error, setError]       = useState<string | null>(null);
     const [oauthLoading, setOauthLoading] = useState<'google' | '42' | null>(null);
 
-    const { theme, toggleTheme }  = useTheme();
+    // const { theme, toggleTheme }  = useTheme();
     const navigate                = useNavigate();
     const passwordChecks = getPasswordChecks(password);
     const passwordPolicyError = password ? getPasswordPolicyError(password) : null;
     const passwordRequirements = [
-        { label: '8+ characters', met: passwordChecks.minLength },
-        { label: '1 uppercase letter', met: passwordChecks.uppercase },
-        { label: '1 lowercase letter', met: passwordChecks.lowercase },
-        { label: '1 number', met: passwordChecks.number },
-        { label: '1 symbol', met: passwordChecks.symbol },
+        { label: t("SU_8chars"), met: passwordChecks.minLength },
+        { label: t("SU_1up"), met: passwordChecks.uppercase },
+        { label: t("SU_1low"), met: passwordChecks.lowercase },
+        { label: t("SU_1num"), met: passwordChecks.number },
+        { label: t("SU_1sym"), met: passwordChecks.symbol },
     ];
     const passwordRequirementsMet = passwordRequirements.filter((requirement) => requirement.met).length;
 
@@ -50,9 +53,9 @@ export function SignupForm() {
         e.preventDefault();
         setError(null);
         const normalizedUsername = username.trim();
-        if (!normalizedUsername) return setError('Username is required');
-        if (/\s/.test(normalizedUsername)) return setError('Username cannot contain spaces');
-        if (!email.trim())    return setError('Email is required');
+        if (!normalizedUsername) return setError(t("SU_user_req"));
+        if (/\s/.test(normalizedUsername)) return setError(t("SU_user_cannot"));
+        if (!email.trim())    return setError(t("SU_email_req"));
         const policyError = getPasswordPolicyError(password);
         if (policyError) return setError(policyError);
         setStep('avatar');
@@ -63,10 +66,10 @@ export function SignupForm() {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
-            setError('Only JPG, PNG or WebP allowed'); return;
+            setError(t("SU_avatar_only")); return;
         }
         if (file.size > 2 * 1024 * 1024) {
-            setError('Image must be under 2MB'); return;
+            setError(t("SU_under2mb")); return;
         }
         setError(null);
         const reader = new FileReader();
@@ -93,10 +96,10 @@ export function SignupForm() {
             } else {
                 // If server rejects, go back to credentials step with error
                 setStep('credentials');
-                setError(data.error || 'Signup failed');
+                setError(data.error || t("SU_signup_failed"));
             }
         } catch {
-            setError('Network error. Please try again.');
+            setError(t("SU_network_error"));
         } finally {
             setLoading(false);
         }
@@ -112,17 +115,18 @@ export function SignupForm() {
     return (
         <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
             <div className="absolute right-6 top-6">
-                <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
+                {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
                     {theme === 'dark' ? '☀' : '☾'}
-                </Button>
+                </Button> */}
+                <LanguageSwitcher />
             </div>
 
             <div className="flex items-center justify-center px-2 py-4">
             <Card className={`w-full ${step === 'avatar' ? 'max-w-lg' : 'max-w-md'}`}>
                 <CardHeader className="space-y-4">
                     <div className="text-center">
-                        <CardTitle>{step === 'credentials' ? 'Create your workspace account' : 'Choose your avatar'}</CardTitle>
-                        <CardDescription className="mt-1">Fast setup with email or OAuth sign-up.</CardDescription>
+                        <CardTitle>{step === 'credentials' ? t("SU_create_account") : t("SU_choose_avatar")}</CardTitle>
+                        <CardDescription className="mt-1">{t("SU_fast_setup")}</CardDescription>
                     </div>
                     <div className="mx-auto flex w-fit gap-2">
                         {(['credentials', 'avatar'] as Step[]).map((s, i) => (
@@ -140,33 +144,33 @@ export function SignupForm() {
                     {step === 'credentials' && (
                         <form onSubmit={handleNext} className="space-y-4">
                             <div className="space-y-1.5">
-                                <Label>Username</Label>
+                                <Label>{t("SU_username")}</Label>
                                 <Input
                                     type="text"
-                                    placeholder="yourname"
+                                    placeholder={t("SU_your_name")}
                                     value={username}
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value.replace(/\s+/g, ''))}
                                     required
                                     autoFocus
                                 />
-                                <p className="text-xs text-muted">Spaces aren’t allowed in usernames.</p>
+                                <p className="text-xs text-muted">{t("SU_spaces_not")}</p>
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Email</Label>
                                 <Input
                                     type="email"
-                                    placeholder="you@example.com"
+                                    placeholder={t("SU_your_email")}
                                     value={email}
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                                     required
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Password</Label>
+                                <Label>{t("SU_password")}</Label>
                                 <div className="flex items-center gap-2">
                                     <Input
                                         type={showPassword ? 'text' : 'password'}
-                                        placeholder="8+ chars, upper, lower, number, symbol"
+                                        placeholder={t("SU_pass_place")}
                                         value={password}
                                         onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                                         required
@@ -176,15 +180,15 @@ export function SignupForm() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => setShowPassword(prev => !prev)}
-                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                        aria-label={showPassword ? t("SU_hide_pass") : t("SU_show_pass")}
                                     >
-                                        {showPassword ? 'Hide' : 'Show'}
+                                        {showPassword ? t("SU_hide") : t("SU_show")}
                                     </Button>
                                 </div>
                                 <div className="space-y-1 text-xs text-muted">
                                     <div className="flex items-center justify-between gap-2">
-                                        <p>Password checklist</p>
-                                        <p>{passwordRequirementsMet}/5 met</p>
+                                        <p>{t("SU_pass_check")}</p>
+                                        <p>{passwordRequirementsMet}/5</p>
                                     </div>
                                     <ul className="grid gap-2 sm:grid-cols-2">
                                         {passwordRequirements.map((requirement) => (
@@ -203,11 +207,11 @@ export function SignupForm() {
                                 {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
                             </div>
 
-                            <Button type="submit" className="w-full" disabled={loading || !!oauthLoading}>Next →</Button>
+                            <Button type="submit" className="w-full" disabled={loading || !!oauthLoading}>{t("SU_next")} →</Button>
 
                             <div className="flex items-center gap-3 text-xs text-muted">
                                 <span className="h-px flex-1 bg-border" />
-                                or
+                                {t("SU_or")}
                                 <span className="h-px flex-1 bg-border" />
                             </div>
 
@@ -229,7 +233,7 @@ export function SignupForm() {
                                     <path fill="#FBBC05" d="M11.5 28.1c-.4-1.3-.7-2.7-.7-4.1s.2-2.8.7-4.1v-5.6H4.1C2.8 17 2 20.4 2 24s.8 7 2.1 9.7l7.4-5.6z"/>
                                     <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35 4 29.9 2 24 2 15.4 2 7.8 6.2 4.1 14.3l7.4 5.6C13.2 14.7 18.2 10.8 24 10.8z"/>
                                 </svg>
-                                {oauthLoading === 'google' ? 'Redirecting to Google...' : 'Sign up with Google'}
+                                {oauthLoading === 'google' ? t("SU_redir_google") : t("SU_sign_google")}
                             </a>
 
                             <a
@@ -245,9 +249,9 @@ export function SignupForm() {
                                 className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-surface2 px-4 text-sm font-semibold text-ink transition hover:bg-surface ${loading || oauthLoading ? 'pointer-events-none opacity-60' : ''}`}
                             >
                                 <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-[4px] border border-border text-[0.65rem]">42</span>
-                                {oauthLoading === '42' ? 'Redirecting to 42...' : 'Sign up with 42'}
+                                {oauthLoading === '42' ? t("SU_redir_42") : t("SU_sign_42")}
                             </a>
-                            <p className="text-center text-xs text-muted">OAuth opens a secure provider page and returns you automatically.</p>
+                            <p className="text-center text-xs text-muted">{t("SU_OAuth")}</p>
                         </form>
                     )}
 
@@ -257,12 +261,12 @@ export function SignupForm() {
                                 <Avatar avatar={selected} name={username} size={64} />
                                 <div>
                                     <p className="text-sm font-semibold text-ink">{username}</p>
-                                    <p className="text-xs text-muted">This is how others will see you.</p>
+                                    <p className="text-xs text-muted">{t("SU_how_others_see_you")}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Default Avatars</Label>
+                                <Label>{t("SU_default_avatars")}</Label>
                                 <div className="flex flex-wrap gap-2">
                                     {Object.keys(DEFAULT_AVATARS).map(key => (
                                         <button
@@ -278,7 +282,7 @@ export function SignupForm() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Upload Your Own</Label>
+                                <Label>{t("SU_upload_your_own")}</Label>
                                 <input
                                     ref={fileRef}
                                     type="file"
@@ -287,25 +291,25 @@ export function SignupForm() {
                                     className="hidden"
                                 />
                                 <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>
-                                    Choose image (JPG / PNG, max 2MB)
+                                    {t("SU_choose_image")} (JPG / PNG, max 2MB)
                                 </Button>
-                                {preview && <p className="text-xs text-emerald-500">✓ Image loaded</p>}
+                                {preview && <p className="text-xs text-emerald-500">{t("SU_image_loaded")}</p>}
                             </div>
 
                             <div className="flex gap-2">
                                 <Button type="button" className="flex-1" onClick={handleSubmit} disabled={loading}>
-                                    {loading ? 'Creating account...' : 'Create account →'}
+                                    {loading ? t("SU_creating_account") : t("SU_create_accout_confirm")}
                                 </Button>
                                 <Button type="button" variant="outline" onClick={() => { setStep('credentials'); setError(null); }} disabled={loading}>
-                                    ← Back
+                                    {t("SU_back")}
                                 </Button>
                             </div>
                         </div>
                     )}
 
                     <p className="pt-2 text-center text-sm text-muted">
-                        Already have an account?{' '}
-                        <Link to="/login" className="text-ink underline underline-offset-4">Sign in</Link>
+                        {t("SU_already_have_account")}{' '}
+                        <Link to="/login" className="text-ink underline underline-offset-4">{t("SU_signin")}</Link>
                     </p>
                 </CardContent>
             </Card>

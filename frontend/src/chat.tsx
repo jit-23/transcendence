@@ -2,6 +2,7 @@ import { FormEvent, useContext, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
+import { useTranslation } from "react-i18next";
 import { TopBar } from "./components/ui/topbar";
 
 
@@ -20,6 +21,7 @@ type ChatBubble = {
 };
 
 export function ChatPage() {
+    const {t} = useTranslation();
     const { user } = useContext(AuthContext);
     const [searchParams] = useSearchParams();
     const friendIdParam = searchParams.get("friendId");
@@ -410,20 +412,20 @@ export function ChatPage() {
                             ))}
                         </div>
                         <form onSubmit={handleSend} style={{ display: "flex", gap: 8, margin: "0 18px 16px 18px" }}>
-                            <input
-                                value={text}
-                                onChange={(event) => handleTextChange(event.target.value)}
-                                placeholder="Type a message"
-                                disabled={conversationLoading || !conversationId}
-                                style={{ flex: 1 }}
-                            />
-                            <button className="btn btn-primary" type="submit" disabled={!canSend}>Send</button>
-                        </form>
-                        {peerTyping && (
-                            <p style={{ color: "var(--ink3)", fontSize: "0.78rem", margin: "0 0 12px 18px" }}>
-                                {peerTyping} is typing...
-                            </p>
-                        )}
+							<input
+								value={text}
+								onChange={(event) => handleTextChange(event.target.value)}
+								placeholder={t("CH_type_message_chat")}
+								disabled={conversationLoading || !conversationId}
+							/>
+							<button className="btn btn-primary" type="submit" disabled={!canSend}>{t("CH_send_chat")}</button>
+						</form>
+
+						{peerTyping && (
+							<p style={{ color: "var(--ink3)", fontSize: "0.78rem", marginBottom: 12 }}>
+								{peerTyping} {t("CH_is_typing_chat")}
+							</p>
+						)}
                     </div>
                 </div>
             </div>

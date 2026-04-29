@@ -10,9 +10,12 @@ import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { TopBar } from './components/ui/topbar';
 import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolicy';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 
 export function ProfilePage() {
-    const { user, refreshUser, logout }  = useContext(AuthContext);
+    const {t} = useTranslation();
+    const { user, refreshUser }  = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
 
@@ -149,21 +152,21 @@ export function ProfilePage() {
 
                 <main className="space-y-5">
                 <div>
-                    <h1 className="font-display text-3xl">Profile Settings</h1>
-                    <p className="mt-1 text-sm text-muted">Manage your account details, avatar, and security preferences.</p>
+                    <h1 className="font-display text-3xl">{t("PF_settings")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("PF_manage")}</p>
                 </div>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Quick actions</CardTitle>
+                        <CardTitle className="text-base">{t("PF_quick")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-3 sm:grid-cols-2">
                             <Button className="w-full" type="button" onClick={() => setShowPicker(true)}>
-                                Change avatar
+                                {t("PF_avatar")}
                             </Button>
                             <Button className="w-full" variant="outline" type="button" onClick={() => navigate('/profile/blocked')}>
-                                Blocked users
+                                {t("PF_blocked")}
                             </Button>
                         </div>
                     </CardContent>
@@ -175,7 +178,7 @@ export function ProfilePage() {
                             <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface2 p-3">
                                 <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={60} />
                                 <div>
-                                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Current avatar</p>
+                                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{t("PF_curr_avatar")}</p>
                                     <p className="text-sm font-semibold text-ink">{user?.name}</p>
                                     <p className="text-xs text-muted">{user?.email}</p>
                                 </div>
@@ -193,7 +196,7 @@ export function ProfilePage() {
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Account Details</CardTitle>
+                        <CardTitle className="text-base">{t("PF_account")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {success && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">{success}</div>}
@@ -201,17 +204,17 @@ export function ProfilePage() {
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Identity</p>
+                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("PF_identity")}</p>
                                 <div className="space-y-3">
                                     <div className="space-y-1.5">
-                                        <Label>Username</Label>
+                                        <Label>{t("PF_username")}</Label>
                                         <Input
                                             type="text"
                                             value={username}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value.replace(/\s+/g, ''))}
                                         />
-                                        <p className="text-xs text-muted">Spaces aren’t allowed in usernames.</p>
-                                        {usernameHasSpaces && <p className="text-xs text-red-400">Username cannot contain spaces.</p>}
+                                        <p className="text-xs text-muted">{t("SU_spaces_not")}</p>
+                                        {usernameHasSpaces && <p className="text-xs text-red-400">{t("SU_user_cannot")}</p>}
                                     </div>
                                    <div className="border rounded-2xl p-4 ">
   									<div className="space-y-1.5">
@@ -264,14 +267,14 @@ export function ProfilePage() {
 
                             <div className="flex flex-wrap gap-2">
                                 <Button type="submit" disabled={!canSubmit}>
-                                    {loading ? 'Saving...' : 'Save Changes'}
+                                    {loading ? t("PF_saving_change") : t("PF_save_change")}
                                 </Button>
                                 <Button type="button" variant="outline" onClick={() => navigate('/dashboard')}>
-                                    Cancel
+                                    {t("PF_cancel")}
                                 </Button>
                             </div>
-                            {!hasChanges && <p className="text-xs text-muted">Make a change to enable saving.</p>}
-                            {needsCurrentPassword && !currentPassword.trim() && <p className="text-xs text-muted">Enter your current password to change your password.</p>}
+                            {!hasChanges && <p className="text-xs text-muted">{t("PF_make")}</p>}
+                            {hasChanges && !currentPassword.trim() && <p className="text-xs text-muted">{t("PF_curr_pass_save")}</p>}
                         </form>
                     </CardContent>
                 </Card>

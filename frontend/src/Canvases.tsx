@@ -1,7 +1,9 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { CanvasesCard } from "./components/dashboard/CanvasesCard";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/i18n";
 import { CanvasInviteFriendsModal } from "./components/CanvasInviteFriendsModal";
 import TopBar from "./components/ui/topbar";
 
@@ -21,6 +23,7 @@ type Friend = {
 };
 
 export function CanvasesPage() {
+  const {t} = useTranslation();
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -73,13 +76,13 @@ export function CanvasesPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setCanvasesError(data.error || "Failed to load canvases");
+                setCanvasesError(data.error || t("CVS_failed_load_cvs"));
                 setCanvases([]);
             } else {
                 setCanvases(data);
             }
         } catch {
-            setCanvasesError("Network error while loading canvases");
+            setCanvasesError(t("CVS_network_fail_load_cvs"));
             setCanvases([]);
         } finally {
             setCanvasesLoading(false);
@@ -96,13 +99,13 @@ export function CanvasesPage() {
           });
           const data = await res.json();
           if (!res.ok) {
-            setFriendsError(data.error || "Failed to load friends");
+            setFriendsError(data.error || t("CVS_failed_load_friends"));
             setFriends([]);
           } else {
             setFriends(data);
           }
         } catch {
-          setFriendsError("Network error while loading friends");
+          setFriendsError(t("CVS_network_fail_load_friends"));
           setFriends([]);
         } finally {
           setFriendsLoading(false);
@@ -120,7 +123,7 @@ export function CanvasesPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-				setCanvasesError(data.error || "Failed to create canvas");
+				setCanvasesError(data.error || t("CVS_failed_create"));
           return false;
             }
             setCanvases((prev) => [
@@ -132,7 +135,7 @@ export function CanvasesPage() {
             ]);
         return true;
         } catch {
-			setCanvasesError("Network error while creating canvas");
+			setCanvasesError(t("CVS_network_fail_create"));
         return false;
         }
     };
@@ -147,12 +150,12 @@ export function CanvasesPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setCanvasesError(data.error || "Failed to delete canvas");
+                setCanvasesError(data.error || t("CVS_failed_delete"));
                 return;
             }
             setCanvases(prev => prev.filter(canvas => canvas.id !== canvasId));
         } catch {
-            setCanvasesError("Network error while deleting canvas");
+            setCanvasesError(t("CVS_network_fail_delete"));
         }
     };
 
@@ -168,12 +171,12 @@ export function CanvasesPage() {
           });
           const data = await res.json();
           if (!res.ok) {
-            throw new Error(data.error || "Failed to invite friend");
+            throw new Error(data.error || t("CVS_failed_invite"));
           }
 
           setInviteCanvasId(canvasId);
         } catch (err: any) {
-          setInviteError(err.message || "Failed to invite friend");
+          setInviteError(err.message || t("CVS_network_fail_invite"));
         } finally {
           setInvitingFriendId(null);
         }
@@ -247,8 +250,8 @@ export function CanvasesPage() {
 
 	  <main className="dashboard-body">
 		<div className="page-title fade-up">
-		  <h1>Plan Your Group Projects</h1>
-		  <p>Manage your own canvases and the canvases where you were invited.</p>
+		  <h1>{t("CVS_plan_group_proj")}</h1>
+		  <p>{t("CVS_create_canvas_proj")}</p>
 		</div>
 
 		{groupIntegrators.length > 0 && (
