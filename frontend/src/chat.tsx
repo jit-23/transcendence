@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
 import { useTranslation } from "react-i18next";
+import { TopBar } from "./components/ui/topbar";
 
 type ChatBubble = {
     from: string;
@@ -15,8 +16,9 @@ export function ChatPage() {
     const { user } = useContext(AuthContext);
     const [searchParams] = useSearchParams();
     const friendIdParam = searchParams.get("friendId");
-    const friendNameParam = searchParams.get("name") ?? "";
-    const initialTarget = friendNameParam;
+    const conversationIdParam = searchParams.get("conversationId");
+    const chatNameParam = searchParams.get("name") ?? "";
+    const initialTarget = chatNameParam;
 
     const [target, setTarget] = useState(initialTarget);
     const [text, setText] = useState("");
@@ -28,6 +30,7 @@ export function ChatPage() {
 
     const socketRef = useRef<Socket | null>(null);
     const typingTimeoutRef = useRef<number | null>(null);
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -37,6 +40,12 @@ export function ChatPage() {
     const canSend = useMemo(() => {
         return Boolean(conversationId && text.trim() && socketRef.current && !conversationLoading);
     }, [conversationId, text, conversationLoading]);
+
+    useEffect(() => {
+        const node = messagesContainerRef.current;
+        if (!node) return;
+        node.scrollTop = node.scrollHeight;
+    }, [messages.length]);
 
     useEffect(() => {
         if (!friendIdParam) return;
@@ -70,12 +79,12 @@ export function ChatPage() {
 
                 if (cancelled) return;
 
-                const displayName = friendNameParam || data.name || `User ${friendId}`;
+                const displayName = chatNameParam || data.name || `User ${friendId}`;
                 setConversationId(Number(data.id));
                 setTarget(displayName);
                 setMessages([]);
                 setPeerTyping(null);
-                setStatus(`Chatting with ${displayName}`);
+                setStatus(` ${displayName}`);
             } catch {
                 if (!cancelled) {
                     setStatus("Network error while opening conversation");
@@ -92,7 +101,27 @@ export function ChatPage() {
         return () => {
             cancelled = true;
         };
-    }, [friendIdParam, friendNameParam, user?.name]);
+    }, [friendIdParam, chatNameParam, user?.name]);
+
+    useEffect(() => {
+        if (friendIdParam) return;
+        if (!conversationIdParam) return;
+
+        const existingConversationId = Number(conversationIdParam);
+        if (!Number.isInteger(existingConversationId) || existingConversationId <= 0) {
+            setStatus("Invalid conversationId in URL");
+            return;
+        }
+
+        const displayName = chatNameParam || `Conversation ${existingConversationId}`;
+        setConversationLoading(true);
+        setConversationId(existingConversationId);
+        setTarget(displayName);
+        setMessages([]);
+        setPeerTyping(null);
+        setStatus(`Chatting in ${displayName}`);
+        setConversationLoading(false);
+    }, [friendIdParam, conversationIdParam, chatNameParam]);
 
     useEffect(() => {
         if (!conversationId) return;
@@ -146,8 +175,8 @@ export function ChatPage() {
 
         socketRef.current = socket;
 
-        socket.on("connect", () => setStatus("Connected"));
-        socket.on("disconnect", () => setStatus("Disconnected"));
+        socket.on("connect", () => setStatus(""));
+        socket.on("disconnect", () => setStatus("disconnected"));
 
         socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
             const normalizedIncoming = Number(incomingConversationId);
@@ -196,7 +225,7 @@ export function ChatPage() {
 
         typingTimeoutRef.current = window.setTimeout(() => {
             if (!socketRef.current) return;
-            socketRef.current.emit("typing", { to: cleanTarget, isTyping: false });
+            socketRef.current.emit("conversation-typing", { conversationId, isTyping: false });
             typingTimeoutRef.current = null;
         }, 900);
     };
@@ -220,13 +249,11 @@ export function ChatPage() {
     };
 
     return (
-        <div id="center">
-            <div className="card" style={{ maxWidth: 700 }}>
-                <h2 style={{ marginBottom: 10 }}>{t("CH_direct_chat")}</h2>
-
-                <p style={{ color: "var(--ink3)", marginBottom: 12 }}>
-                    {target ? t("CH_talking_to_chat") + ` ${target}` : t("CH_open_chat")}
-                </p>
+		<div className="min-h-screen w-full">
+			<TopBar />
+			<div id="center">
+				<div className="card" style={{ maxWidth: 700, maxHeight: "calc(100vh - 140px)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+					<h2 style={{ marginBottom: 10 }}>{target}</h2>
 
                 {status && (
                     <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>
@@ -235,12 +262,13 @@ export function ChatPage() {
                 )}
 
                 <div
+                    ref={messagesContainerRef}
                     style={{
                         border: "1px solid var(--border)",
                         borderRadius: 10,
                         padding: 12,
                         minHeight: 220,
-                        maxHeight: 320,
+                        flex: 1,
                         overflowY: "auto",
                         display: "flex",
                         flexDirection: "column",
@@ -266,7 +294,7 @@ export function ChatPage() {
                             }}
                         >
                             <p style={{ fontSize: "0.7rem", color: "var(--ink3)", marginBottom: 4 }}>{message.from}</p>
-                            <p>{message.text}</p>
+							<p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.35 }}>{message.text}</p>
                         </div>
                     ))}
                 </div>
@@ -289,5 +317,6 @@ export function ChatPage() {
 
             </div>
         </div>
+		</div>
     );
 }

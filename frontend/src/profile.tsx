@@ -8,6 +8,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
+import { TopBar } from './components/ui/topbar';
 import { getPasswordChecks, getPasswordPolicyError } from './utils/passwordPolicy';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from './components/i18n';
@@ -19,6 +20,7 @@ export function ProfilePage() {
     const navigate               = useNavigate();
 
     const [showPicker, setShowPicker]           = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [username, setUsername]               = useState(user?.name  ?? '');
     const [email, setEmail]                     = useState(user?.email ?? '');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -28,14 +30,21 @@ export function ProfilePage() {
     const [success, setSuccess]                 = useState<string | null>(null);
     const [error, setError]                     = useState<string | null>(null);
 
-    const hasIdentityChanges = username !== (user?.name ?? '') || email !== (user?.email ?? '');
+    const canChangePassword = user?.hasPassword !== false;
+    const canChangeEmail = user?.hasOAuthLogin !== true;
+    const hasIdentityChanges = username !== (user?.name ?? '') || (canChangeEmail && email !== (user?.email ?? ''));
     const hasPasswordChange = newPassword.length > 0 || confirmNew.length > 0;
     const hasChanges = hasIdentityChanges || hasPasswordChange;
     const passwordMismatch = !!newPassword && newPassword !== confirmNew;
     const passwordChecks = getPasswordChecks(newPassword);
     const passwordPolicyError = newPassword ? getPasswordPolicyError(newPassword) : null;
     const usernameHasSpaces = /\s/.test(username.trim());
-    const canSubmit = hasChanges && !passwordMismatch && !passwordPolicyError && !usernameHasSpaces && !!currentPassword.trim() && !loading;
+    const needsCurrentPassword = canChangePassword && hasPasswordChange;
+    const canSubmit = hasChanges && !passwordMismatch && !passwordPolicyError && !usernameHasSpaces && (!needsCurrentPassword || !!currentPassword.trim()) && !loading;
+
+    const closePasswordModal = () => {
+        setShowPasswordModal(false);
+    };
 
     const saveAvatar = async (avatar: string) => {
         const token = sessionStorage.getItem("token");
@@ -72,10 +81,20 @@ export function ProfilePage() {
             return;
         }
 
+        if (newPassword && !canChangePassword) {
+            setError('Password changes are not supported for this account.');
+            return;
+        }
+
         if (newPassword) {
             const policyError = getPasswordPolicyError(newPassword);
             if (policyError) {
                 setError(policyError);
+                return;
+            }
+
+            if (!currentPassword.trim()) {
+                setError('Current password is required to change your password.');
                 return;
             }
         }
@@ -85,12 +104,15 @@ export function ProfilePage() {
             return;
         }
 
-        const body: Record<string, string> = { currentPassword };
+        const body: Record<string, string> = {};
         if (username !== user?.name)  body.username    = username;
-        if (email    !== user?.email) body.email       = email;
-        if (newPassword)              body.newPassword = newPassword;
+        if (canChangeEmail && email !== user?.email) body.email = email;
+        if (newPassword) {
+            body.currentPassword = currentPassword;
+            body.newPassword = newPassword;
+        }
 
-        if (Object.keys(body).length === 1) {
+        if (Object.keys(body).length === 0) {
             setError("Change at least one field");
             return;
         }
@@ -124,26 +146,11 @@ export function ProfilePage() {
     };
 
     return (
-        <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            {t("PF_dashboard")}
-                        </Button>
-                        {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button> */}
-                        <LanguageSwitcher />
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen w-full">
+            <TopBar />
+            <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
 
-            <main className="space-y-5">
+                <main className="space-y-5">
                 <div>
                     <h1 className="font-display text-3xl">{t("PF_settings")}</h1>
                     <p className="mt-1 text-sm text-muted">{t("PF_manage")}</p>
@@ -154,15 +161,12 @@ export function ProfilePage() {
                         <CardTitle className="text-base">{t("PF_quick")}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-2 sm:grid-cols-3">
-                            <Button type="button" onClick={() => setShowPicker(true)}>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Button className="w-full" type="button" onClick={() => setShowPicker(true)}>
                                 {t("PF_avatar")}
                             </Button>
-                            <Button variant="outline" type="button" onClick={() => navigate('/profile/blocked')}>
+                            <Button className="w-full" variant="outline" type="button" onClick={() => navigate('/profile/blocked')}>
                                 {t("PF_blocked")}
-                            </Button>
-                            <Button variant="outline" type="button" onClick={() => navigate('/dashboard')}>
-                                {t("PF_dash")}
                             </Button>
                         </div>
                     </CardContent>
@@ -177,15 +181,6 @@ export function ProfilePage() {
                                     <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{t("PF_curr_avatar")}</p>
                                     <p className="text-sm font-semibold text-ink">{user?.name}</p>
                                     <p className="text-xs text-muted">{user?.email}</p>
-                                    <Button
-                                        className="mt-2"
-                                        variant="outline"
-                                        size="sm"
-                                        type="button"
-                                        onClick={() => setShowPicker(true)}
-                                    >
-                                        {t("PF_avatar")}
-                                    </Button>
                                 </div>
                             </div>
                         ) : (
@@ -221,68 +216,54 @@ export function ProfilePage() {
                                         <p className="text-xs text-muted">{t("SU_spaces_not")}</p>
                                         {usernameHasSpaces && <p className="text-xs text-red-400">{t("SU_user_cannot")}</p>}
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Email</Label>
-                                        <Input type="email" value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} />
-                                    </div>
+                                   <div className="border rounded-2xl p-4 ">
+  									<div className="space-y-1.5">
+    								<Label>Email</Label>
+						    		<p className="text-sm text-gray-700">
+										<span className="font-medium">{user?.email}</span>
+									</p>
+								</div>
+								</div>
                                 </div>
                             </div>
 
-                            <div className="h-px bg-border" />
+                            {canChangePassword ? (
+                                <>
+                                    <div className="h-px bg-border" />
 
-                            <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("SU_password")}</p>
-                                <div className="space-y-3">
-                                    <div className="space-y-1.5">
-                                        <Label>{t("PF_new_pass")}</Label>
-                                        <Input
-                                            type="password"
-                                            placeholder={t("SU_pass_place")}
-                                            value={newPassword}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
-                                        />
-                                        <div className="space-y-1 text-xs text-muted">
-                                            <p>{t("PF_pass_rules")}</p>
-                                            <ul className="grid gap-1 sm:grid-cols-2">
-                                                <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• {t("SU_8chars")}</li>
-                                                <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• {t("SU_1up")}</li>
-                                                <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• {t("SU_1low")}</li>
-                                                <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• {t("SU_1num")}</li>
-                                                <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• {t("SU_1sym")}</li>
-                                            </ul>
-                                        </div>
+                                    <div className="flex justify-start">
+                                        <Button type="button" variant="outline" onClick={() => setShowPasswordModal(true)}>
+                                            Change password
+                                        </Button>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label>{t("PF_confirm_new_pass")}</Label>
-                                        <Input
-                                            type="password"
-                                            placeholder={t("PF_repeat_new")}
-                                            value={confirmNew}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmNew(e.target.value)}
-                                        />
-                                        {passwordMismatch && <p className="text-xs text-red-400">{t("PF_pass_mismatch")}</p>}
-                                        {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div className="h-px bg-border" />
-
-                            <div>
-                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("PF_verification")}</p>
-                                <div className="space-y-1.5">
-                                    <Label>
-                                        {t("PF_curr_pass")} <span className="text-red-400">{t("PF_pass_req")}</span>
-                                    </Label>
-                                    <Input
-                                        type="password"
-                                        placeholder={t("PF_req_save")}
-                                        value={currentPassword}
-                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                            </div>
+                                    {hasPasswordChange && (
+                                        <>
+                                            <div className="h-px bg-border" />
+                                            <div>
+                                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Verification</p>
+                                                <div className="space-y-1.5">
+                                                    <Label>
+                                                        Current Password <span className="text-red-400">required</span>
+                                                    </Label>
+                                                    <Input
+                                                        type="password"
+                                                        placeholder="Required to change password"
+                                                        value={currentPassword}
+                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
+                                                        required={hasPasswordChange}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="h-px bg-border" />
+                                    <p className="text-xs text-muted">This account uses OAuth sign-in. Password changes are not available.</p>
+                                </>
+                            )}
 
                             <div className="flex flex-wrap gap-2">
                                 <Button type="submit" disabled={!canSubmit}>
@@ -298,7 +279,56 @@ export function ProfilePage() {
                     </CardContent>
                 </Card>
             </main>
-        </div>
+                </div>
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closePasswordModal}>
+                    <Card className="w-full max-w-lg shadow-xl" onClick={(event) => event.stopPropagation()}>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-base">Change password</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label>New Password</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="8+ chars, upper, lower, number, symbol"
+                                    value={newPassword}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
+                                />
+                                <div className="space-y-1 text-xs text-muted">
+                                    <p>Password rules:</p>
+                                    <ul className="grid gap-1 sm:grid-cols-2">
+                                        <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• 8+ characters</li>
+                                        <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• 1 uppercase letter</li>
+                                        <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• 1 lowercase letter</li>
+                                        <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• 1 number</li>
+                                        <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• 1 symbol</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label>Confirm New Password</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="Repeat new password"
+                                    value={confirmNew}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmNew(e.target.value)}
+                                />
+                                {passwordMismatch && <p className="text-xs text-red-400">Passwords do not match.</p>}
+                                {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
+                            </div>
+
+                            <div className="flex flex-wrap justify-end gap-2">
+                                <Button type="button" variant="outline" onClick={closePasswordModal}>
+                                    Close
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+            </div>
     );
 }
 

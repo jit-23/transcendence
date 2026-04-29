@@ -1,3 +1,7 @@
 .vscode
 .idea
 .env
+certs
+*.key
+*.certs
+anotacoes.txt

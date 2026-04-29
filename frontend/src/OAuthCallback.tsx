@@ -41,7 +41,7 @@ export function OAuthCallback() {
     return (
         <div id="center">
             <p style={{ color: 'var(--ink3)', fontSize: '0.875rem' }}>
-                Signing you in…
+                Signing you in...
             </p>
         </div>
     );

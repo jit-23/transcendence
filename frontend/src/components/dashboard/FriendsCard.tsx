@@ -50,6 +50,13 @@ export function FriendsCard({
               >
                 <div>
                   <p className="text-sm font-semibold text-ink">{friend.name}</p>
+                  <div className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted">
+                    <span
+                      className={`h-2 w-2 rounded-full ${friend.online ? "bg-emerald-500" : "bg-zinc-400"}`}
+                      aria-hidden="true"
+                    />
+                    {friend.online ? "Online" : "Offline"}
+                  </div>
                 </div>
 
                 <div className="flex gap-1.5">

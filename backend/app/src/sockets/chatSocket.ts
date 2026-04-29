@@ -1,6 +1,7 @@
 import { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 import { PrismaClient } from "@prisma/client";
+import { getSocketIdsForUser, markSocketOffline, markUserOnline } from "../presenceStore";
 
 type CanvasInvite = {
   inviteId: string;
@@ -23,6 +24,16 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
   const pendingCanvasInvites = new Map<string, CanvasInvite>();
   const pendingCanvasJoins = new Map<string, Set<number>>();
   const canvasPresenceById = new Map<number, Map<string, CanvasPresenceMember>>();
+  const activeCanvasSessionByUser = new Map<number, Map<number, string>>();
+
+  const configuredOrigin = process.env.CORS_ORIGIN || "https://localhost:5173";
+  const allowedOrigins = new Set([
+    configuredOrigin,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://localhost:5173",
+    "https://127.0.0.1:5173",
+  ]);
 
   const canAccessCanvas = async (userId: number, canvasId: number) => {
     const canvas = await prisma.canvas.findFirst({
@@ -35,9 +46,18 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
     return Boolean(canvas);
   };
 
+  const isActiveCanvasSession = (userId: number, canvasId: number, socketId: string) => {
+    const sessionsForUser = activeCanvasSessionByUser.get(userId);
+    return sessionsForUser?.get(canvasId) === socketId;
+  };
+
   const io = new Server(server, {
     cors: {
-      origin: "https://localhost:5173",
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.has(origin)) return callback(null, true);
+        return callback(new Error(`Socket CORS blocked for origin: ${origin}`));
+      },
       methods: ["GET", "POST"],
       credentials: true,
     },
@@ -69,6 +89,24 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       const allowed = await canAccessCanvas(connectedUserId, canvasId);
       if (!allowed) return;
 
+      const sessionsForUser = activeCanvasSessionByUser.get(connectedUserId) ?? new Map<number, string>();
+      const existingSocketId = sessionsForUser.get(canvasId);
+      if (existingSocketId && existingSocketId !== socket.id) {
+        const existingSocketStillConnected = io.sockets.sockets.has(existingSocketId);
+        if (!existingSocketStillConnected) {
+          sessionsForUser.delete(canvasId);
+        } else {
+        socket.emit("canvas-entry-blocked", {
+          canvasId,
+          reason: "already-open-in-another-window",
+        });
+        return;
+        }
+      }
+
+      sessionsForUser.set(canvasId, socket.id);
+      activeCanvasSessionByUser.set(connectedUserId, sessionsForUser);
+
       socket.join(`canvas:${canvasId}`);
       joinedCanvasIds.add(canvasId);
 
@@ -78,6 +116,8 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
         username,
       });
       canvasPresenceById.set(canvasId, roomMembers);
+
+      socket.emit("canvas-joined", { canvasId });
 
       publishCanvasPresence(canvasId);
     };
@@ -102,6 +142,26 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       return true;
     };
 
+    const notifyFriendsPresenceChange = async (userId: number, online: boolean) => {
+      const friendships = await prisma.friend_request.findMany({
+        where: {
+          status: "accepted",
+          OR: [{ senderId: userId }, { receiverId: userId }],
+        },
+        select: { senderId: true, receiverId: true },
+      });
+
+      const friendIds = friendships.map((friendship) =>
+        friendship.senderId === userId ? friendship.receiverId : friendship.senderId,
+      );
+
+      friendIds.forEach((friendId) => {
+        getSocketIdsForUser(friendId).forEach((friendSocketId) => {
+          io.to(friendSocketId).emit("friend-presence", { userId, online });
+        });
+      });
+    };
+
     (async () => {
       const dbUser = await prisma.my_users.findUnique({
         where: { name: username },
@@ -114,6 +174,11 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       }
 
       connectedUserId = dbUser.id;
+      const onlineTransition = markUserOnline(dbUser.id, socket.id);
+      if (onlineTransition.becameOnline) {
+        await notifyFriendsPresenceChange(dbUser.id, true);
+      }
+
       const memberships = await prisma.conversation_participants.findMany({
         where: { user_id: dbUser.id },
         select: { conversation_id: true },
@@ -218,6 +283,7 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
       socket.to(`canvas:${id}`).emit("canvas-shape-commit", {
         canvasId: id,
@@ -231,6 +297,20 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       });
     });
 
+    socket.on("canvas-shape-delete", async ({ canvasId, shapeIds }) => {
+      if (!connectedUserId) return;
+      const id = Number(canvasId);
+      if (!id || !Array.isArray(shapeIds) || shapeIds.length === 0) return;
+
+      const allowed = await canAccessCanvas(connectedUserId, id);
+      if (!allowed) return;
+
+      socket.to(`canvas:${id}`).emit("canvas-shape-delete", {
+        canvasId: id,
+        shapeIds,
+      });
+    });
+
     socket.on("canvas-draft", async ({ canvasId, shape }) => {
       if (!connectedUserId) return;
       const id = Number(canvasId);
@@ -238,6 +318,7 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
       socket.to(`canvas:${id}`).emit("canvas-draft", {
         canvasId: id,
@@ -253,6 +334,7 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
       if (visible === false) {
         socket.to(`canvas:${id}`).emit("canvas-cursor", {
@@ -283,6 +365,7 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
       socket.to(`canvas:${id}`).emit("canvas-clear", { canvasId: id });
     });
@@ -294,22 +377,21 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
       socket.to(`canvas:${id}`).emit("canvas-undo", { canvasId: id });
     });
 
-    socket.on("canvas-redo", async ({ canvasId, shape }) => {
+    socket.on("canvas-redo", async ({ canvasId }) => {
       if (!connectedUserId) return;
       const id = Number(canvasId);
-      if (!id || !shape) return;
+      if (!id) return;
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
-      socket.to(`canvas:${id}`).emit("canvas-redo", {
-        canvasId: id,
-        shape,
-      });
+      socket.to(`canvas:${id}`).emit("canvas-redo", { canvasId: id });
     });
 
     socket.on("canvas-background", async ({ canvasId, color }) => {
@@ -319,6 +401,7 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
 
       const allowed = await canAccessCanvas(connectedUserId, id);
       if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
 
       socket.to(`canvas:${id}`).emit("canvas-background", {
         canvasId: id,
@@ -326,7 +409,27 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       });
     });
 
-    socket.on("disconnect", () => {
+    socket.on("canvas-shape-delete", async ({ canvasId, shapeIds }) => {
+      if (!connectedUserId) return;
+      const id = Number(canvasId);
+      if (!id || !Array.isArray(shapeIds) || shapeIds.length === 0) return;
+
+      const allowed = await canAccessCanvas(connectedUserId, id);
+      if (!allowed) return;
+      if (!isActiveCanvasSession(connectedUserId, id, socket.id)) return;
+
+      socket.to(`canvas:${id}`).emit("canvas-shape-delete", {
+        canvasId: id,
+        shapeIds,
+      });
+    });
+
+    socket.on("disconnect", async () => {
+      const offlineTransition = markSocketOffline(socket.id);
+      if (offlineTransition?.becameOffline) {
+        await notifyFriendsPresenceChange(offlineTransition.userId, false);
+      }
+
       if (connectedByName.get(username) === socket.id) {
         connectedByName.delete(username);
       }
@@ -334,6 +437,16 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
       pendingCanvasJoins.delete(socket.id);
 
       for (const canvasId of joinedCanvasIds) {
+        if (connectedUserId) {
+          const sessionsForUser = activeCanvasSessionByUser.get(connectedUserId);
+          if (sessionsForUser?.get(canvasId) === socket.id) {
+            sessionsForUser.delete(canvasId);
+            if (sessionsForUser.size === 0) {
+              activeCanvasSessionByUser.delete(connectedUserId);
+            }
+          }
+        }
+
         if (connectedUserId) {
           socket.to(`canvas:${canvasId}`).emit("canvas-draft", {
             canvasId,

@@ -1,7 +1,7 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
+import { B } from "./components/ui/B";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Input } from "./components/ui/input";
@@ -18,7 +18,6 @@ interface SearchResult {
 export function SearchFriends() {
     const {t} = useTranslation();
     const { user } = useContext(AuthContext);
-    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -27,6 +26,7 @@ export function SearchFriends() {
     const [error, setError] = useState<string | null>(null);
     const [searched, setSearched] = useState(false);
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
+    const [friendsSet, setFriendsSet] = useState<Set<number>>(new Set());
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -75,6 +75,7 @@ export function SearchFriends() {
         setPendingRequests(prev => new Set(prev).add(receiverId));
         
         try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: "POST",
                 headers: authHeader(),
@@ -83,7 +84,17 @@ export function SearchFriends() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Failed to send request");
+                // If backend reports user is already a friend, mark locally so invite button disappears
+                const msg = (data && data.error) || "Failed to send request";
+                if (res.status === 400 && /friend/i.test(msg)) {
+                    setFriendsSet(prev => {
+                        const updated = new Set(prev);
+                        updated.add(receiverId);
+                        return updated;
+                    });
+                }
+
+                setError(msg);
                 setPendingRequests(prev => {
                     const updated = new Set(prev);
                     updated.delete(receiverId);
@@ -103,36 +114,28 @@ export function SearchFriends() {
         }
     };
 
-    const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
+    useEffect(() => {
+        const fetchFriends = async () => {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                const res = await fetch(`${apiUrl}/users/friends`, { headers: authHeader() });
+                const data = await res.json();
+                if (res.ok && Array.isArray(data)) {
+                    setFriendsSet(new Set(data.map((f: any) => f.id)));
+                }
+            } catch {
+                // ignore
+            }
+        };
+        // only fetch when we have a logged-in user (token available)
+        if (sessionStorage.getItem("token")) {
+            void fetchFriends();
+        }
+    }, [user]);
 
     return (
         <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2 px-3 py-1.5 text-sm text-ink">
-                            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-[0.65rem] font-semibold">
-                                {initials}
-                            </div>
-                            {user?.name}
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                            {t("FRS_dashboard")}
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
-                            {t("FRS_profile")}
-                        </Button>
-                        {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </Button> */}
-                        <LanguageSwitcher />
-                    </div>
-                </div>
-            </header>
+            <TopBar />
 
             <main className="space-y-5">
                 <div>
@@ -208,13 +211,17 @@ export function SearchFriends() {
                                         >
                                             {t("FRS_profile")}
                                         </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleSendRequest(result.id)}
-                                            disabled={pendingRequests.has(result.id)}
-                                        >
-                                            {pendingRequests.has(result.id) ? t("FRS_requested") : t("FRS_add")}
-                                        </Button>
+                                        {friendsSet.has(result.id) ? (
+                                            <Button size="sm" variant="ghost" disabled>(Friend)</Button>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSendRequest(result.id)}
+                                                disabled={pendingRequests.has(result.id)}
+                                            >
+                                                {pendingRequests.has(result.id) ? t("FRS_requested") : t("FRS_add")}
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}

@@ -9,11 +9,6 @@ type CanvasEventPayload = {
   canvasId: number;
 };
 
-type CanvasRedoPayload<Shape> = {
-  canvasId: number;
-  shape?: Shape;
-};
-
 type CanvasBackgroundPayload = {
   canvasId: number;
   color?: string;
@@ -49,7 +44,7 @@ export type CanvasRealtimeHandlers<Shape> = {
   onShapeDelete: (shapeIds: string[]) => void;
   onClear: () => void;
   onUndo: () => void;
-  onRedo: (shape: Shape) => void;
+  onRedo: () => void;
   onBackground: (color: string) => void;
   onPresence: (users: Array<{ userId: number; username: string }>) => void;
   onDraft: (userId: number, shape: Shape | null) => void;
@@ -97,9 +92,9 @@ export const registerCanvasRealtimeHandlers = <Shape>(
     handlers.onUndo();
   };
 
-  const handleRedo = ({ canvasId: incomingCanvasId, shape }: CanvasRedoPayload<Shape>) => {
-    if (!isValidCanvasId(canvasId) || Number(incomingCanvasId) !== canvasId || !shape) return;
-    handlers.onRedo(shape);
+  const handleRedo = ({ canvasId: incomingCanvasId }: CanvasEventPayload) => {
+    if (!isValidCanvasId(canvasId) || Number(incomingCanvasId) !== canvasId) return;
+    handlers.onRedo();
   };
 
   const handleBackground = ({ canvasId: incomingCanvasId, color }: CanvasBackgroundPayload) => {

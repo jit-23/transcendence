@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 export type CanvasMember = {
 	id: number;
 	name: string;
@@ -21,6 +23,7 @@ type CanvasChatSidebarProps = {
 	chatInput: string;
 	conversationLinked: boolean;
 	sendingMessage: boolean;
+	panelHeight?: number;
 	onChatInputChange: (value: string) => void;
 	onSend: () => void;
 };
@@ -35,11 +38,34 @@ export default function CanvasChatSidebar({
 	chatInput,
 	conversationLinked,
 	sendingMessage,
+	panelHeight,
 	onChatInputChange,
 	onSend,
 }: CanvasChatSidebarProps) {
+	const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		const node = messagesContainerRef.current;
+		if (!node) return;
+		node.scrollTop = node.scrollHeight;
+	}, [messages.length]);
+
 	return (
-		<aside style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 10, background: "var(--surface)" }}>
+		<aside
+			style={{
+				border: "1px solid var(--border)",
+				borderRadius: 8,
+				padding: 10,
+				display: "flex",
+				flexDirection: "column",
+				gap: 10,
+				background: "var(--surface)",
+				height: panelHeight ? `${panelHeight}px` : "100%",
+				maxHeight: panelHeight ? `${panelHeight}px` : "100%",
+				minHeight: 0,
+				overflow: "hidden",
+			}}
+		>
 			<div>
 				<h3 style={{ margin: 0, fontSize: "1rem" }}>Canvas Chat</h3>
 				<p style={{ margin: "4px 0 0", color: "var(--ink3)", fontSize: "0.78rem" }}>{canvasName || "Shared Canvas"}</p>
@@ -63,15 +89,15 @@ export default function CanvasChatSidebar({
 				</div>
 			</div>
 
-			<div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+			<div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
 				<p style={{ margin: "0 0 6px", fontSize: "0.8rem", fontWeight: 600 }}>Messages</p>
 				{chatStatus && <p style={{ margin: "0 0 8px", color: "var(--ink3)", fontSize: "0.75rem" }}>{chatStatus}</p>}
-				<div style={{ flex: 1, minHeight: 120, border: "1px solid var(--border)", borderRadius: 6, padding: 8, overflowY: "auto", background: "var(--surface2)" }}>
+				<div ref={messagesContainerRef} style={{ flex: 1, minHeight: 0, border: "1px solid var(--border)", borderRadius: 6, padding: 8, overflowY: "auto", background: "var(--surface2)" }}>
 					{messages.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>No messages yet.</p>}
 					{messages.map((message, index) => (
 						<div key={`${message.from}-${index}`} style={{ marginBottom: 8, textAlign: message.self ? "right" : "left" }}>
 							<p style={{ margin: 0, fontSize: "0.68rem", color: "var(--ink3)" }}>{message.from}</p>
-							<p style={{ margin: 0 }}>{message.text}</p>
+							<p style={{ margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.35 }}>{message.text}</p>
 						</div>
 					))}
 				</div>

@@ -121,12 +121,9 @@ export function SignupForm() {
                 <LanguageSwitcher />
             </div>
 
+            <div className="flex items-center justify-center px-2 py-4">
             <Card className={`w-full ${step === 'avatar' ? 'max-w-lg' : 'max-w-md'}`}>
                 <CardHeader className="space-y-4">
-                    <div className="flex items-center justify-center gap-2 font-display text-lg font-semibold">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
                     <div className="text-center">
                         <CardTitle>{step === 'credentials' ? t("SU_create_account") : t("SU_choose_avatar")}</CardTitle>
                         <CardDescription className="mt-1">{t("SU_fast_setup")}</CardDescription>
@@ -316,6 +313,7 @@ export function SignupForm() {
                     </p>
                 </CardContent>
             </Card>
+            </div>
         </div>
     );
 }

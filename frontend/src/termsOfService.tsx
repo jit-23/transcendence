@@ -1,6 +1,4 @@
 import { Link } from "react-router-dom";
-import { useTheme } from "./ThemeContext";
-import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./components/i18n";
@@ -82,24 +80,8 @@ These Terms of Service, together with our Privacy Policy, constitute the entire 
 BY USING THE SERVICE, YOU ACKNOWLEDGE THAT YOU HAVE READ THESE TERMS OF SERVICE, UNDERSTAND THEM, AND AGREE TO BE BOUND BY THEM.`;
 
 export function TermsOfServicePage() {
-    const {t} = useTranslation();
-    const { theme, toggleTheme } = useTheme();
-
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-panel">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
-                        whiteboard
-                    </div>
-                    {/* <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </Button> */}
-                    <LanguageSwitcher />
-                </div>
-            </header>
-
             <main className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>

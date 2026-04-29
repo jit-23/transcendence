@@ -5,6 +5,7 @@ import speakeasy from "speakeasy";
 import { Request, Response } from "express";
 import jwt from 'jsonwebtoken';
 import bcrypt from "bcrypt";
+import { isUserOnline } from "../presenceStore";
 
 const prisma = new PrismaClient();
 
@@ -156,22 +157,27 @@ export const createUser = async (req: Request, res: Response) => {
     }
 };
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
+// Login 
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
         const user = await prisma.my_users.findUnique({ where: { email } });
-        if (!user) return res.status(404).json({ error: "User not found" });
+        if (!user || (!user.password && !user.googleId && !user.fortyTwoId)) 
+			return res.status(401).json({ error: "Username or password is incorrect" });
 
-        if (!user.password)
-            return res.status(401).json({ error: "This account uses OAuth Sign-In (Google/42). Please sign in with your provider." });
+        //if (!user.password)
+        //    return res.status(401).json({ error: "This account uses OAuth Sign-In (Google/42). Please sign in with your provider." });
+		if (!user.password)
+		{
+			return res.status(401).json({ error: "Username or password is incorrect" });
+		}
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: "Invalid password" });
 
         if (user.twoFactorEnabled) {
-            const tempToken = jwt.sign(
+            const tempToken = jwt.sign(	
                 { userId: user.id, pending2FA: true },
                 process.env.JWT_SECRET!,
                 { expiresIn: "5m" }
@@ -186,7 +192,7 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
-// ─── VERIFY 2FA LOGIN (rate limited in route) ─────────────────────────────────
+//  2FA Login 
 export const login2FA = async (req: Request, res: Response) => {
     const { code, tempToken } = req.body;
     if (!tempToken) return res.status(400).json({ error: "Missing token" });
@@ -211,14 +217,14 @@ export const login2FA = async (req: Request, res: Response) => {
     return res.json({ token });
 };
 
-// ─── 2FA: STEP 1 ──────────────────────────────────────────────────────────────
+// 2FA: First step
 export const generate2FA = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
         const user = await prisma.my_users.findUnique({ where: { id: auth.userId } });
-        if (!user) return res.status(404).json({ error: "User not found" });
+        if (!user) return res.status(401).json({ error: "User not found" });
         if (user.twoFactorEnabled) return res.status(400).json({ error: "2FA already enabled" });
 
         const secret = speakeasy.generateSecret({ name: `ft_transcendence (${user.email})` });
@@ -231,7 +237,7 @@ export const generate2FA = async (req: Request, res: Response) => {
     }
 };
 
-// ─── 2FA: STEP 2 ──────────────────────────────────────────────────────────────
+// 2FA: Second step
 export const confirm2FA = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -256,7 +262,7 @@ export const confirm2FA = async (req: Request, res: Response) => {
     }
 };
 
-// ─── 2FA: DISABLE ─────────────────────────────────────────────────────────────
+// 2FA: Disable it
 export const disable2FA = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -266,7 +272,7 @@ export const disable2FA = async (req: Request, res: Response) => {
         if (!code) return res.status(400).json({ error: "Current 2FA code required to disable" });
 
         const user = await prisma.my_users.findUnique({ where: { id: auth.userId } });
-        if (!user) return res.status(404).json({ error: "User not found" });
+        if (!user) return res.status(401).json({ error: "User not found" });
         if (!user.twoFactorEnabled || !user.twoFactorSecret)
             return res.status(400).json({ error: "2FA is not enabled" });
 
@@ -283,7 +289,6 @@ export const disable2FA = async (req: Request, res: Response) => {
     }
 };
 
-// ─── GET ME ───────────────────────────────────────────────────────────────────
 export const getMe = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -291,9 +296,19 @@ export const getMe = async (req: Request, res: Response) => {
 
         const user = await prisma.my_users.findUnique({
             where: { id: auth.userId },
-            select: { id: true, name: true, email: true, twoFactorEnabled: true, avatar: true },
+            select: { id: true, name: true, email: true, twoFactorEnabled: true, avatar: true, password: true, googleId: true, fortyTwoId: true },
         });
-        return res.json(user);
+        if (!user) return res.status(401).json({ error: "User not found" });
+
+        return res.json({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            twoFactorEnabled: user.twoFactorEnabled,
+            avatar: user.avatar,
+            hasPassword: !!user.password,
+            hasOAuthLogin: !!user.googleId || !!user.fortyTwoId,
+        });
     } catch {
         return res.status(401).json({ error: "Unauthorized" });
     }
@@ -318,7 +333,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
             },
         });
 
-        if (!profile) return res.status(404).json({ error: "User not found" });
+        if (!profile) return res.status(401).json({ error: "User not found" });
 
         const isBlocked = !!(await prisma.user_block.findUnique({
             where: {
@@ -359,7 +374,7 @@ export const blockUser = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "Cannot block yourself" });
 
         const target = await prisma.my_users.findUnique({ where: { id: targetUserId } });
-        if (!target) return res.status(404).json({ error: "User not found" });
+        if (!target) return res.status(401).json({ error: "User not found" });
 
         await prisma.user_block.upsert({
             where: {
@@ -446,7 +461,7 @@ export const getBlockedUsers = async (req: Request, res: Response) => {
     }
 };
 
-// ─── UPDATE MY PROFILE ────────────────────────────────────────────────────────
+// Update Profile 
 export const updateMe = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -455,26 +470,30 @@ export const updateMe = async (req: Request, res: Response) => {
         const { username, email, currentPassword, newPassword } = req.body;
 
         const user = await prisma.my_users.findUnique({ where: { id: auth.userId } });
-        if (!user) return res.status(404).json({ error: "User not found" });
+        if (!user) return res.status(401).json({ error: "User not found" });
 
-        // Always verify current password first
-        if (!currentPassword)
-            return res.status(400).json({ error: "Current password is required" });
-        if (!user.password) {
-            const providers: string[] = [];
-            if (user.googleId) providers.push("Google");
-            if (user.fortyTwoId) providers.push("42 login");
-            const providerText = providers.length ? providers.join("/") : "OAuth";
+        const isChangingPassword = typeof newPassword === "string" && newPassword.length > 0;
 
-            return res.status(400).json({
-                error: `This account uses ${providerText}. Password changes are not supported.`,
-            });
+        if (isChangingPassword) {
+            if (!user.password) {
+                const providers: string[] = [];
+                if (user.googleId) providers.push("Google");
+                if (user.fortyTwoId) providers.push("42 login");
+                const providerText = providers.length ? providers.join("/") : "OAuth";
+
+                return res.status(400).json({
+                    error: `This account uses ${providerText}. Password changes are not supported.`,
+                });
+            }
+
+            if (!currentPassword)
+                return res.status(400).json({ error: "Current password is required" });
+
+            const validPassword = await bcrypt.compare(currentPassword, user.password);
+            if (!validPassword)
+                return res.status(401).json({ error: "Current password is incorrect" });
         }
-        const validPassword = await bcrypt.compare(currentPassword, user.password);
-        if (!validPassword)
-            return res.status(401).json({ error: "Current password is incorrect" });
 
-        // Check uniqueness only if the value is actually changing
         if (username && username !== user.name) {
             if (typeof username !== "string" || hasWhitespace(username.trim())) {
                 return res.status(422).json({ error: "Username cannot contain spaces" });
@@ -483,6 +502,9 @@ export const updateMe = async (req: Request, res: Response) => {
                 return res.status(409).json({ error: "Username already taken" });
         }
         if (email && email !== user.email) {
+            if (user.googleId || user.fortyTwoId) {
+                return res.status(400).json({ error: "Email changes are not supported for OAuth accounts" });
+            }
             if (await prisma.my_users.findUnique({ where: { email } }))
                 return res.status(409).json({ error: "Email already in use" });
         }
@@ -490,7 +512,7 @@ export const updateMe = async (req: Request, res: Response) => {
         const data: any = {};
         if (username) data.name     = username;
         if (email)    data.email    = email;
-        if (newPassword) {
+        if (isChangingPassword) {
             const passwordPolicyError = getPasswordPolicyError(newPassword);
             if (passwordPolicyError)
                 return res.status(422).json({ error: passwordPolicyError });
@@ -512,7 +534,6 @@ export const updateMe = async (req: Request, res: Response) => {
     }
 };
 
-// const token = sessionStorage.getItem("token");
 export const updateAvatar = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -538,7 +559,7 @@ export const updateAvatar = async (req: Request, res: Response) => {
     }
 };
 
-// ─── SEARCH USERS ─────────────────────────────────────────────────────────────
+
 export const searchUsers = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -556,8 +577,8 @@ export const searchUsers = async (req: Request, res: Response) => {
         const users = await prisma.my_users.findMany({
             where: {
                 OR: [
-                    { name: { contains: query, mode: 'insensitive' } },
-                    { email: { contains: query, mode: 'insensitive' } },
+                    { name: { startsWith: query, mode: 'insensitive' } },
+                    { email: { startsWith: query, mode: 'insensitive' } },
                 ],
                 NOT: {
                     id: {
@@ -588,7 +609,7 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "Cannot send request to yourself" });
 
         const receiver = await prisma.my_users.findUnique({ where: { id: receiverId } });
-        if (!receiver) return res.status(404).json({ error: "User not found" });
+        if (!receiver) return res.status(401).json({ error: "User not found" });
 
         const blocked = await hasBlockRelation(auth.userId, receiverId);
         if (blocked)
@@ -660,7 +681,7 @@ export const acceptFriendRequest = async (req: Request, res: Response) => {
 
         const existing = await prisma.friend_request.findUnique({ where: { id: requestId } });
         if (!existing || existing.receiverId !== auth.userId)
-            return res.status(404).json({ error: "Request not found" });
+            return res.status(401).json({ error: "Request not found" });
         if (existing.status !== "pending")
             return res.status(400).json({ error: "Request already handled" });
 
@@ -686,7 +707,7 @@ export const rejectFriendRequest = async (req: Request, res: Response) => {
 
         const existing = await prisma.friend_request.findUnique({ where: { id: requestId } });
         if (!existing || existing.receiverId !== auth.userId)
-            return res.status(404).json({ error: "Request not found" });
+            return res.status(401).json({ error: "Request not found" });
         if (existing.status !== "pending")
             return res.status(400).json({ error: "Request already handled" });
 
@@ -729,7 +750,11 @@ export const getFriends = async (req: Request, res: Response) => {
                 if (seen.has(friend.id)) return false;
                 seen.add(friend.id);
                 return true;
-            });
+            })
+            .map((friend) => ({
+                ...friend,
+                online: isUserOnline(friend.id),
+            }));
 
         return res.json(friends);
     } catch (error: any) {
@@ -758,7 +783,7 @@ export const unfriend = async (req: Request, res: Response) => {
             },
         });
 
-        if (!relation) return res.status(404).json({ error: "Friendship not found" });
+        if (!relation) return res.status(401).json({ error: "Friendship not found" });
 
         await prisma.friend_request.delete({ where: { id: relation.id } });
         return res.json({ message: "Friend removed" });
