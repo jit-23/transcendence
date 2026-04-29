@@ -4,6 +4,15 @@ import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
 import { TopBar } from "./components/ui/topbar";
 
+
+type Participant = {
+    id: number;
+    name: string;
+    online?: boolean;
+    role?: string; // "owner" | "member"
+};
+   
+
 type ChatBubble = {
     from: string;
     text: string;
@@ -34,6 +43,44 @@ export function ChatPage() {
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
         "Content-Type": "application/json",
     });
+
+
+	//
+
+	const [participants, setParticipants] = useState<Participant[]>([]);
+    const [isOwner, setIsOwner] = useState(false);
+    const [participantsLoading, setParticipantsLoading] = useState(false);
+    const [participantsError, setParticipantsError] = useState<string | null>(null);
+    // Fetch participants for group conversations
+    useEffect(() => {
+        if (!conversationId) return;
+        const fetchParticipants = async () => {
+            setParticipantsLoading(true);
+            setParticipantsError(null);
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, {
+                    headers: authHeader(),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    setParticipantsError(data.error || "Failed to load participants");
+                    setParticipants([]);
+                    return;
+                }
+                setParticipants(data.members || []);
+                setIsOwner(data.role === "owner");
+            } catch {
+                setParticipantsError("Network error while loading participants");
+                setParticipants([]);
+            } finally {
+                setParticipantsLoading(false);
+            }
+        };
+        fetchParticipants();
+    }, [conversationId]);
+
+	//
 
     const canSend = useMemo(() => {
         return Boolean(conversationId && text.trim() && socketRef.current && !conversationLoading);
@@ -247,74 +294,139 @@ export function ChatPage() {
     };
 
     return (
-		<div className="min-h-screen w-full">
-			<TopBar />
-			<div id="center">
-				<div className="card" style={{ maxWidth: 700, maxHeight: "calc(100vh - 140px)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-					<h2 style={{ marginBottom: 10 }}>{target}</h2>
-
-                {status && (
-                    <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>
-                        {status}
-                    </p>
-                )}
-
-                <div
-                    ref={messagesContainerRef}
-                    style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        padding: 12,
-                        minHeight: 220,
-                        flex: 1,
-                        overflowY: "auto",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        marginBottom: 14,
-                        background: "var(--surface2)",
-                    }}
-                >
-                    {messages.length === 0 && (
-                        <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>No messages yet.</p>
-                    )}
-
-                    {messages.map((message, index) => (
+        <div className="min-h-screen w-full">
+            <TopBar />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", width: "100%", minHeight: "calc(100vh - 60px)", background: "var(--bg)" }}>
+                <div style={{ display: "flex", width: 900, minHeight: 540, maxHeight: 700, background: "var(--surface2)", borderRadius: 14, boxShadow: "0 2px 12px #0001", overflow: "hidden", marginTop: 32 }}>
+                    {/* Sidebar: Participants */}
+                    <div style={{ width: 220, background: "var(--surface1)", borderRight: "1px solid var(--border)", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 8 }}>Participants</h3>
+                        {participantsLoading ? (
+                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>Loading...</p>
+                        ) : participantsError ? (
+                            <p style={{ color: "var(--error)", fontSize: "0.9rem" }}>{participantsError}</p>
+                        ) : participants.length === 0 ? (
+                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>No participants</p>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {participants.map((p) => (
+                                    <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 8px", background: "var(--surface2)", borderRadius: 6 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>{p.name}</span>
+                                            <span style={{ fontSize: "0.8rem", color: p.online ? "#22c55e" : "#888" }}>
+                                                {p.online ? "● Online" : "○ Offline"}
+                                            </span>
+                                        </div>
+                                        {isOwner && p.role !== "owner" && (
+                                            <button
+                                                className="btn btn-ghost btn-xs"
+                                                style={{ color: "var(--error)", fontSize: "0.8rem" }}
+                                                onClick={async () => {
+                                                    // Remove member
+                                                    try {
+                                                        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                                                        await fetch(`${apiUrl}/conversations/${conversationId}/members/${p.id}`, {
+                                                            method: "DELETE",
+                                                            headers: authHeader(),
+                                                        });
+                                                        // Refresh participants
+                                                        const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, { headers: authHeader() });
+                                                        const data = await res.json();
+                                                        setParticipants(data.members || []);
+                                                    } catch {}
+                                                }}
+                                            >Remove</button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {isOwner && (
+                            <button
+                                className="btn btn-primary btn-xs"
+                                style={{ marginTop: 10 }}
+                                onClick={async () => {
+                                    // Add friend logic (simple prompt for demo)
+                                    const friendId = window.prompt("Enter friend ID to add:");
+                                    if (!friendId) return;
+                                    try {
+                                        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                                        await fetch(`${apiUrl}/conversations/${conversationId}/members`, {
+                                            method: "POST",
+                                            headers: authHeader(),
+                                            body: JSON.stringify({ memberIds: [Number(friendId)] }),
+                                        });
+                                        // Refresh participants
+                                        const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, { headers: authHeader() });
+                                        const data = await res.json();
+                                        setParticipants(data.members || []);
+                                    } catch {}
+                                }}
+                            >Add Friend</button>
+                        )}
+                    </div>
+                    {/* Main Chat Area */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, padding: 0, background: "var(--surface2)" }}>
+                        <div style={{ padding: "18px 18px 0 18px" }}>
+                            <h2 style={{ marginBottom: 10 }}>{target}</h2>
+                            {status && (
+                                <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>{status}</p>
+                            )}
+                        </div>
                         <div
-                            key={`${message.from}-${index}`}
+                            ref={messagesContainerRef}
                             style={{
-                                alignSelf: message.self ? "flex-end" : "flex-start",
-                                maxWidth: "75%",
                                 border: "1px solid var(--border)",
                                 borderRadius: 10,
-                                padding: "8px 10px",
-                                background: message.self ? "var(--surface)" : "var(--bg)",
+                                padding: 12,
+                                minHeight: 220,
+                                flex: 1,
+                                overflowY: "auto",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
+                                margin: 18,
+                                background: "var(--surface2)",
                             }}
                         >
-                            <p style={{ fontSize: "0.7rem", color: "var(--ink3)", marginBottom: 4 }}>{message.from}</p>
-							<p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.35 }}>{message.text}</p>
+                            {messages.length === 0 && (
+                                <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>No messages yet.</p>
+                            )}
+                            {messages.map((message, index) => (
+                                <div
+                                    key={`${message.from}-${index}`}
+                                    style={{
+                                        alignSelf: message.self ? "flex-end" : "flex-start",
+                                        maxWidth: "75%",
+                                        border: "1px solid var(--border)",
+                                        borderRadius: 10,
+                                        padding: "8px 10px",
+                                        background: message.self ? "var(--surface)" : "var(--bg)",
+                                    }}
+                                >
+                                    <p style={{ fontSize: "0.7rem", color: "var(--ink3)", marginBottom: 4 }}>{message.from}</p>
+                                    <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.35 }}>{message.text}</p>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                        <form onSubmit={handleSend} style={{ display: "flex", gap: 8, margin: "0 18px 16px 18px" }}>
+                            <input
+                                value={text}
+                                onChange={(event) => handleTextChange(event.target.value)}
+                                placeholder="Type a message"
+                                disabled={conversationLoading || !conversationId}
+                                style={{ flex: 1 }}
+                            />
+                            <button className="btn btn-primary" type="submit" disabled={!canSend}>Send</button>
+                        </form>
+                        {peerTyping && (
+                            <p style={{ color: "var(--ink3)", fontSize: "0.78rem", margin: "0 0 12px 18px" }}>
+                                {peerTyping} is typing...
+                            </p>
+                        )}
+                    </div>
                 </div>
-
-                <form onSubmit={handleSend} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                    <input
-                        value={text}
-                        onChange={(event) => handleTextChange(event.target.value)}
-                        placeholder="Type a message"
-                        disabled={conversationLoading || !conversationId}
-                    />
-                    <button className="btn btn-primary" type="submit" disabled={!canSend}>Send</button>
-                </form>
-
-                {peerTyping && (
-                    <p style={{ color: "var(--ink3)", fontSize: "0.78rem", marginBottom: 12 }}>
-                        {peerTyping} is typing...
-                    </p>
-                )}
-
             </div>
         </div>
-		</div>
     );
 }

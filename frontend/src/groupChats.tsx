@@ -363,28 +363,37 @@ export function GroupChatsPage() {
 
             {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <input
-                className="code-input"
-                placeholder="Group name"
-                value={groupName}
-                onChange={(event) => setGroupName(event.target.value)}
-              />
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
+  
+  <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+    <label style={{ color: "#8b8b8b", fontWeight: "600", minWidth: "100px" }}>Group Name:</label>
+    <input
+      className="code-input"
+      placeholder="..."
+      value={groupName}
+      onChange={(event) => setGroupName(event.target.value)}
+      style={{ flex: 1 }} 
+    />
+  </div>
 
-              <input
-                className="code-input"
-                placeholder="Search your friends by name or email"
-                value={friendSearchQuery}
-                onChange={(event) => setFriendSearchQuery(event.target.value)}
-              />
-
+  	<div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+    <label style={{ color: "#818181", fontWeight: "600", minWidth: "100px" }}>friends:</label>
+    <input
+      className="code-input"
+      placeholder="..."
+      value={friendSearchQuery}
+      onChange={(event) => setFriendSearchQuery(event.target.value)}
+      style={{ flex: 1 }}
+    />
+  	</div>
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 8,
-                  maxHeight: shouldScrollFriendsList ? 220 : "none",
-                  overflowY: shouldScrollFriendsList ? "auto" : "visible",
+                  gap: 10,
+                  maxHeight: 220,
+                  minHeight: 220,
+                  overflowY: "auto",
                   border: "1px solid var(--border)",
                   borderRadius: 8,
                   padding: 10,
@@ -395,7 +404,19 @@ export function GroupChatsPage() {
                   <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>No friends match your search.</p>
                 ) : (
                   filteredFriendsForCreate.map((friend) => (
-                    <label key={friend.id} style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+                    <div
+                      key={friend.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        background: "var(--surface1)",
+                      }}
+                    >
                       <div style={{ minWidth: 0 }}>
                         <p style={{ margin: 0, fontSize: "0.88rem", fontWeight: 600 }}>{friend.name}</p>
                         <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--ink3)" }}>{friend.email}</p>
@@ -404,16 +425,12 @@ export function GroupChatsPage() {
                         type="checkbox"
                         checked={selected.includes(friend.id)}
                         onChange={() => toggleSelected(friend.id)}
+                        style={{ marginLeft: 200, width: 20, height: 20 }}
                       />
-                    </label>
+                    </div>
                   ))
                 )}
               </div>
-
-              <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>
-                Selected friends: {selected.length}
-              </p>
-
               <button className="btn btn-primary" onClick={createGroup} disabled={loading || !groupName.trim()}>
                 {loading ? "Creating..." : "Create Group"}
               </button>

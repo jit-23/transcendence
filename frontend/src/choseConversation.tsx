@@ -125,7 +125,15 @@ export function ChoseConversation() {
 					)}
 
 					{filteredFriends.length > 0 && (
-						<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+						<div
+							style={{
+								display: "flex",
+								flexDirection: "column",
+								gap: 8,
+								maxHeight: filteredFriends.length > 3 ? 220 : "none",
+								overflowY: filteredFriends.length > 3 ? "auto" : "visible",
+							}}
+						>
 							{filteredFriends.map((friend) => (
 								<div
 									key={friend.id}
@@ -144,7 +152,6 @@ export function ChoseConversation() {
 										<Avatar avatar={friend.avatar} name={friend.name} size={32} />
 										<div>
 											<p style={{ fontWeight: 600, lineHeight: 1.1 }}>{friend.name}</p>
-											<p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{friend.email}</p>
 										</div>
 									</div>
 
