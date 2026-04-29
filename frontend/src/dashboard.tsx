@@ -7,6 +7,8 @@ import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
 import { Friend } from "./components/dashboard/types";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/i18n";
 import { TopBar } from "./components/ui/topbar";
 
 type EnableStep = "idle" | "scanning";
@@ -18,6 +20,9 @@ type SearchResult = {
 };
 
 export function Dashboard() {
+    const {t} = useTranslation();
+    const { user, logout }          = useContext(AuthContext);
+    const { theme, toggleTheme }    = useTheme();
     const { user }          = useContext(AuthContext);
     const navigate                  = useNavigate();
 
@@ -364,27 +369,27 @@ export function Dashboard() {
             <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <main className="space-y-6">
                 <div>
-                    <h1 className="font-display text-3xl">Welcome back, {user?.name}</h1>
-                    <p className="mt-1 text-sm text-muted">Quick actions, social updates, and account security in one place.</p>
+                    <h1 className="font-display text-3xl">{t("DB_welcome_back")}{user?.name}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("DB_desc")}</p>
                 </div>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Quick actions</CardTitle>
+                        <CardTitle className="text-base">{t("DB_quick")}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="mb-3 text-xs text-muted">Start by adding a friend or jump into your active spaces.</p>
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            <Button onClick={openAddFriendModal}>Search for People</Button>
-                            <Button variant="outline" onClick={() => navigate('/conversations')}>Open conversations</Button>
-                            <Button variant="outline" onClick={() => navigate('/Canvases')}>Open canvases</Button>
+                        <p className="mb-3 text-xs text-muted">{t("DB_desc")}</p>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <Button onClick={openAddFriendModal}>{t("DB_add_friend")}</Button>
+                            <Button variant="outline" onClick={() => navigate('/conversations')}>{t("DB_open_convo")}</Button>
+                            <Button variant="outline" onClick={() => navigate('/Canvases')}>{t("DB_open_canvas")}</Button>
                         </div>
                     </CardContent>
                 </Card>
 
                 <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
                     <section>
-                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Security</p>
+                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("DB_security")}</p>
                         <TwoFactorCard
                             twoFAEnabled={twoFAEnabled}
                             enableStep={enableStep}
@@ -407,7 +412,7 @@ export function Dashboard() {
                     </section>
 
                     <aside>
-                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Social</p>
+                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("DB_social")}</p>
                         <FriendsCard
                             friends={friends}
                             loading={friendsLoading}
@@ -426,14 +431,14 @@ export function Dashboard() {
                 <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closeAddFriendModal}>
                     <Card className="w-full max-w-xl" onClick={(event) => event.stopPropagation()}>
                         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-base">Search for People</CardTitle>
-                            <Button variant="ghost" size="sm" onClick={closeAddFriendModal}>Close</Button>
+                            <CardTitle className="text-base">{t("DB_add_friend")}</CardTitle>
+                            <Button variant="ghost" size="sm" onClick={closeAddFriendModal}>{t("DB_close")}</Button>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <form className="flex gap-2" onSubmit={handleSearchUsers}>
                                 <input
                                     type="text"
-                                    placeholder="Search by username or email"
+                                    placeholder={t("DB_search")}
                                     value={searchQuery}
                                     onChange={(event) => setSearchQuery(event.target.value)}
                                     autoFocus
@@ -441,12 +446,12 @@ export function Dashboard() {
                                 />
                                 <Button size="sm" type="submit" disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</Button>
                             </form>
-                            {requestsLoading && <p className="text-sm text-muted">Loading pending requests...</p>}
-                            <p className="text-xs text-muted">Invite someone by username or email. They’ll receive a friend request.</p>
+                            {requestsLoading && <p className="text-sm text-muted">{t("DB_load_pend")}</p>}
+                            <p className="text-xs text-muted">{t("DB_invite")}</p>
 
                             {searchError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{searchError}</div>}
 
-                            {searched && !searchLoading && searchResults.length === 0 && <p className="text-sm text-muted">No users found.</p>}
+                            {searched && !searchLoading && searchResults.length === 0 && <p className="text-sm text-muted">{("DB_no_users")}</p>}
 
                             {searchResults.length > 0 && (
                                 <div className="space-y-2">
@@ -462,7 +467,7 @@ export function Dashboard() {
                                                     <Button size="sm" variant="ghost" disabled>(Friend)</Button>
                                                 ) : (
                                                     <Button size="sm" onClick={() => handleSendRequest(result.id)} disabled={pendingRequests.has(result.id)}>
-                                                        {pendingRequests.has(result.id) ? 'Requested' : 'Invite'}
+                                                        {pendingRequests.has(result.id) ? t("DB_request") : t("DB_invitebutton")}
                                                     </Button>
                                                 )}
                                             </div>

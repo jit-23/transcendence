@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useTransition } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { LoginForm } from "./userLogin.tsx";
 import { Dashboard } from "./dashboard";
@@ -21,6 +21,8 @@ import { PrivacyPolicyPage } from "./privacyPolicy.tsx";
 import { TermsOfServicePage } from "./termsOfService.tsx";
 import { Button } from "./components/ui/button";
 import '../css/App.css';
+import LanguageSwitcher from "./components/i18n.tsx";
+import { useTranslation } from "react-i18next";
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
@@ -32,13 +34,14 @@ function PublicRoute({ children }) {
 }
 
 function NotFound() {
+    const {t} = useTranslation();
     return (
         <div className="flex min-h-screen items-center justify-center px-6 py-10">
             <div className="text-center">
                 <p className="font-display text-7xl font-extrabold text-border2 leading-none">404</p>
-                <p className="mt-3 mb-6 text-sm text-muted">This page doesn't exist.</p>
+                <p className="mt-3 mb-6 text-sm text-muted">{t("NF_doesnt_exist")}</p>
                 <Button asChild variant="outline">
-                    <Link to="/dashboard">← Go to dashboard</Link>
+                    <Link to="/dashboard">{t("NF_dash")}</Link>
                 </Button>
             </div>
         </div>
@@ -46,15 +49,17 @@ function NotFound() {
 }
 
 function SiteFooter() {
+    const {t} = useTranslation();
     return (
         <footer className="site-footer">
-            <Link to="/privacy" className="footer-link">Privacy Policy</Link>
-            <Link to="/terms" className="footer-link">Terms of Service</Link>
+            <Link to="/privacy" className="footer-link">{t("FT_priv")}</Link>
+            <Link to="/terms" className="footer-link">{t("FT_terms")}</Link>
         </footer>
     );
 }
 
 function Home() {
+    const {t} = useTranslation()
     return (
         <div className="flex min-h-screen items-center justify-center px-6 py-10">
             <div className="text-center w-full max-w-md">
@@ -64,21 +69,21 @@ function Home() {
                 </div>
 
                 <h1 className="mb-4 font-display text-4xl font-bold leading-tight">
-                    Think together,<br />
-                    <span className="text-ink2">in real time.</span>
+                    {t("HO_slogan_1")}<br />
+                    <span className="text-ink2">{t("HO_slogan_2")}</span>
                 </h1>
 
                 <p className="mb-9 text-sm leading-relaxed text-muted">
-                    A shared canvas for your team — draw, plan,<br />
-                    and collaborate without the noise.
+                    {t("HO_description_1")}<br />
+                    {t("HO_description_2")}
                 </p>
 
                 <div className="flex justify-center gap-3">
                     <Button asChild>
-                        <Link to="/signup">Get started →</Link>
+                        <Link to="/signup">{t("HO_sign_up")}</Link>
                     </Button>
                     <Button asChild variant="outline">
-                        <Link to="/login">Sign in</Link>
+                        <Link to="/login">{t("HO_log_in")}</Link>
                     </Button>
                 </div>
             </div>

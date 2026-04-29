@@ -2,6 +2,8 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { Avatar } from "./Avatar";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/i18n";
 import TopBar from "./components/ui/topbar";
 
 type ConversationMember = {
@@ -25,6 +27,7 @@ type ConversationRow = Conversation & {
 };
 
 export function ConversationsPage() {
+  const {t} = useTranslation();
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 

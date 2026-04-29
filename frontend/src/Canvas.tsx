@@ -7,6 +7,7 @@ import { io, Socket } from "socket.io-client";
 import CanvasChatSidebar, { CanvasChatMessage, CanvasMember } from "./components/canvas/CanvasChatSidebar";
 import { AuthContext } from "./AuthContext";
 import { emitCanvasEvent, joinCanvasRoom, registerCanvasRealtimeHandlers } from "./utils/canvasRealtime";
+import { useTranslation } from "react-i18next";
 import {TopBar } from "./components/ui/topbar";
 //nando
 
@@ -877,6 +878,7 @@ function ColorPickerControl({
 	onOpenChange?: (pickerId: string, isOpen: boolean) => void;
 	hideLabel?: boolean;
 }) {
+	const {t} = useTranslation();
 	const [open, setOpen] = useState(false);
 	const [draftColor, setDraftColor] = useState(() => normalizeHexColor(value, defaultValue));
 	const [trianglePoint, setTrianglePoint] = useState({ x: 0.5, y: 0.34 });
@@ -1191,7 +1193,7 @@ function ColorPickerControl({
 								setOpen(false);
 							}}
 						>
-							Apply
+							{t("CV_apply")}
 						</button>
 					</div>
 					<div className="color-picker__swatches">
@@ -1213,6 +1215,7 @@ function ColorPickerControl({
 }
 
 export default function Canvas() {
+	const {t} = useTranslation();
 
 
 	//nando
@@ -1404,7 +1407,7 @@ export default function Canvas() {
 		savingRef.current = true;
 
 		setSaving(true);
-		setSaveStatus(isAutosave ? "" : "Saving...");
+		setSaveStatus(isAutosave ? "" : t("CV_save"));
 
 		try {
 			const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
@@ -3730,10 +3733,10 @@ export default function Canvas() {
 			>
 				<div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center" }}>
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Canvas: {canvasName.trim() || "Canvas"}</span>
+						<span style={controlNameStyle}>Canvas: {canvasName.trim() || t("CV_canvas")}</span>
 						<span style={controlFieldStyle}>
 							<button type="button" onClick={clearCanvasAndBroadcast} style={toolbarActionButtonStyle}>
-								Clear
+								{t("CV_clear")}
 							</button>
 						</span>
 					</label>
@@ -3741,7 +3744,7 @@ export default function Canvas() {
 
 				<div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "center", flexWrap: "wrap", alignContent: "center" }}>
 						<div style={controlLabelStyle}>
-							<span style={controlNameStyle}>Background</span>
+							<span style={controlNameStyle}>{t("CV_background")}</span>
 							<span style={controlFieldStyle}>
 								<ColorPickerControl
 									pickerId="background"
@@ -3759,7 +3762,7 @@ export default function Canvas() {
 						</div>
 
 						<div style={controlLabelStyle}>
-							<span style={controlNameStyle}>Line Color</span>
+							<span style={controlNameStyle}>{t("CV_line_color")}</span>
 							<span style={controlFieldStyle}>
 								<ColorPickerControl
 									pickerId="line"
@@ -3777,7 +3780,7 @@ export default function Canvas() {
 						</div>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Tool</span>
+						<span style={controlNameStyle}>{t("CV_tool")}</span>
 						<span style={controlFieldStyle}>
 							<select
 								value={tool}
@@ -3786,25 +3789,25 @@ export default function Canvas() {
 									markDirty();
 								}}
 							>
-								<option value="cursor">🖱️ Cursor</option>
-								<option value="freehand">✏️ Free Hand</option>
-								<option value="highlighter">🖍️ Highlighter</option>
-								<option value="eraser">🧽 Eraser</option>
-								<option value="line">📏 Line</option>
-								<option value="arrow">➡️ Arrow</option>
-								<option value="rectangle">▭ Rectangle</option>
-								<option value="rounded-rectangle">▢ Rounded Rectangle</option>
-								<option value="circle">◯ Circle</option>
-								<option value="circle-text">◉ Circle Text</option>
-								<option value="text">🔤 Text</option>
-								<option value="textbox">📝 Text Box</option>
-								<option value="rounded-textbox">📄 Rounded Text Box</option>
+								<option value="cursor">🖱️ {t("CV_CV_cursor")}</option>
+								<option value="freehand">✏️ {t("CV_freehand")}</option>
+								<option value="eraser">🧽 {t("CV_eraser")}</option>
+								<option value="line">📏 {t("CV_line")}</option>
+								<option value="arrow">➡️ {t("CV_arrow")}</option>
+								<option value="rectangle">▭ {t("CV_rect")}</option>
+								<option value="rounded-rectangle">▢ {t("CV_rounded_rect")}</option>
+								<option value="circle">◯ {t("CV_circle")}</option>
+								<option value="text">🔤 {t("CV_text")}</option>
+								<option value="textbox">📝 {t("CV_textbox")}</option>
+								<option value="rounded-textbox">📄 {t("CV_rounded_textbox")}</option>
+                <option value="highlighter">🖍️ Highlighter</option>
+        				<option value="circle-text">◉ Circle Text</option>
 							</select>
 						</span>
 					</label>
 
 					<div style={controlLabelStyle}>
-						<span style={controlNameStyle}>Fill Shape</span>
+						<span style={controlNameStyle}>{t("CV_fill_shape")}</span>
 						<span style={{ ...controlFieldStyle, width: "auto", justifyContent: "center" }}>
 							<input
 								type="checkbox"
@@ -3820,7 +3823,7 @@ export default function Canvas() {
 					</div>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Text Font</span>
+						<span style={controlNameStyle}>{t("CV_text_font")}</span>
 						<span style={controlFieldStyle}>
 							<select
 								value={textFont}
@@ -3840,7 +3843,7 @@ export default function Canvas() {
 					</label>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Stroke Weight</span>
+						<span style={controlNameStyle}>{t("CV_stroke_weight")}</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="number"
@@ -3861,7 +3864,7 @@ export default function Canvas() {
 					</label>
 
 					<label style={controlLabelStyle}>
-						<span style={controlNameStyle}>Zoom</span>
+						<span style={controlNameStyle}>{t("CV_zoom")}</span>
 						<span style={controlFieldStyle}>
 							<input
 								type="text"

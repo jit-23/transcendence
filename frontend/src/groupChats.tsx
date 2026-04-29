@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "./AuthContext";
+import { useTheme } from "./ThemeContext";
+import { createSharedCanvas } from "./utils/sharedCanvas";
+import LanguageSwitcher from "./components/i18n";
+import { useTranslation } from "react-i18next";
 import { TopBar } from "./components/ui/topbar";
 
 type Friend = {
@@ -17,6 +22,9 @@ type Conversation = {
 };
 
 export function GroupChatsPage() {
+  const {t} = useTranslation();
+  const { user } = useContext(AuthContext);
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -226,7 +234,7 @@ export function GroupChatsPage() {
 
         <div className="section-card fade-up fade-up-1">
           <div className="section-card-header">
-            <h3>Create Group</h3>
+            <h3>{t("GCS_create_group")}</h3>
           </div>
           <p style={{ color: "var(--ink3)", fontSize: "0.84rem", marginBottom: 10 }}>
             Open a popup, search your friends, select who to add, and create the group.
@@ -243,12 +251,12 @@ export function GroupChatsPage() {
 
         <div className="section-card fade-up fade-up-2">
           <div className="section-card-header">
-            <h3>My Groups</h3>
-            <button className="btn btn-ghost btn-sm" onClick={loadData} disabled={loading}>Refresh</button>
+            <h3>{t("GCS_my_groups")}</h3>
+            <button className="btn btn-ghost btn-sm" onClick={loadData} disabled={loading}>{t("GCS_refresh")}</button>
           </div>
 
           {conversations.length === 0 && !loading && (
-            <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>No groups yet.</p>
+            <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>{t("GCS_no_groups")}</p>
           )}
 
           {conversations.length > 0 && (
@@ -275,7 +283,7 @@ export function GroupChatsPage() {
                     <div>
                       <p style={{ marginBottom: 4, fontWeight: 600 }}>{title}</p>
                       <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>
-                        {conversation.members.length} members
+                        {conversation.members.length} {t("GCS_members")}
                       </p>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexDirection: "column", width: "10%" }}>
@@ -283,7 +291,7 @@ export function GroupChatsPage() {
                         className="btn btn-primary btn-sm"
                         onClick={() => navigate(`/chat?conversationId=${conversation.id}&name=${encodeURIComponent(title)}`)}
                       >
-                        Open Chat
+                        {t("GCS_open_chat")}
                       </button>
                       <button
                         className="btn btn-ghost btn-sm"
@@ -291,7 +299,7 @@ export function GroupChatsPage() {
                         disabled={loading}
                         style={{ color: "var(--error)" }}
                       >
-                        {conversation.role === "owner" ? "Delete" : "Leave"}
+                        {conversation.role === "owner" ? t("GCS_delete"): t("GCS_leave")}
                       </button>
                     </div>
                     {conversation.role === "owner" && conversation.members.length > 0 && (

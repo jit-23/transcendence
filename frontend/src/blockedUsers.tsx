@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './components/i18n';
 import TopBar from './components/ui/topbar';
 
 type BlockedUser = {
@@ -15,6 +17,8 @@ type BlockedUser = {
 };
 
 export function BlockedUsersPage() {
+    const {t} = useTranslation();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
@@ -97,27 +101,27 @@ export function BlockedUsersPage() {
 
        	     <main className="space-y-5">
        	         <div>
-       	             <h1 className="font-display text-3xl">Blocked Users</h1>
-       	             <p className="mt-1 text-sm text-muted">Manage users you have blocked.</p>
+                    <h1 className="font-display text-3xl">{t("BLU_blocked")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("BLU_manage")}</p>
        	         </div>
 
        	         <Card>
        	             <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
        	                 <CardTitle className="text-base">Blocked list</CardTitle>
        	                 <Button variant="outline" size="sm" onClick={loadBlockedUsers} disabled={loading}>
-       	                     {loading ? 'Refreshing...' : 'Refresh'}
+                            {loading ? t("BLU_refreshing") : t("BLU_refresh")}
        	                 </Button>
        	             </CardHeader>
        	             <CardContent className="space-y-3">
        	                 {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
 
-       	                 {loading && <p className="text-sm text-muted">Loading blocked users...</p>}
+                        {loading && <p className="text-sm text-muted">{t("BLU_loading")}</p>}
 
        	                 {!loading && blockedUsers.length === 0 && (
-       	                     <div className="rounded-md border border-border bg-surface2 px-4 py-5 text-center">
-       	                         <p className="text-sm font-medium text-ink">You have no blocked users.</p>
-       	                         <p className="mt-1 text-xs text-muted">When you block someone, they will appear here.</p>
-       	                     </div>
+                            <div className="rounded-md border border-border bg-surface2 px-4 py-5 text-center">
+                                <p className="text-sm font-medium text-ink">{t("BLU_no_blocked")}</p>
+                                <p className="mt-1 text-xs text-muted">{t("BLU_when")}</p>
+                            </div>
        	                 )}
 
        	                 {!loading && blockedUsers.length > 0 && (
@@ -148,7 +152,7 @@ export function BlockedUsersPage() {
        	                                     onClick={() => handleUnblock(blockedUser.id)}
        	                                     disabled={actionLoadingId === blockedUser.id}
        	                                     >
-       	                                         {actionLoadingId === blockedUser.id ? 'Unblocking...' : 'Unblock'}
+       	                                         {actionLoadingId === blockedUser.id ? t("BLU_unblocking") : t("BLU_unblock")}
        	                                     </Button>
        	                                 </div>
        	                             </div>
