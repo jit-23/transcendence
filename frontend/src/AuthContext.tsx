@@ -1,4 +1,5 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 
 // export const AuthContext = createContext(null);
 interface User {
@@ -7,6 +8,8 @@ interface User {
 	email: string;
 	twoFactorEnabled: boolean;
 	avatar?: string | null;
+	hasPassword?: boolean;
+	hasOAuthLogin?: boolean;
 }
 
 interface AuthContextType {
@@ -28,17 +31,18 @@ export const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }) {
 	const [user, setUser]         = useState<User | null>(null);
 	const [authReady, setAuthReady] = useState(false);
+	const presenceSocketRef = useRef<Socket | null>(null);
 
 		const fetchUserData = async (token: string) => {
 			try {
-				const response = await fetch("http://localhost:8081/users/me", { 
+				const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+				const response = await fetch(`${apiUrl}/users/me`, { 
 					headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!response.ok) throw new Error("Failed to fetch user data");
 			const userData = await response.json();
 			setUser(userData);
 		} catch (error) {
-			console.error("Error fetching user data:", error);
 			sessionStorage.removeItem("token");
 			setUser(null);
 	} finally {
@@ -70,6 +74,31 @@ export function AuthProvider({ children }) {
 		}
 		fetchUserData(token);
 	}, []);
+
+	useEffect(() => {
+		if (!user?.name) {
+			if (presenceSocketRef.current) {
+				presenceSocketRef.current.disconnect();
+				presenceSocketRef.current = null;
+			}
+			return;
+		}
+
+		const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+		const socket = io(apiUrl, {
+			auth: { username: user.name },
+			withCredentials: true,
+		});
+
+		presenceSocketRef.current = socket;
+
+		return () => {
+			socket.disconnect();
+			if (presenceSocketRef.current === socket) {
+				presenceSocketRef.current = null;
+			}
+		};
+	}, [user?.name]);
 
 	return (
 		<AuthContext.Provider value={{ user, authReady, login, logout, refreshUser }}>

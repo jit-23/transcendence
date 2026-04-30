@@ -1,7 +1,12 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
+import { B } from "./components/ui/B";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Input } from "./components/ui/input";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/i18n";
 
 interface SearchResult {
     id: number;
@@ -11,8 +16,8 @@ interface SearchResult {
 }
 
 export function SearchFriends() {
+    const {t} = useTranslation();
     const { user } = useContext(AuthContext);
-    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -21,6 +26,7 @@ export function SearchFriends() {
     const [error, setError] = useState<string | null>(null);
     const [searched, setSearched] = useState(false);
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
+    const [friendsSet, setFriendsSet] = useState<Set<number>>(new Set());
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -30,21 +36,22 @@ export function SearchFriends() {
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!searchQuery.trim()) {
-            setError("Enter a username or email to search");
+            setError(t("ERR_1"));
             return;
         }
         setLoading(true);
         setError(null);
         setSearched(true);
         try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res = await fetch(
-                `http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`,
+                `${apiUrl}/users/search?query=${encodeURIComponent(searchQuery)}`,
                 { headers: authHeader()}
             );
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Search failed");
+                setError(data.error || t("ERR_2"));
                 setResults([]);
             } else {
                 const filtered = data.filter((result: SearchResult) => {
@@ -57,7 +64,7 @@ export function SearchFriends() {
                 setResults(filtered);
             }
         } catch (err: any) {
-            setError("Network error during search");
+            setError(t("DASH_network_search"));
             setResults([]);
         } finally {
             setLoading(false);
@@ -68,7 +75,8 @@ export function SearchFriends() {
         setPendingRequests(prev => new Set(prev).add(receiverId));
         
         try {
-            const res = await fetch("http://localhost:8081/users/friend-request/send", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: "POST",
                 headers: authHeader(),
                 body: JSON.stringify({ receiverId }),
@@ -76,7 +84,17 @@ export function SearchFriends() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Failed to send request");
+                // If backend reports user is already a friend, mark locally so invite button disappears
+                const msg = (data && data.error) || t("DASH_failed_send_req");
+                if (res.status === 400 && /friend/i.test(msg)) {
+                    setFriendsSet(prev => {
+                        const updated = new Set(prev);
+                        updated.add(receiverId);
+                        return updated;
+                    });
+                }
+
+                setError(msg);
                 setPendingRequests(prev => {
                     const updated = new Set(prev);
                     updated.delete(receiverId);
@@ -87,7 +105,7 @@ export function SearchFriends() {
                 setPendingRequests(prev => new Set(prev).add(receiverId));
             }
         } catch (err: any) {
-            setError("Network error");
+            setError(t("DASH_network_error"));
             setPendingRequests(prev => {
                 const updated = new Set(prev);
                 updated.delete(receiverId);
@@ -96,116 +114,120 @@ export function SearchFriends() {
         }
     };
 
-    const initials = user?.name?.slice(0, 2).toUpperCase() ?? '??';
+    useEffect(() => {
+        const fetchFriends = async () => {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                const res = await fetch(`${apiUrl}/users/friends`, { headers: authHeader() });
+                const data = await res.json();
+                if (res.ok && Array.isArray(data)) {
+                    setFriendsSet(new Set(data.map((f: any) => f.id)));
+                }
+            } catch {
+                // ignore
+            }
+        };
+        // only fetch when we have a logged-in user (token available)
+        if (sessionStorage.getItem("token")) {
+            void fetchFriends();
+        }
+    }, [user]);
 
     return (
-        <div className="dashboard-shell">
-            {/* ── Topbar ── */}
-            <header className="topbar">
-                <div className="logo">
-                    <div className="logo-mark">W</div>
-                    whiteboard
-                </div>
-                <div className="topbar-right">
-                    <div className="user-chip">
-                        <div className="user-avatar">{initials}</div>
-                        {user?.name}
-                    </div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-                        Dashboard
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
-                        Profile
-                    </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
-                </div>
-            </header>
+        <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+            <TopBar />
 
-            {/* ── Body ── */}
-            <main className="dashboard-body">
-                <div className="page-title fade-up">
-                    <h1>Search for Friends</h1>
-                    <p>Find users by username or email</p>
+            <main className="space-y-5">
+                <div>
+                    <h1 className="font-display text-3xl">{t("FRS_search")}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("FRS_find")}</p>
                 </div>
 
-                {/* Search Card */}
-                <div className="section-card fade-up fade-up-1">
-                    <form onSubmit={handleSearch}>
-                        <div style={{ display: 'flex', gap: 10 }}>
-                            <input
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">{t("FRS_search_button")}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <form onSubmit={handleSearch} className="flex gap-2">
+                            <Input
                                 type="text"
-                                placeholder="Search by username or email..."
+                                placeholder={t("FRS_search_user")}
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="code-input"
-                                style={{ flex: 1 }}
+                                className="flex-1"
                                 autoFocus
                             />
-                            <button
+                            <Button
                                 type="submit"
-                                className="btn btn-primary"
                                 disabled={loading}
                             >
-                                {loading ? 'Searching...' : 'Search'}
-                            </button>
-                        </div>
-                    </form>
+                                {loading ? t("FRS_searching") : t("FRS_search_button")}
+                            </Button>
+                        </form>
 
-                    {error && (
-                        <div className="msg msg-error" style={{ marginTop: 14 }}>
-                            {error}
-                        </div>
-                    )}
-                </div>
+                        {error && (
+                            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                                {error}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
-                {/* Results */}
                 {searched && results.length === 0 && !loading && (
-                    <div className="section-card fade-up fade-up-2" style={{ textAlign: 'center' }}>
-                        <p style={{ color: 'var(--ink3)' }}>
-                            {error ? 'No results found' : 'No users match your search'}
-                        </p>
-                    </div>
+                    <Card>
+                        <CardContent className="pt-6 text-center">
+                            <p className="text-sm text-muted">
+                            {error ? t("FRS_no_results") : t("FRS_no_user_match")}
+                            </p>
+                        </CardContent>
+                    </Card>
                 )}
 
                 {results.length > 0 && (
-                    <div className="section-card fade-up fade-up-2">
-                        <div className="section-card-header">
-                            <h3>Results ({results.length})</h3>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-base">{t("FRS_results")} ({results.length})</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
                             {results.map(result => (
                                 <div
                                     key={result.id}
-                                    style={{
-                                        padding: '12px 14px',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '6px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                    }}
+                                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface2 p-3"
                                 >
                                     <div>
-                                        <p style={{ fontWeight: 600, marginBottom: 4 }}>
+                                        <p className="text-sm font-semibold text-ink">
                                             {result.name}
                                         </p>
-                                        <p style={{ fontSize: '0.8rem', color: 'var(--ink3)' }}>
+                                        <p className="text-xs text-muted">
                                             {result.email}
                                         </p>
                                     </div>
-                                    <button
-                                        className="btn btn-primary btn-sm"
-                                        onClick={() => handleSendRequest(result.id)}
-                                        disabled={pendingRequests.has(result.id)}
-                                    >
-                                        {pendingRequests.has(result.id) ? '✓ Requested' : '+ Add'}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => navigate(`/users/${result.id}`)}
+                                        >
+                                            {t("FRS_profile")}
+                                        </Button>
+                                        {friendsSet.has(result.id) ? (
+                                            <Button size="sm" variant="ghost" disabled>{t("DB_is_friend")}</Button>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSendRequest(result.id)}
+                                                disabled={pendingRequests.has(result.id)}
+                                            >
+                                                {pendingRequests.has(result.id) ? t("FRS_requested") : t("FRS_add")}
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
-                        </div>
-                    </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </main>
         </div>

@@ -27,7 +27,7 @@ async function hasCanvasAccess(canvasId: number, userId: number) {
             id: canvasId,
             OR: [
                 { userId },
-                { collaborators: { some: { userId } } },
+                { collaborators: { some: { userId, status: "accepted" } } },
             ],
         },
     });
@@ -49,7 +49,7 @@ async function isFriend(userId: number, friendId: number) {
 
 export async function createCanvas(req: Request, res: Response) {
     try {
-		console.log("Received request to create canvas with body:", req.body);
+        
         const auth = getAuthUser(req);
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
@@ -59,17 +59,34 @@ export async function createCanvas(req: Request, res: Response) {
             return res.status(400).json({ error: "Canvas name is required" });
         }
 
+        // 1. Create a group conversation for this canvas
+        const conversation = await prisma.conversation.create({
+            data: {
+                type: "GROUP",
+                name: name.trim(),
+            },
+        });
+
+        await prisma.conversation_participants.create({
+            data: {
+                conversation_id: conversation.id,
+                user_id: auth.userId,
+                role: "owner",
+            },
+        });
+
+        // 2. Create the canvas and link the conversationId
         const canvas = await prisma.canvas.create({
             data: {
                 userId: auth.userId,
                 name: name.trim(),
                 content: content || null,
+                conversationId: conversation.id,
             },
         });
-
+		
         res.status(201).json(canvas);
     } catch (error) {
-        console.error("Error creating canvas:", error);
         res.status(500).json({ error: "Failed to create canvas" });
     }
 }
@@ -83,7 +100,7 @@ export async function getUserCanvases(req: Request, res: Response) {
             where: {
                 OR: [
                     { userId: auth.userId },
-                    { collaborators: { some: { userId: auth.userId } } },
+                    { collaborators: { some: { userId: auth.userId, status: "accepted" } } },
                 ],
             },
             include: {
@@ -101,7 +118,6 @@ export async function getUserCanvases(req: Request, res: Response) {
             }))
         );
     } catch (error) {
-        console.error("Error fetching canvases:", error);
         res.status(500).json({ error: "Failed to fetch canvases" });
     }
 }
@@ -119,7 +135,7 @@ export async function getCanvasById(req: Request, res: Response) {
                 id: canvasId,
                 OR: [
                     { userId: auth.userId },
-                    { collaborators: { some: { userId: auth.userId } } },
+                    { collaborators: { some: { userId: auth.userId, status: "accepted" } } },
                 ],
             },
             include: {
@@ -146,7 +162,6 @@ export async function getCanvasById(req: Request, res: Response) {
             isOwner: canvas.userId === auth.userId,
         });
     } catch (error) {
-        console.error("Error fetching canvas:", error);
         res.status(500).json({ error: "Failed to fetch canvas" });
     }
 }
@@ -177,7 +192,6 @@ export async function saveCanvasContent(req: Request, res: Response) {
 
         res.json(updatedCanvas);
     } catch (error) {
-        console.error("Error saving canvas content:", error);
         res.status(500).json({ error: "Failed to save canvas content" });
     }
 }
@@ -213,7 +227,6 @@ export async function updateCanvas(req: Request, res: Response) {
 
         res.json(updatedCanvas);
     } catch (error) {
-        console.error("Error updating canvas:", error);
         res.status(500).json({ error: "Failed to update canvas" });
     }
 }
@@ -231,6 +244,7 @@ export async function deleteCanvas(req: Request, res: Response) {
                 id: canvasId,
                 userId: auth.userId,
             },
+            select: { id: true, conversationId: true },
         });
 
         if (!canvas) {
@@ -241,9 +255,14 @@ export async function deleteCanvas(req: Request, res: Response) {
             where: { id: canvasId },
         });
 
+        if (canvas.conversationId) {
+            await prisma.conversation.delete({
+                where: { id: canvas.conversationId },
+            });
+        }
+
         res.json({ message: "Canvas deleted successfully" });
     } catch (error) {
-        console.error("Error deleting canvas:", error);
         res.status(500).json({ error: "Failed to delete canvas" });
     }
 }
@@ -261,7 +280,7 @@ export async function getCanvasCollaborators(req: Request, res: Response) {
                 id: canvasId,
                 OR: [
                     { userId: auth.userId },
-                    { collaborators: { some: { userId: auth.userId } } },
+                    { collaborators: { some: { userId: auth.userId, status: "accepted" } } },
                 ],
             },
             include: {
@@ -269,6 +288,7 @@ export async function getCanvasCollaborators(req: Request, res: Response) {
                     select: { id: true, name: true, email: true },
                 },
                 collaborators: {
+                    where: { status: "accepted" },
                     include: {
                         user: {
                             select: { id: true, name: true, email: true },
@@ -288,11 +308,11 @@ export async function getCanvasCollaborators(req: Request, res: Response) {
             collaborators: canvas.collaborators.map((collaboration) => ({
                 ...collaboration.user,
                 addedAt: collaboration.addedAt,
+                status: collaboration.status,
             })),
             isOwner: canvas.userId === auth.userId,
         });
     } catch (error) {
-        console.error("Error fetching collaborators:", error);
         return res.status(500).json({ error: "Failed to fetch collaborators" });
     }
 }
@@ -341,22 +361,26 @@ export async function addCanvasCollaborator(req: Request, res: Response) {
         });
 
         if (existing) {
+            if (existing.status === "pending") {
+                return res.status(409).json({ error: "Invite already pending" });
+            }
+
             return res.status(409).json({ error: "Friend is already a collaborator" });
         }
 
         const collaboration = await prisma.canvas_collaborator.create({
-            data: { canvasId, userId: friendId },
+            data: { canvasId, userId: friendId, status: "pending" },
         });
 
         return res.status(201).json({
-            message: "Collaborator added",
+            message: "Invite sent",
             collaborator: {
                 ...friend,
                 addedAt: collaboration.addedAt,
+                status: collaboration.status,
             },
         });
     } catch (error) {
-        console.error("Error adding collaborator:", error);
         return res.status(500).json({ error: "Failed to add collaborator" });
     }
 }
@@ -388,9 +412,117 @@ export async function removeCanvasCollaborator(req: Request, res: Response) {
             return res.status(404).json({ error: "Collaborator not found" });
         }
 
+        if (canvas.conversationId) {
+            await prisma.conversation_participants.deleteMany({
+                where: {
+                    conversation_id: canvas.conversationId,
+                    user_id: collaboratorId,
+                },
+            });
+        }
+
         return res.json({ message: "Collaborator removed" });
     } catch (error) {
-        console.error("Error removing collaborator:", error);
         return res.status(500).json({ error: "Failed to remove collaborator" });
+    }
+}
+
+export async function getReceivedCanvasInvites(req: Request, res: Response) {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const invites = await prisma.canvas_collaborator.findMany({
+            where: { userId: auth.userId, status: "pending" },
+            include: {
+                canvas: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, email: true },
+                        },
+                    },
+                },
+            },
+            orderBy: { addedAt: "desc" },
+        });
+
+        return res.json(
+            invites.map((invite) => ({
+                id: invite.canvasId,
+                addedAt: invite.addedAt,
+                canvas: {
+                    id: invite.canvas.id,
+                    name: invite.canvas.name,
+                    owner: invite.canvas.user,
+                },
+            }))
+        );
+    } catch (error) {
+        return res.status(500).json({ error: "Failed to fetch canvas invites" });
+    }
+}
+
+export async function acceptCanvasInvite(req: Request, res: Response) {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const canvasId = parsePositiveInt(req.params.canvasId as string);
+        if (!canvasId) return res.status(400).json({ error: "Invalid canvas id" });
+
+        const invite = await prisma.canvas_collaborator.findUnique({
+            where: { canvasId_userId: { canvasId, userId: auth.userId } },
+        });
+
+        if (!invite) {
+            return res.status(404).json({ error: "Invite not found" });
+        }
+
+        if (invite.status !== "pending") {
+            return res.status(400).json({ error: "Invite already handled" });
+        }
+
+        const updated = await prisma.canvas_collaborator.update({
+            where: { canvasId_userId: { canvasId, userId: auth.userId } },
+            data: { status: "accepted" },
+        });
+
+        const canvas = await prisma.canvas.findUnique({
+            where: { id: canvasId },
+            select: { conversationId: true },
+        });
+
+        if (canvas?.conversationId) {
+            await prisma.conversation_participants.createMany({
+                data: [{ conversation_id: canvas.conversationId, user_id: auth.userId, role: "member" }],
+                skipDuplicates: true,
+            });
+        }
+
+        return res.json({ message: "Canvas invite accepted", invite: updated });
+    } catch (error) {
+        return res.status(500).json({ error: "Failed to accept canvas invite" });
+    }
+}
+
+export async function rejectCanvasInvite(req: Request, res: Response) {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const canvasId = parsePositiveInt(req.params.canvasId as string);
+        if (!canvasId) return res.status(400).json({ error: "Invalid canvas id" });
+
+        const removed = await prisma.canvas_collaborator.deleteMany({
+            where: { canvasId, userId: auth.userId, status: "pending" },
+        });
+
+        if (removed.count === 0) {
+            return res.status(404).json({ error: "Invite not found" });
+        }
+
+        return res.json({ message: "Canvas invite rejected" });
+    } catch (error) {
+        return res.status(500).json({ error: "Failed to reject canvas invite" });
     }
 }

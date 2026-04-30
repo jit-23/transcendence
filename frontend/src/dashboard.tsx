@@ -1,27 +1,19 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
-import { useTheme } from "./ThemeContext";
 import { FriendsCard } from "./components/dashboard/FriendsCard";
 import { TwoFactorCard } from "./components/dashboard/TwoFactorCard";
-import { Avatar } from "./Avatar";
+import { Friend } from "./components/dashboard/types";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/i18n";
+import { TopBar } from "./components/ui/topbar";
+import { useTheme } from "./ThemeContext";
+import {t} from "i18next";
 
 type EnableStep = "idle" | "scanning";
-
-type ReceivedFriendRequest = {
-    id: number;
-    sender: {
-        id: number;
-        name: string;
-        email: string;
-    };
-};
-
-type Friend = {
-    id: number;
-    name: string;
-    email: string;
-};
 
 type SearchResult = {
     id: number;
@@ -30,8 +22,9 @@ type SearchResult = {
 };
 
 export function Dashboard() {
-    const { user, logout }          = useContext(AuthContext);
+    const {t} = useTranslation();
     const { theme, toggleTheme }    = useTheme();
+    const { user }          = useContext(AuthContext);
     const navigate                  = useNavigate();
 
     const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled ?? false);
@@ -42,9 +35,7 @@ export function Dashboard() {
     const [disableCode, setDisableCode]   = useState("");
     const [loading, setLoading]           = useState(false);
     const [error, setError]               = useState<string | null>(null);
-    const [requests, setRequests]         = useState<ReceivedFriendRequest[]>([]);
     const [requestsLoading, setRequestsLoading] = useState(false);
-    const [requestsError, setRequestsError] = useState<string | null>(null);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [friendsLoading, setFriendsLoading] = useState(false);
     const [friendsError, setFriendsError] = useState<string | null>(null);
@@ -59,12 +50,11 @@ export function Dashboard() {
     const [searchError, setSearchError] = useState<string | null>(null);
     const [searched, setSearched] = useState(false);
     const [pendingRequests, setPendingRequests] = useState<Set<number>>(new Set());
-    const [showRequestsPanel, setShowRequestsPanel] = useState(false);
     const [canvases, setCanvases] = useState<any[]>([]);
     const [canvasesLoading, setCanvasesLoading] = useState(false);
     const [canvasesError, setCanvasesError] = useState<string | null>(null);
 
-    const requestsPanelRef = useRef<HTMLDivElement | null>(null);
+    const presenceSocketRef = useRef<Socket | null>(null);
 
     const authHeader = () => ({
         Authorization: `Bearer ${sessionStorage.getItem("token")}`,
@@ -85,59 +75,54 @@ export function Dashboard() {
     const handleGenerate = async () => {
         setLoading(true); setError(null);
         try {
-            const res  = await fetch("http://localhost:8081/users/2fa/generate", { method: "POST", headers: authHeader() });
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/2fa/generate`, { method: "POST", headers: authHeader() });
             const data = await res.json();
-            if (!res.ok) return setError(data.error);
+            if (!res.ok) return setError(t("DASH_error_2fa_generate", data.error || "Failed to generate 2FA"));
             setQr(data.qr); setEnableStep("scanning");
-        } catch { setError("Network error"); }
+        } catch { setError(t("DASH_network_error")); }
         finally { setLoading(false); }
     };
 
     const handleConfirm = async () => {
-        if (!confirmCode) return setError("Enter the 6-digit code");
+        if (!confirmCode) return setError(t("DASH_enter_6_code"));
         setLoading(true); setError(null);
         try {
-            const res  = await fetch("http://localhost:8081/users/2fa/confirm", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/2fa/confirm`, {
                 method: "POST", headers: authHeader(), body: JSON.stringify({ code: confirmCode }),
             });
             const data = await res.json();
             if (!res.ok) return setError(data.error);
             setTwoFAEnabled(true); setEnableStep("idle"); setQr(null); setConfirmCode("");
-        } catch { setError("Network error"); }
+        } catch { setError(t("DASH_network_error")); }
         finally { setLoading(false); }
     };
 
     const handleDisable = async () => {
-        if (!disableCode) return setError("Enter your current 2FA code");
+        if (!disableCode) return setError(t("DASH_enter_curr_2fa"));
         setLoading(true); setError(null);
         try {
-            const res  = await fetch("http://localhost:8081/users/2fa/disable", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res  = await fetch(`${apiUrl}/users/2fa/disable`, {
                 method: "POST", headers: authHeader(), body: JSON.stringify({ code: disableCode }),
             });
             const data = await res.json();
             if (!res.ok) return setError(data.error);
             setTwoFAEnabled(false); setShowDisable(false); setDisableCode("");
-        } catch { setError("Network error"); }
+        } catch { setError(t("DASH_network_error")); }
         finally { setLoading(false); }
     };
 
     const fetchRequests = async () => {
         setRequestsLoading(true);
-        setRequestsError(null);
         try {
-            const res = await fetch("http://localhost:8081/users/friend-request/received", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/received`, {
                 headers: authHeader(),
             });
-            const data = await res.json();
-            if (!res.ok) {
-                setRequestsError(data.error || "Failed to load friend requests");
-                setRequests([]);
-            } else {
-                setRequests(data);
-            }
+            await res.json();
         } catch {
-            setRequestsError("Network error while loading friend requests");
-            setRequests([]);
         } finally {
             setRequestsLoading(false);
         }
@@ -146,13 +131,14 @@ export function Dashboard() {
     const decideRequest = async (requestId: number, action: "accept" | "reject") => {
         setRequestsError(null);
         try {
-            const res = await fetch(`http://localhost:8081/users/friend-request/${requestId}/${action}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/${requestId}/${action}`, {
                 method: "POST",
                 headers: authHeader(),
             });
             const data = await res.json();
             if (!res.ok) {
-                setRequestsError(data.error || "Failed to update request");
+                setRequestsError(data.error || t("DASH_failed_update_req"));
                 return;
             }
             setRequests(prev => prev.filter(request => request.id !== requestId));
@@ -160,29 +146,38 @@ export function Dashboard() {
                 fetchFriends();
             }
         } catch {
-            setRequestsError("Network error while updating request");
+            setRequestsError(t("DASH_network_update_req"));
         }
     };
 
-    const fetchFriends = async () => {
-        setFriendsLoading(true);
-        setFriendsError(null);
+    const fetchFriends = async (silent = false) => {
+        if (!silent) {
+            setFriendsLoading(true);
+            setFriendsError(null);
+        }
         try {
-            const res = await fetch("http://localhost:8081/users/friends", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friends`, {
                 headers: authHeader(),
             });
             const data = await res.json();
             if (!res.ok) {
-                setFriendsError(data.error || "Failed to load friends");
-                setFriends([]);
+                if (!silent) {
+                    setFriendsError(data.error || t("DASH_failed_load_friends"));
+                    setFriends([]);
+                }
             } else {
                 setFriends(data);
             }
         } catch {
-            setFriendsError("Network error while loading friends");
-            setFriends([]);
+            if (!silent) {
+                setFriendsError(t("DASH_network_load_friends"));
+                setFriends([]);
+            }
         } finally {
-            setFriendsLoading(false);
+            if (!silent) {
+                setFriendsLoading(false);
+            }
         }
     };
 
@@ -190,25 +185,24 @@ export function Dashboard() {
         setFriendsError(null);
         setUnfriendingId(friendId);
         try {
-            const res = await fetch(`http://localhost:8081/users/friends/${friendId}/unfriend`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friends/${friendId}/unfriend`, {
                 method: "POST",
                 headers: authHeader(),
             });
             const data = await res.json();
-            if (!res.ok) {
-                setFriendsError(data.error || "Failed to remove friend");
+            if (!res.ok)
+			{
+                setFriendsError(data.error || t("DASH_failed_remove_friend"));
                 return;
             }
-
             setFriends(prev => prev.filter(friend => friend.id !== friendId));
         } catch {
-            setFriendsError("Network error while removing friend");
+            setFriendsError(t("DASH_network_remove_friend"));
         } finally {
             setUnfriendingId(null);
         }
     };
-
-
     const openAddFriendModal = () => {
         setShowAddFriendModal(true);
         setSearchQuery("");
@@ -225,7 +219,7 @@ export function Dashboard() {
     const handleSearchUsers = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!searchQuery.trim()) {
-            setSearchError("Enter a username or email to search");
+            setSearchError(t("ERR_1")); // "Enter a username or email to search"
             return;
         }
 
@@ -234,13 +228,14 @@ export function Dashboard() {
         setSearched(true);
 
         try {
-            const res = await fetch(`http://localhost:8081/users/search?query=${encodeURIComponent(searchQuery)}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/search?query=${encodeURIComponent(searchQuery)}`, {
                 headers: authHeader(),
             });
             const data = await res.json();
 
             if (!res.ok) {
-                setSearchError(data.error || "Search failed");
+                setSearchError(data.error || t("ERR_2"));
                 setSearchResults([]);
                 return;
             }
@@ -248,7 +243,7 @@ export function Dashboard() {
             const filtered = data.filter((result: SearchResult) => result.id !== user?.id);
             setSearchResults(filtered);
         } catch {
-            setSearchError("Network error during search");
+            setSearchError(t("DASH_network_search"));
             setSearchResults([]);
         } finally {
             setSearchLoading(false);
@@ -260,7 +255,8 @@ export function Dashboard() {
         setSearchError(null);
 
         try {
-            const res = await fetch("http://localhost:8081/users/friend-request/send", {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: "POST",
                 headers: authHeader(),
                 body: JSON.stringify({ receiverId }),
@@ -268,7 +264,13 @@ export function Dashboard() {
             const data = await res.json();
 
             if (!res.ok) {
-                setSearchError(data.error || "Failed to send request");
+                const msg = (data && data.error) || t("DASH_failed_send_req");
+                // If backend reports user is already a friend, refresh the friends list
+                if (res.status === 400 && /friend/i.test(msg)) {
+                    fetchFriends();
+                }
+
+                setSearchError(msg);
                 setPendingRequests(prev => {
                     const updated = new Set(prev);
                     updated.delete(receiverId);
@@ -276,7 +278,7 @@ export function Dashboard() {
                 });
             }
         } catch {
-            setSearchError("Network error");
+            setSearchError(t("DASH_network_error"));
             setPendingRequests(prev => {
                 const updated = new Set(prev);
                 updated.delete(receiverId);
@@ -284,9 +286,80 @@ export function Dashboard() {
             });
         }
     };
+    const fetchSentRequests = async () => {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/sent`, {
+                headers: authHeader(),
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setPendingRequests(new Set(data.map((r: { receiver: { id: number } }) => r.receiver.id)));
+            }
+        } catch {
+            // silently ignore — pending state just won't be pre-populated
+        }
+    };
+
     useEffect(() => {
         fetchRequests();
         fetchFriends();
+        fetchSentRequests();
+    }, []);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            void fetchFriends();
+        }, 15000);
+
+        return () => window.clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!user?.name) {
+            if (presenceSocketRef.current) {
+                presenceSocketRef.current.disconnect();
+                presenceSocketRef.current = null;
+            }
+            return;
+        }
+
+        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+        const socket = io(apiUrl, {
+            auth: { username: user.name },
+            withCredentials: true,
+        });
+
+        presenceSocketRef.current = socket;
+
+        socket.on("friend-presence", ({ userId, online }) => {
+            const normalizedUserId = Number(userId);
+            if (!Number.isInteger(normalizedUserId)) return;
+
+            setFriends((prev) =>
+                prev.map((friend) =>
+                    friend.id === normalizedUserId ? { ...friend, online: Boolean(online) } : friend,
+                ),
+            );
+        });
+
+        return () => {
+            socket.disconnect();
+            if (presenceSocketRef.current === socket) {
+                presenceSocketRef.current = null;
+            }
+        };
+    }, [user?.name]);
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            void fetchFriends(true);
+        }, 5000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
     }, []);
 
     useEffect(() => {
@@ -303,132 +376,36 @@ export function Dashboard() {
     }, [showAddFriendModal]);
 
     useEffect(() => {
-        if (!showRequestsPanel) return;
-
-        const onClickOutside = (event: MouseEvent) => {
-            if (requestsPanelRef.current && !requestsPanelRef.current.contains(event.target as Node)) {
-                setShowRequestsPanel(false);
-            }
-        };
-
-        const onEscape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                setShowRequestsPanel(false);
-            }
-        };
-
-        window.addEventListener("mousedown", onClickOutside);
-        window.addEventListener("keydown", onEscape);
-
-        return () => {
-            window.removeEventListener("mousedown", onClickOutside);
-            window.removeEventListener("keydown", onEscape);
-        };
-    }, [showRequestsPanel]);
+        return;
+    }, []);
 
     return (
-        <div className="dashboard-shell">
-            {/* ── Topbar ── */}
-            <header className="topbar">
-                <div className="logo">
-                    <div className="logo-mark">W</div>
-                    whiteboard
-                </div>
-                <div className="topbar-right">
-                    <div className="user-chip">
-                        <Avatar avatar={user?.avatar} name={user?.name ?? '?'} size={24} />
-                        {user?.name}
-                    </div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/profile')}>
-                        Profile
-                    </button>
-                    <button className="btn btn-primary btn-sm" onClick={openAddFriendModal}>
-                        Add friend
-                    </button>
-                    <div className="topbar-notification" ref={requestsPanelRef}>
-                        <button
-                            className="notification-bell-btn"
-                            onClick={() => setShowRequestsPanel(prev => !prev)}
-                            title="Friend requests"
-                            aria-label="Friend requests"
-                        >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-5.2V11a7 7 0 1 0-14 0v5.8L3.6 18a1 1 0 0 0 .7 1.8h15.4a1 1 0 0 0 .7-1.8L19 16.8Z" />
-                            </svg>
-                            {requests.length > 0 && <span className="notification-badge">{requests.length}</span>}
-                        </button>
-
-                        {showRequestsPanel && (
-                            <div className="notification-panel">
-                                <div className="notification-panel-header">
-                                    <h3>Friend Requests</h3>
-                                    <button className="btn btn-ghost btn-sm" onClick={fetchRequests} disabled={requestsLoading}>
-                                        {requestsLoading ? "..." : "Refresh"}
-                                    </button>
-                                </div>
-
-                                {requestsError && <div className="msg msg-error" style={{ marginBottom: 10 }}>{requestsError}</div>}
-
-                                {!requestsLoading && requests.length === 0 && (
-                                    <p className="notification-empty">No pending requests.</p>
-                                )}
-
-                                {requests.length > 0 && (
-                                    <div className="notification-list">
-                                        {requests.map((request) => (
-                                            <div key={request.id} className="notification-item">
-                                                <div>
-                                                    <p style={{ marginBottom: 4, fontWeight: 600 }}>{request.sender.name}</p>
-                                                    <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{request.sender.email}</p>
-                                                </div>
-                                                <div style={{ display: "flex", gap: 6 }}>
-                                                    <button className="btn btn-primary btn-sm" onClick={() => decideRequest(request.id, "accept")}>Accept</button>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => decideRequest(request.id, "reject")}>Reject</button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <button className="btn btn-ghost btn-sm" onClick={logout}>
-                        Sign out
-                    </button>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀' : '☾'}
-                    </button>
-                </div>
-            </header>
-
-            {/* ── Body ── */}
-            <main className="dashboard-body">
-                <div className="page-title fade-up">
-                    <h1>Welcome back, {user?.name}</h1>
-                    <p>Manage your account and security settings.</p>
+    	<div className="min-h-screen w-full">
+            <TopBar />
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <main className="space-y-6">
+                <div>
+                    <h1 className="font-display text-3xl">{t("DB_welcome_back")}{user?.name}</h1>
+                    <p className="mt-1 text-sm text-muted">{t("DB_desc")}</p>
                 </div>
 
-                <div className="dashboard-layout">
-                    <section className="dashboard-main-column">
-
-                        <div className="section-card fade-up fade-up-2">
-                            <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Talk to friends</h3>
-                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/conversations')}>
-                                    Open
-                                </button>
-                            </div>
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">{t("DB_quick")}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="mb-3 text-xs text-muted">{t("DB_desc")}</p>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <Button onClick={openAddFriendModal}>{t("DB_add_friend")}</Button>
+                            <Button variant="outline" onClick={() => navigate('/conversations')}>{t("DB_open_convo")}</Button>
+                            <Button variant="outline" onClick={() => navigate('/Canvases')}>{t("DB_open_canvas")}</Button>
                         </div>
+                    </CardContent>
+                </Card>
 
-                        <div className="section-card fade-up fade-up-2">
-                            <div className="section-card-header" style={{ marginBottom: 0 }}>
-                                <h3>Plan Your Projects</h3>
-                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/Canvases')}>
-                                    Open
-                                </button>
-                            </div>
-                        </div>
-
+                <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+                    <section>
+                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("DB_security")}</p>
                         <TwoFactorCard
                             twoFAEnabled={twoFAEnabled}
                             enableStep={enableStep}
@@ -450,13 +427,15 @@ export function Dashboard() {
                         />
                     </section>
 
-                    <aside className="dashboard-friends-column">
+                    <aside>
+                        <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("DB_social")}</p>
                         <FriendsCard
                             friends={friends}
                             loading={friendsLoading}
                             error={friendsError}
                             unfriendingId={unfriendingId}
-                            onRefresh={fetchFriends}
+                            onRefresh={() => void fetchFriends()}
+                            onViewProfile={(friendId) => navigate(`/users/${friendId}`)}
                             onChat={(friend) => navigate(`/chat?friendId=${friend.id}&name=${encodeURIComponent(friend.name)}`)}
                             onUnfriend={handleUnfriend}
                         />
@@ -465,57 +444,59 @@ export function Dashboard() {
             </main>
 
             {showAddFriendModal && (
-                <div className="dashboard-modal-backdrop" onClick={closeAddFriendModal}>
-                    <div className="dashboard-modal" onClick={(event) => event.stopPropagation()}>
-                        <div className="dashboard-modal-header">
-                            <h3>Add Friend</h3>
-                            <button className="btn btn-ghost btn-sm" onClick={closeAddFriendModal}>
-                                Close
-                            </button>
-                        </div>
+                <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closeAddFriendModal}>
+                    <Card className="w-full max-w-xl" onClick={(event) => event.stopPropagation()}>
+                        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                            <CardTitle className="text-base">{t("DB_add_friend")}</CardTitle>
+                            <Button variant="ghost" size="sm" onClick={closeAddFriendModal}>{t("DB_close")}</Button>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <form className="flex gap-2" onSubmit={handleSearchUsers}>
+                                <input
+                                    type="text"
+                                    placeholder={t("DB_search")}
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    autoFocus
+                                    className="flex h-9 w-full rounded-md border border-border bg-surface2 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
+                                />
+                                <Button size="sm" type="submit" disabled={searchLoading}>{searchLoading ? t("FRS_searching") : t("FRS_search_button")}</Button>
+                            </form>
+                            {requestsLoading && <p className="text-sm text-muted">{t("DB_load_pend")}</p>}
+                            <p className="text-xs text-muted">{t("DB_invite")}</p>
 
-                        <form className="dashboard-modal-search" onSubmit={handleSearchUsers}>
-                            <input
-                                type="text"
-                                placeholder="Search by username or email"
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                                autoFocus
-                            />
-                            <button className="btn btn-primary btn-sm" type="submit" disabled={searchLoading}>
-                                {searchLoading ? "Searching..." : "Search"}
-                            </button>
-                        </form>
+                            {searchError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{searchError}</div>}
 
-                        {searchError && <div className="msg msg-error">{searchError}</div>}
+                            {searched && !searchLoading && searchResults.length === 0 && <p className="text-sm text-muted">{t("DB_no_users")}</p>}
 
-                        {searched && !searchLoading && searchResults.length === 0 && (
-                            <p className="dashboard-modal-empty">No users found.</p>
-                        )}
-
-                        {searchResults.length > 0 && (
-                            <div className="dashboard-modal-results">
-                                {searchResults.map((result) => (
-                                    <div key={result.id} className="dashboard-modal-result-item">
-                                        <div>
-                                            <p style={{ fontWeight: 600, marginBottom: 4 }}>{result.name}</p>
-                                            <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{result.email}</p>
+                            {searchResults.length > 0 && (
+                                <div className="space-y-2">
+                                    {searchResults.map((result) => (
+                                        <div key={result.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface2 p-2.5">
+                                            <div>
+                                                <p className="text-sm font-semibold text-ink">{result.name}</p>
+                                                <p className="text-xs text-muted">{result.email}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button size="sm" variant="outline" onClick={() => navigate(`/users/${result.id}`)}>{t("DB_profile")}</Button>
+                                                {friends.some(f => f.id === result.id) ? (
+                                                    <Button size="sm" variant="ghost" disabled>{t("DB_is_friend")}</Button>
+                                                ) : (
+                                                    <Button size="sm" onClick={() => handleSendRequest(result.id)} disabled={pendingRequests.has(result.id)}>
+                                                        {pendingRequests.has(result.id) ? t("DB_request") : t("DB_invitebutton")}
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() => handleSendRequest(result.id)}
-                                            disabled={pendingRequests.has(result.id)}
-                                        >
-                                            {pendingRequests.has(result.id) ? "Requested" : "Invite"}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             )}
-        </div>
+        	</div>
+		</div>
     );
 }
 

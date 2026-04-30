@@ -149,6 +149,96 @@ export const createGroupConversation = async (req: Request, res: Response) => {
     }
 };
 
+export const addMembersToGroupConversation = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const conversationId = Number(req.params.id);
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({ error: "Invalid conversation id" });
+        }
+
+        const incomingMemberIds: unknown[] = Array.isArray(req.body.memberIds) ? req.body.memberIds : [];
+        const normalizedMemberIds = incomingMemberIds
+            .map((id) => Number(id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+
+        const memberIds: number[] = Array.from(new Set<number>(normalizedMemberIds))
+            .filter((id) => id !== auth.userId);
+
+        if (memberIds.length === 0) {
+            return res.status(400).json({ error: "At least one member is required" });
+        }
+
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            select: { id: true, type: true },
+        });
+
+        if (!conversation || conversation.type !== "GROUP") {
+            return res.status(404).json({ error: "Group conversation not found" });
+        }
+
+        const myMembership = await prisma.conversation_participants.findFirst({
+            where: {
+                conversation_id: conversationId,
+                user_id: auth.userId,
+            },
+            select: { role: true },
+        });
+
+        if (!myMembership) {
+            return res.status(403).json({ error: "Not a participant of this group" });
+        }
+
+        if (myMembership.role !== "owner") {
+            return res.status(403).json({ error: "Only group owners can add members" });
+        }
+
+        const existingParticipants = await prisma.conversation_participants.findMany({
+            where: { conversation_id: conversationId },
+            select: { user_id: true },
+        });
+
+        const existingParticipantIds = new Set(existingParticipants.map((participant) => participant.user_id));
+        const newMemberIds = memberIds.filter((id) => !existingParticipantIds.has(id));
+
+        if (newMemberIds.length === 0) {
+            return res.status(400).json({ error: "All selected users are already in the group" });
+        }
+
+        const validMembers = await prisma.my_users.findMany({
+            where: { id: { in: newMemberIds } },
+            select: { id: true },
+        });
+
+        if (validMembers.length !== newMemberIds.length) {
+            return res.status(404).json({ error: "One or more members were not found" });
+        }
+
+        for (const memberId of newMemberIds) {
+            const friends = await areFriends(auth.userId, memberId);
+            if (!friends) {
+                return res.status(403).json({ error: "You can only add accepted friends" });
+            }
+        }
+
+        await prisma.conversation_participants.createMany({
+            data: newMemberIds.map((memberId) => ({
+                conversation_id: conversationId,
+                user_id: memberId,
+                role: "member",
+            })),
+            skipDuplicates: true,
+        });
+
+        return res.json({ message: "Members added", addedCount: newMemberIds.length });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || "Failed to add group members" });
+    }
+};
+
 export const getMyConversations = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -177,10 +267,92 @@ export const getMyConversations = async (req: Request, res: Response) => {
                 type: membership.conversation.type,
                 name: membership.conversation.name,
                 members,
+                role: membership.role,
             };
         });
 
         return res.json(conversations);
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteGroupConversation = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const conversationId = Number(req.params.id);
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({ error: "Invalid conversation id" });
+        }
+
+        const membership = await prisma.conversation_participants.findFirst({
+            where: { conversation_id: conversationId, user_id: auth.userId },
+            select: { role: true, conversation_id: true },
+        });
+
+        if (!membership) {
+            return res.status(403).json({ error: "Not a participant of this conversation" });
+        }
+
+        if (membership.role === "owner") {
+            await prisma.conversation.delete({
+                where: { id: conversationId },
+            });
+
+            return res.json({ message: "Group deleted" });
+        }
+
+        await prisma.conversation_participants.delete({
+            where: {
+                conversation_id_user_id: {
+                    conversation_id: conversationId,
+                    user_id: auth.userId,
+                },
+            },
+        });
+
+        return res.json({ message: "Left group" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || "Failed to delete conversation" });
+    }
+};
+
+export const getConversationMembers = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const conversationId = Number(req.params.id);
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({ error: "Invalid conversation id" });
+        }
+
+        const myMembership = await prisma.conversation_participants.findFirst({
+            where: { conversation_id: conversationId, user_id: auth.userId },
+            select: { role: true },
+        });
+
+        if (!myMembership) {
+            return res.status(403).json({ error: "Not a participant of this conversation" });
+        }
+
+        const participants = await prisma.conversation_participants.findMany({
+            where: { conversation_id: conversationId },
+            include: {
+                user: { select: { id: true, name: true, avatar: true } },
+            },
+        });
+
+        const members = participants.map((p) => ({
+            id: p.user.id,
+            name: p.user.name,
+            avatar: p.user.avatar ?? null,
+            role: p.role,
+        }));
+
+        return res.json({ members, role: myMembership.role });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }

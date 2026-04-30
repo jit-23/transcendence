@@ -1,24 +1,32 @@
-import React from "react";
+import React, { useTransition } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
-import { LoginForm }   from "./userLogin.tsx";
-import { Dashboard }   from "./dashboard";
-import { SignupForm }  from './userSignup.tsx';
+import { LoginForm } from "./userLogin.tsx";
+import { Dashboard } from "./dashboard";
+import { SignupForm } from "./userSignup.tsx";
 import { ProfilePage } from './profile.tsx';
-import PrivateRoute    from "./PrivateRoute";
-import { useContext }  from "react";
+import PrivateRoute from "./PrivateRoute";
+import { useContext } from "react";
 import { AuthContext } from "./AuthContext";
-import { useTheme }    from "./ThemeContext";
 import { SearchFriends } from "./searchFriends.tsx";
 import { ChatPage } from "./chat.tsx";
+import { ChoseConversation } from "./choseConversation.tsx";
 import Canvas from "./Canvas.tsx";
 import { GroupChatsPage } from "./groupChats.tsx";
 import { ConversationsPage } from "./conversations.tsx";
 import { CanvasesPage } from "./Canvases.tsx";
-import '../css/App.css'
+import { OAuthCallback } from "./OAuthCallback.tsx";
+import { UserPublicProfilePage } from "./userPublicProfile.tsx";
+import { BlockedUsersPage } from "./blockedUsers.tsx";
+import { PrivacyPolicyPage } from "./privacyPolicy.tsx";
+import { TermsOfServicePage } from "./termsOfService.tsx";
+import { Button } from "./components/ui/button";
+import '../css/App.css';
+import LanguageSwitcher from "./components/i18n.tsx";
+import { useTranslation } from "react-i18next";
 
 function PublicRoute({ children }) {
     const { user, authReady } = useContext(AuthContext);
-    if (!authReady) 
+    if (!authReady)
         return null;
     if (user)
         return <Navigate to="/dashboard" />;
@@ -26,65 +34,57 @@ function PublicRoute({ children }) {
 }
 
 function NotFound() {
+    const {t} = useTranslation();
     return (
-        <div id="center">
-            <div style={{ textAlign: 'center' }}>
-                <p style={{
-                    fontFamily: "'Syne', sans-serif",
-                    fontSize: '5rem',
-                    fontWeight: 800,
-                    color: 'var(--border2)',
-                    letterSpacing: '-0.04em',
-                    lineHeight: 1,
-                }}>404</p>
-                <p style={{ color: 'var(--ink3)', margin: '12px 0 24px', fontSize: '0.85rem' }}>
-                    This page doesn't exist.
-                </p>
-                <Link to="/" className="btn btn-ghost">← Go home</Link>
+        <div className="flex min-h-screen items-center justify-center px-6 py-10">
+            <div className="text-center">
+                <p className="font-display text-7xl font-extrabold text-border2 leading-none">404</p>
+                <p className="mt-3 mb-6 text-sm text-muted">{t("NF_doesnt_exist")}</p>
+                <Button asChild variant="outline">
+                    <Link to="/dashboard">{t("NF_dash")}</Link>
+                </Button>
             </div>
         </div>
     );
 }
 
-function Home() {
-    const { theme, toggleTheme } = useTheme();
-
+function SiteFooter() {
+    const {t} = useTranslation();
     return (
-        <div id="center">
-            {/* Theme toggle top-right */}
-            <button
-                className="theme-toggle"
-                onClick={toggleTheme}
-                title="Toggle theme"
-                style={{ position: 'fixed', top: 20, right: 24 }}
-            >
-                {theme === 'dark' ? '☀' : '☾'}
-            </button>
+        <footer className="site-footer">
+            <Link to="/privacy" className="footer-link">{t("FT_priv")}</Link>
+            <Link to="/terms" className="footer-link">{t("FT_terms")}</Link>
+        </footer>
+    );
+}
 
-            <div style={{ textAlign: 'center', maxWidth: 440 }}>
-                <div className="logo" style={{ justifyContent: 'center', marginBottom: 32, fontSize: '1.1rem' }}>
-                    <div className="logo-mark" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>W</div>
+function Home() {
+    const {t} = useTranslation()
+    return (
+        <div className="flex min-h-screen items-center justify-center px-6 py-10">
+            <div className="text-center w-full max-w-md">
+                <div className="mb-8 flex items-center justify-center gap-2 font-display text-lg font-semibold text-ink">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface2 text-xs">W</div>
                     whiteboard
                 </div>
 
-                <h1 style={{ fontSize: '2.8rem', marginBottom: 16, lineHeight: 1.1 }}>
-                    Think together,<br />
-                    <span style={{ color: 'var(--ink2)' }}>in real time.</span>
+                <h1 className="mb-4 font-display text-4xl font-bold leading-tight">
+                    {t("HO_slogan_1")}<br />
+                    <span className="text-ink2">{t("HO_slogan_2")}</span>
                 </h1>
 
-                <p style={{
-                    color: 'var(--ink3)',
-                    fontSize: '0.875rem',
-                    lineHeight: 1.8,
-                    marginBottom: 36,
-                }}>
-                    A shared canvas for your team — draw, plan,<br />
-                    and collaborate without the noise.
+                <p className="mb-9 text-sm leading-relaxed text-muted">
+                    {t("HO_description_1")}<br />
+                    {t("HO_description_2")}
                 </p>
 
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <Link to="/signup" className="btn btn-primary">Get started →</Link>
-                    <Link to="/login"  className="btn btn-ghost">Sign in</Link>
+                <div className="flex justify-center gap-3">
+                    <Button asChild>
+                        <Link to="/signup">{t("HO_sign_up")}</Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link to="/login">{t("HO_log_in")}</Link>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -93,52 +93,28 @@ function Home() {
 
 function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
-                <Route path="/" element={<Home />} />
-
-                <Route path="/login" element={
-                    <PublicRoute><LoginForm /></PublicRoute>
-                } />
-
-                <Route path="/signup" element={
-                    <PublicRoute><SignupForm /></PublicRoute>
-                } />
-
-                <Route path="/dashboard" element={
-                    <PrivateRoute><Dashboard /></PrivateRoute>
-                } />
-
-                <Route path="/profile" element={
-                    <PrivateRoute><ProfilePage /></PrivateRoute>
-                } />
-
-                <Route path="/search" element={
-                    <PrivateRoute><SearchFriends /></PrivateRoute>
-                } />
-
-                <Route path="/chat" element={
-                    <PrivateRoute><ChatPage /></PrivateRoute>
-                } />
-
-                <Route path="/conversations" element={
-                    <PrivateRoute><ConversationsPage /></PrivateRoute>
-                } />
-				
-				<Route path="/Canvases" element={
-                    <PrivateRoute><CanvasesPage /></PrivateRoute>
-                } />
-
-                <Route path="/groups" element={
-                    <PrivateRoute><GroupChatsPage /></PrivateRoute>
-                } />
-
-                <Route path="/canvas" element={
-                    <PrivateRoute><Canvas /></PrivateRoute>
-                } />
-
+                <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+                <Route path="/login" element={<PublicRoute><LoginForm /></PublicRoute>} />
+                <Route path="/signup" element={<PublicRoute><SignupForm /></PublicRoute>} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms" element={<TermsOfServicePage />} />
+                <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+                <Route path="/profile/blocked" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
+                <Route path="/users/:id" element={<PrivateRoute><UserPublicProfilePage /></PrivateRoute>} />
+                <Route path="/search" element={<PrivateRoute><SearchFriends /></PrivateRoute>} />
+                <Route path="/choose-conversation" element={<PrivateRoute><ChoseConversation /></PrivateRoute>} />
+                <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
+                <Route path="/conversations" element={<PrivateRoute><ConversationsPage /></PrivateRoute>} />
+                <Route path="/Canvases" element={<PrivateRoute><CanvasesPage /></PrivateRoute>} />
+                <Route path="/groups" element={<PrivateRoute><GroupChatsPage /></PrivateRoute>} />
+                <Route path="/canvas" element={<PrivateRoute><Canvas /></PrivateRoute>} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
+            <SiteFooter />
         </BrowserRouter>
     );
 }
