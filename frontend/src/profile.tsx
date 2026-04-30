@@ -64,7 +64,7 @@ export function ProfilePage() {
 
         await refreshUser();
         setShowPicker(false);
-        setSuccess("Avatar updated!");
+        setSuccess(t("PF_avatar_updated"));
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -72,17 +72,17 @@ export function ProfilePage() {
         setSuccess(null); setError(null);
 
         if (!hasChanges) {
-            setError('No changes to save');
+            setError(t("PF_no_changes"));
             return;
         }
 
         if (newPassword && newPassword !== confirmNew) {
-            setError("New passwords don't match");
+            setError(t("PF_pass_no_match"));
             return;
         }
 
         if (newPassword && !canChangePassword) {
-            setError('Password changes are not supported for this account.');
+            setError(t("PF_pass_not_supported"));
             return;
         }
 
@@ -94,13 +94,13 @@ export function ProfilePage() {
             }
 
             if (!currentPassword.trim()) {
-                setError('Current password is required to change your password.');
+                setError(t("PF_curr_pass_req"));
                 return;
             }
         }
 
         if (/\s/.test(username.trim())) {
-            setError('Username cannot contain spaces');
+            setError(t("SU_user_cannot"));
             return;
         }
 
@@ -113,7 +113,7 @@ export function ProfilePage() {
         }
 
         if (Object.keys(body).length === 0) {
-            setError("Change at least one field");
+            setError(t("PF_change_one_field"));
             return;
         }
 
@@ -121,7 +121,7 @@ export function ProfilePage() {
         try {
             const token = sessionStorage.getItem("token");
             if (!token) {
-                setError("Not authenticated. Please login again.");
+                setError(t("PF_not_authenticated"));
                 return;
             }
 
@@ -134,12 +134,12 @@ export function ProfilePage() {
                 body: JSON.stringify(body),
             });
             const data = await res.json();
-            if (!res.ok) { setError(data.error || 'Update failed'); return; }
+            if (!res.ok) { setError(data.error || t("PF_update_failed")); return; }
             await refreshUser();
-            setSuccess('Profile updated successfully!');
+            setSuccess(t("PF_updated_success"));
             setCurrentPassword(''); setNewPassword(''); setConfirmNew('');
         } catch {
-            setError('Network error. Please try again.');
+            setError(t("PF_network_error"));
         } finally {
             setLoading(false);
         }
@@ -219,11 +219,11 @@ export function ProfilePage() {
                                    <div className="border rounded-2xl p-4 ">
   									<div className="space-y-1.5">
     								<Label>Email</Label>
-						    		<p className="text-sm text-gray-700">
-										<span className="font-medium">{user?.email}</span>
-									</p>
-								</div>
-								</div>
+							    		<p className="text-sm text-gray-700">
+											<span className="font-medium">{user?.email}</span>
+										</p>
+									</div>
+									</div>
                                 </div>
                             </div>
 
@@ -233,7 +233,7 @@ export function ProfilePage() {
 
                                     <div className="flex justify-start">
                                         <Button type="button" variant="outline" onClick={() => setShowPasswordModal(true)}>
-                                            Change password
+                                            {t("PF_new_pass")}
                                         </Button>
                                     </div>
 
@@ -241,14 +241,14 @@ export function ProfilePage() {
                                         <>
                                             <div className="h-px bg-border" />
                                             <div>
-                                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">Verification</p>
+                                                <p className="mb-2 text-xs uppercase tracking-[0.1em] text-muted">{t("PF_verification")}</p>
                                                 <div className="space-y-1.5">
                                                     <Label>
-                                                        Current Password <span className="text-red-400">required</span>
+                                                        {t("PF_curr_pass")} <span className="text-red-400">{t("PF_pass_req")}</span>
                                                     </Label>
                                                     <Input
                                                         type="password"
-                                                        placeholder="Required to change password"
+                                                        placeholder={t("PF_req_save")}
                                                         value={currentPassword}
                                                         onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
                                                         required={hasPasswordChange}
@@ -261,7 +261,7 @@ export function ProfilePage() {
                             ) : (
                                 <>
                                     <div className="h-px bg-border" />
-                                    <p className="text-xs text-muted">This account uses OAuth sign-in. Password changes are not available.</p>
+                                    <p className="text-xs text-muted">{t("PF_pass_not_supported")}</p>
                                 </>
                             )}
 
@@ -284,44 +284,44 @@ export function ProfilePage() {
                 <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closePasswordModal}>
                     <Card className="w-full max-w-lg shadow-xl" onClick={(event) => event.stopPropagation()}>
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Change password</CardTitle>
+                            <CardTitle className="text-base">{t("PF_new_pass")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-1.5">
-                                <Label>New Password</Label>
+                                <Label>{t("PF_new_pass")}</Label>
                                 <Input
                                     type="password"
-                                    placeholder="8+ chars, upper, lower, number, symbol"
+                                    placeholder={t("SU_pass_place")}
                                     value={newPassword}
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                                 />
                                 <div className="space-y-1 text-xs text-muted">
-                                    <p>Password rules:</p>
+                                    <p>{t("PF_pass_rules")}</p>
                                     <ul className="grid gap-1 sm:grid-cols-2">
-                                        <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• 8+ characters</li>
-                                        <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• 1 uppercase letter</li>
-                                        <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• 1 lowercase letter</li>
-                                        <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• 1 number</li>
-                                        <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• 1 symbol</li>
+                                        <li className={passwordChecks.minLength ? 'text-emerald-400' : ''}>• {t("SU_8chars")}</li>
+                                        <li className={passwordChecks.uppercase ? 'text-emerald-400' : ''}>• {t("SU_1up")}</li>
+                                        <li className={passwordChecks.lowercase ? 'text-emerald-400' : ''}>• {t("SU_1low")}</li>
+                                        <li className={passwordChecks.number ? 'text-emerald-400' : ''}>• {t("SU_1num")}</li>
+                                        <li className={passwordChecks.symbol ? 'text-emerald-400' : ''}>• {t("SU_1sym")}</li>
                                     </ul>
                                 </div>
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label>Confirm New Password</Label>
+                                <Label>{t("PF_confirm_new_pass")}</Label>
                                 <Input
                                     type="password"
-                                    placeholder="Repeat new password"
+                                    placeholder={t("PF_repeat_new")}
                                     value={confirmNew}
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmNew(e.target.value)}
                                 />
-                                {passwordMismatch && <p className="text-xs text-red-400">Passwords do not match.</p>}
+                                {passwordMismatch && <p className="text-xs text-red-400">{t("PF_pass_mismatch")}</p>}
                                 {passwordPolicyError && <p className="text-xs text-red-400">{passwordPolicyError}</p>}
                             </div>
 
                             <div className="flex flex-wrap justify-end gap-2">
                                 <Button type="button" variant="outline" onClick={closePasswordModal}>
-                                    Close
+                                    {t("DB_close")}
                                 </Button>
                             </div>
                         </CardContent>

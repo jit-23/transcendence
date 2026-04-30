@@ -17,7 +17,7 @@ services:
       - /app/node_modules
       - ./certs:/etc/ssl/certs:ro
     environment:
-      VITE_API_URL: "https://localhost:8081"
+      VITE_API_URL: "https://localhost:8081" 
       VITE_HTTPS: "true"
       VITE_HTTPS_CERT: "/etc/ssl/certs/server.cert"
       VITE_HTTPS_KEY: "/etc/ssl/certs/server.key"
@@ -53,9 +53,6 @@ services:
         condition: service_healthy
     networks:
       - observability
-    command: >
-      sh -c "
-      npx prisma db push  --schema=./src/prisma/schema.prisma  && node dist/index.js"
   db:
     privileged: true
     image: postgres:13.2
@@ -85,6 +82,10 @@ services:
       - backend_server
     networks:
       - observability
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--log.level=error'
 
   grafana:
     image: grafana/grafana:latest
@@ -99,6 +100,8 @@ services:
       - prometheus
     networks:
       - observability
+    environment:
+      - GF_LOG_LEVEL=error  # Options: critical, error, warning, info, debug
 
 volumes:
   database:

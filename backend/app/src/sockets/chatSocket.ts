@@ -69,7 +69,6 @@ export function setupChatSocket(server: HttpServer, prisma: PrismaClient) {
     if (!username) return socket.disconnect();
 
     connectedByName.set(username, socket.id);
-    console.log(`${username} connected with id: ${socket.id}`);
 
     let connectedUserId: number | null = null;
     const joinedCanvasIds = new Set<number>();

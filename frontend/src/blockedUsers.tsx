@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useContext,	useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { Button } from './components/ui/button';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from './components/i18n';
 import TopBar from './components/ui/topbar';
-
+import { useTheme } from './ThemeContext';
 type BlockedUser = {
     id: number;
     name: string;
@@ -29,7 +29,7 @@ export function BlockedUsersPage() {
     const loadBlockedUsers = async () => {
         const token = sessionStorage.getItem('token');
         if (!token) {
-            setError('Not authenticated');
+            setError(t('BLU_not_authenticated', 'Not authenticated'));
             setLoading(false);
             return;
         }
@@ -44,13 +44,13 @@ export function BlockedUsersPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'Failed to load blocked users');
+                setError(data.error || t('BLU_failed_load', 'Failed to load blocked users'));
                 setBlockedUsers([]);
             } else {
                 setBlockedUsers(Array.isArray(data) ? data : []);
             }
         } catch {
-            setError('Network error while loading blocked users');
+            setError(t('BLU_network_error', 'Network error while loading blocked users'));
             setBlockedUsers([]);
         } finally {
             setLoading(false);
@@ -64,7 +64,7 @@ export function BlockedUsersPage() {
     const handleUnblock = async (userId: number) => {
         const token = sessionStorage.getItem('token');
         if (!token) {
-            setError('Not authenticated');
+            setError(t('BLU_not_authenticated', 'Not authenticated'));
             return;
         }
 
@@ -82,13 +82,13 @@ export function BlockedUsersPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'Failed to unblock user');
+                setError(data.error || t('BLU_failed_unblock'));
                 return;
             }
 
             setBlockedUsers((prev: BlockedUser[]) => prev.filter((blockedUser: BlockedUser) => blockedUser.id !== userId));
         } catch {
-            setError('Network error while unblocking user');
+            setError(t('BLU_network_unblock'));
         } finally {
             setActionLoadingId(null);
         }
@@ -107,7 +107,7 @@ export function BlockedUsersPage() {
 
        	         <Card>
        	             <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-       	                 <CardTitle className="text-base">Blocked list</CardTitle>
+       	                 <CardTitle className="text-base">{t("BLU_list")}</CardTitle>
        	                 <Button variant="outline" size="sm" onClick={loadBlockedUsers} disabled={loading}>
                             {loading ? t("BLU_refreshing") : t("BLU_refresh")}
        	                 </Button>
@@ -144,7 +144,7 @@ export function BlockedUsersPage() {
        	                                         size="sm"
        	                                     onClick={() => navigate(`/users/${blockedUser.id}`)}
        	                                     >
-       	                                         View profile
+       	                                         {t("BLU_view")}
        	                                     </Button>
        	                                     <Button
        	                                         variant="outline"

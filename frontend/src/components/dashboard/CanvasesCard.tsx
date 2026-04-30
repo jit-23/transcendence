@@ -204,14 +204,14 @@ export function CanvasesCard({
                       onClick={() => onOpenInviteCanvas(canvas.id)}
                       style={{ flex: 1, fontSize: "0.75rem" }}
                     >
-                      Invite Friends
+                      {t("CVS_invite_friends", "Invite Friends")}
                     </button>
                     <button
                       className="btn btn-ghost btn-xs"
                       onClick={() => onDeleteCanvas(canvas.id)}
                       style={{ color: "var(--error)", fontSize: "0.75rem" }}
                     >
-                      Delete
+                      {t("CVS_delete_canvas", "Delete")}
                     </button>
                   </div>
                 )}
@@ -220,7 +220,7 @@ export function CanvasesCard({
                   <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
                     {inviteError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{inviteError}</div>}
                     {friendsError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{friendsError}</div>}
-                    {friendsLoading && <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>Loading friends...</p>}
+                    {friendsLoading && <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>{t("CVS_loading_friends", "Loading friends...")}</p>}
                     {!friendsLoading && friends.length === 0 && (
                       <p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>{t("CVS_no_friends")}</p>
                     )}
@@ -253,7 +253,7 @@ export function CanvasesCard({
                             >
                               {friend.name}
                             </span>
-                            <span style={{ flexShrink: 0 }}>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
+                            <span style={{ flexShrink: 0 }}>{invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}</span>
                           </button>
                         ))}
                       </div>
@@ -297,17 +297,17 @@ export function CanvasesCard({
             onClick={(event) => event.stopPropagation()}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-              <h4 style={{ fontSize: "0.95rem", margin: 0 }}>Invite Friends</h4>
-              <button className="btn btn-ghost btn-xs" onClick={() => onOpenInviteCanvas(null)}>Close</button>
+              <h4 style={{ fontSize: "0.95rem", margin: 0 }}>{t("CVS_invite_friends", "Invite Friends")}</h4>
+              <button className="btn btn-ghost btn-xs" onClick={() => onOpenInviteCanvas(null)}>{t("CVS_close_invite", "Close")}</button>
             </div>
 
             <p style={{ color: "var(--ink3)", fontSize: "0.78rem", marginBottom: "10px" }}>
-              Canvas: {activeCanvas.name}
+              {t("CVS_canvas_label", { name: activeCanvas.name, defaultValue: "Canvas: " + activeCanvas.name })}
             </p>
 
             <input
               type="text"
-              placeholder="Search friends by name"
+              placeholder={t("CVS_search_friends", "Search friends by name")}
               value={friendSearchQuery}
               onChange={(event) => setFriendSearchQuery(event.target.value)}
               autoFocus
@@ -325,9 +325,9 @@ export function CanvasesCard({
 
             {inviteError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{inviteError}</div>}
             {friendsError && <div style={{ color: "var(--error)", fontSize: "0.75rem", marginBottom: 6 }}>{friendsError}</div>}
-            {friendsLoading && <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>Loading friends...</p>}
+            {friendsLoading && <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>{t("CVS_loading_friends", "Loading friends...")}</p>}
             {!friendsLoading && friends.length === 0 && (
-              <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>No friends available to invite.</p>
+              <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>{t("CVS_no_friends", "No friends available to invite.")}</p>
             )}
 
             {!friendsLoading && friends.length > 0 && (
@@ -341,11 +341,11 @@ export function CanvasesCard({
                     style={{ justifyContent: "space-between" }}
                   >
                     <span>{friend.name}</span>
-                    <span style={{ fontSize: "0.72rem" }}>{invitingFriendId === friend.id ? "Inviting..." : "Invite"}</span>
+                    <span style={{ fontSize: "0.72rem" }}>{invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}</span>
                   </button>
                 ))}
                 {filteredFriends.length === 0 && (
-                  <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>No friends match your search.</p>
+                  <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>{t("CVS_no_friends_match", "No friends match your search.")}</p>
                 )}
               </div>
             )}

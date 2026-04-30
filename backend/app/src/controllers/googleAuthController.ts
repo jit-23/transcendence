@@ -165,15 +165,10 @@ function normalizeAvatarUrl(value?: string | null): string | null {
 export const googleAuthRedirect = (_req: Request, res: Response) => {
     const clientId = getRequiredEnv("GOOGLE_CLIENT_ID");
     const redirectUri = getRequiredEnv("GOOGLE_REDIRECT_URI");
-	console.log("Initiating Google OAuth flow", { clientId: !!clientId, redirectUri: !!redirectUri });
 	
-	console.log('im here');
-	console.log(`Google OAuth client ID: ${clientId}, redirect URI: ${redirectUri}`);
 	if (!clientId || !redirectUri) {
-		console.error("Google OAuth configuration missing. Check GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI.");
 		return res.status(500).send("Google OAuth is not configured");
 	}
-	console.log('res: ', res);
 
     const state = createOAuthState();
     setOAuthStateCookie(res, "oauth_state_google", state);
@@ -295,7 +290,6 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
 
         return redirectAfterOAuthLogin(res, FRONTEND_URL, user);
     } catch (err: any) {
-        console.error("Google OAuth error:", err.message);
         return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
     }
 };

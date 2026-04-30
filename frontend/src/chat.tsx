@@ -4,11 +4,13 @@ import { io, Socket } from "socket.io-client";
 import { AuthContext } from "./AuthContext";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "./components/ui/topbar";
+import { Avatar } from "./Avatar";
 
 
 type Participant = {
     id: number;
     name: string;
+    avatar?: string | null;
     online?: boolean;
     role?: string; // "owner" | "member"
 };
@@ -100,7 +102,7 @@ export function ChatPage() {
 
         const friendId = Number(friendIdParam);
         if (!Number.isInteger(friendId) || friendId <= 0) {
-            setStatus("Invalid friendId in URL");
+            setStatus(t("CH_invalid_friend_id", "Invalid friendId in URL"));
             return;
         }
 
@@ -108,7 +110,7 @@ export function ChatPage() {
 
         const openDirectConversation = async () => {
             setConversationLoading(true);
-            setStatus("Opening conversation...");
+            setStatus(t("CH_opening_conversation", "Opening conversation..."));
 
             try {
                 const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
@@ -120,7 +122,7 @@ export function ChatPage() {
                 const data = await res.json();
 
                 if (!res.ok) {
-                    setStatus(data.error || "Failed to open conversation");
+                    setStatus(data.error || t("CH_failed_open_conversation", "Failed to open conversation"));
                     return;
                 }
 
@@ -134,7 +136,7 @@ export function ChatPage() {
                 setStatus(` ${displayName}`);
             } catch {
                 if (!cancelled) {
-                    setStatus("Network error while opening conversation");
+                    setStatus(t("CH_network_error_opening", "Network error while opening conversation"));
                 }
             } finally {
                 if (!cancelled) {
@@ -156,7 +158,7 @@ export function ChatPage() {
 
         const existingConversationId = Number(conversationIdParam);
         if (!Number.isInteger(existingConversationId) || existingConversationId <= 0) {
-            setStatus("Invalid conversationId in URL");
+            setStatus(t("CH_invalid_conversation_id", "Invalid conversationId in URL"));
             return;
         }
 
@@ -166,7 +168,7 @@ export function ChatPage() {
         setTarget(displayName);
         setMessages([]);
         setPeerTyping(null);
-        setStatus(`Chatting in ${displayName}`);
+        setStatus(t("CH_chatting_in", { name: displayName, defaultValue: `Chatting in ${displayName}` }));
         setConversationLoading(false);
     }, [friendIdParam, conversationIdParam, chatNameParam]);
 
@@ -184,7 +186,7 @@ export function ChatPage() {
                 const data = await res.json();
 
                 if (!res.ok) {
-                    setStatus(data.error || "Failed to load messages");
+                    setStatus(data.error || t("CH_failed_load_messages", "Failed to load messages"));
                     return;
                 }
 
@@ -199,7 +201,7 @@ export function ChatPage() {
                 setMessages(mapped);
             } catch {
                 if (!cancelled) {
-                    setStatus("Network error while loading messages");
+                    setStatus(t("CH_network_error_loading", "Network error while loading messages"));
                 }
             }
         };
@@ -223,7 +225,7 @@ export function ChatPage() {
         socketRef.current = socket;
 
         socket.on("connect", () => setStatus(""));
-        socket.on("disconnect", () => setStatus("disconnected"));
+        socket.on("disconnect", () => setStatus(t("CH_disconnected", "disconnected")));
 
         socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
             const normalizedIncoming = Number(incomingConversationId);
@@ -302,42 +304,43 @@ export function ChatPage() {
                 <div style={{ display: "flex", width: 900, minHeight: 540, maxHeight: 700, background: "var(--surface2)", borderRadius: 14, boxShadow: "0 2px 12px #0001", overflow: "hidden", marginTop: 32 }}>
                     {/* Sidebar: Participants */}
                     <div style={{ width: 220, background: "var(--surface1)", borderRight: "1px solid var(--border)", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-                        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 8 }}>Participants</h3>
+                        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 8 }}>{t("CH_participants", "Participants")}</h3>
                         {participantsLoading ? (
-                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>Loading...</p>
+                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("CH_loading", "Loading...")}</p>
                         ) : participantsError ? (
                             <p style={{ color: "var(--error)", fontSize: "0.9rem" }}>{participantsError}</p>
                         ) : participants.length === 0 ? (
-                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>No participants</p>
+                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("CH_no_participants", "No participants")}</p>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                 {participants.map((p) => (
-                                    <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 8px", background: "var(--surface2)", borderRadius: 6 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>{p.name}</span>
-                                            <span style={{ fontSize: "0.8rem", color: p.online ? "#22c55e" : "#888" }}>
-                                                {p.online ? "● Online" : "○ Offline"}
-                                            </span>
+                                    <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px", background: "var(--surface2)", borderRadius: 8 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                            <Avatar avatar={p.avatar} name={p.name} size={32} />
+                                            <div style={{ minWidth: 0 }}>
+                                                <p style={{ fontWeight: 600, fontSize: "0.85rem", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
+                                                <p style={{ fontSize: "0.72rem", color: p.online ? "#22c55e" : "var(--ink3)", lineHeight: 1 }}>
+                                                    {p.online ? t("FRC_online") : t("FRC_offline")}
+                                                </p>
+                                            </div>
                                         </div>
                                         {isOwner && p.role !== "owner" && (
                                             <button
                                                 className="btn btn-ghost btn-xs"
-                                                style={{ color: "var(--error)", fontSize: "0.8rem" }}
+                                                style={{ color: "var(--error)", fontSize: "0.75rem", flexShrink: 0 }}
                                                 onClick={async () => {
-                                                    // Remove member
                                                     try {
                                                         const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
                                                         await fetch(`${apiUrl}/conversations/${conversationId}/members/${p.id}`, {
                                                             method: "DELETE",
                                                             headers: authHeader(),
                                                         });
-                                                        // Refresh participants
                                                         const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, { headers: authHeader() });
                                                         const data = await res.json();
                                                         setParticipants(data.members || []);
                                                     } catch {}
                                                 }}
-                                            >Remove</button>
+                                            >{t("CH_remove", "Remove")}</button>
                                         )}
                                     </div>
                                 ))}
@@ -364,7 +367,7 @@ export function ChatPage() {
                                         setParticipants(data.members || []);
                                     } catch {}
                                 }}
-                            >Add Friend</button>
+                            >{t("CH_add_friend", "Add Friend")}</button>
                         )}
                     </div>
                     {/* Main Chat Area */}
@@ -392,7 +395,7 @@ export function ChatPage() {
                             }}
                         >
                             {messages.length === 0 && (
-                                <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>No messages yet.</p>
+                                <p style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>{t("CH_no_messages_chat", "No messages yet.")}</p>
                             )}
                             {messages.map((message, index) => (
                                 <div

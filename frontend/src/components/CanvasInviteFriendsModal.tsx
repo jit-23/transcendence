@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -36,6 +37,7 @@ export function CanvasInviteFriendsModal({
 }: CanvasInviteFriendsModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const { t } = useTranslation();
 
   const filteredFriends = friends.filter((friend) =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -72,9 +74,9 @@ export function CanvasInviteFriendsModal({
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={onClose}>
       <Card className="w-full max-w-md shadow-xl" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-base">Invite Friends</CardTitle>
+          <CardTitle className="text-base">{t("CVS_invite")}</CardTitle>
           <Button variant="ghost" size="sm" onClick={onRefreshFriends} disabled={friendsLoading}>
-            {friendsLoading ? "..." : "Refresh"}
+            {friendsLoading ? "..." : t("FRC_refresh")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -92,18 +94,18 @@ export function CanvasInviteFriendsModal({
 
           <Input
             type="text"
-            placeholder="Search friends by name or email..."
+            placeholder={t("FRS_search_user")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={friendsLoading}
           />
 
           {!friendsLoading && friends.length === 0 && (
-            <p className="text-sm text-muted">No friends yet. Add some friends first!</p>
+            <p className="text-sm text-muted">{t("CVS_no_friends")}</p>
           )}
 
           {filteredFriends.length === 0 && friends.length > 0 && (
-            <p className="text-sm text-muted">No friends match your search.</p>
+            <p className="text-sm text-muted">{t("FRS_no_user_match")}</p>
           )}
 
           {filteredFriends.length > 0 && (
@@ -125,7 +127,7 @@ export function CanvasInviteFriendsModal({
                     onClick={() => onInviteFriend(friend.id)}
                     disabled={invitingFriendId === friend.id || friendsLoading}
                   >
-                    {invitingFriendId === friend.id ? "..." : "Invite"}
+                    {invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}
                   </Button>
                 </div>
               ))}
@@ -134,7 +136,7 @@ export function CanvasInviteFriendsModal({
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>
-              Close
+              {t("DB_close")}
             </Button>
           </div>
         </CardContent>

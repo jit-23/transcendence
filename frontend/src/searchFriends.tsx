@@ -36,7 +36,7 @@ export function SearchFriends() {
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!searchQuery.trim()) {
-            setError("Enter a username or email to search");
+            setError(t("ERR_1"));
             return;
         }
         setLoading(true);
@@ -51,7 +51,7 @@ export function SearchFriends() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Search failed");
+                setError(data.error || t("ERR_2"));
                 setResults([]);
             } else {
                 const filtered = data.filter((result: SearchResult) => {
@@ -64,7 +64,7 @@ export function SearchFriends() {
                 setResults(filtered);
             }
         } catch (err: any) {
-            setError("Network error during search");
+            setError(t("DASH_network_search"));
             setResults([]);
         } finally {
             setLoading(false);
@@ -85,7 +85,7 @@ export function SearchFriends() {
 
             if (!res.ok) {
                 // If backend reports user is already a friend, mark locally so invite button disappears
-                const msg = (data && data.error) || "Failed to send request";
+                const msg = (data && data.error) || t("DASH_failed_send_req");
                 if (res.status === 400 && /friend/i.test(msg)) {
                     setFriendsSet(prev => {
                         const updated = new Set(prev);
@@ -105,7 +105,7 @@ export function SearchFriends() {
                 setPendingRequests(prev => new Set(prev).add(receiverId));
             }
         } catch (err: any) {
-            setError("Network error");
+            setError(t("DASH_network_error"));
             setPendingRequests(prev => {
                 const updated = new Set(prev);
                 updated.delete(receiverId);
@@ -212,7 +212,7 @@ export function SearchFriends() {
                                             {t("FRS_profile")}
                                         </Button>
                                         {friendsSet.has(result.id) ? (
-                                            <Button size="sm" variant="ghost" disabled>(Friend)</Button>
+                                            <Button size="sm" variant="ghost" disabled>{t("DB_is_friend")}</Button>
                                         ) : (
                                             <Button
                                                 size="sm"

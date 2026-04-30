@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./components/i18n";
 
+
 const termsText = `1. Acceptance of Terms
 By accessing and using Transcendence ("Service," "we," "us," "our," or "Company"), you agree to be bound by these Terms of Service. If you do not agree to these terms, you may not access or use the Service. We reserve the right to modify these terms at any time, and your continued use of the Service following modifications constitutes your acceptance of the modified terms.
 
@@ -80,6 +81,8 @@ These Terms of Service, together with our Privacy Policy, constitute the entire 
 BY USING THE SERVICE, YOU ACKNOWLEDGE THAT YOU HAVE READ THESE TERMS OF SERVICE, UNDERSTAND THEM, AND AGREE TO BE BOUND BY THEM.`;
 
 export function TermsOfServicePage() {
+	    const {t} = useTranslation();
+
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
             <main className="space-y-5">

@@ -106,7 +106,6 @@ export function SignupForm() {
     };
 
     const handleOAuthRedirect = (provider: 'google' | '42') => {
-		console.log("1");
 		if (loading || oauthLoading) return;
         setError(null);
         setOauthLoading(provider);

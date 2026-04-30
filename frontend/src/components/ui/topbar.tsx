@@ -4,6 +4,9 @@ import { Avatar } from "../../Avatar";
 import { AuthContext } from "../../AuthContext";
 import { useTheme } from "../../ThemeContext";
 import { Button } from "./button";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "../i18n";
+
 
 type ReceivedFriendRequest = {
 	id: number;
@@ -29,6 +32,7 @@ type ReceivedCanvasInvite = {
 };
 
 export function TopBar() {
+	const { t } = useTranslation();
 	const { user, logout } = useContext(AuthContext);
 	const { theme, toggleTheme } = useTheme();
 	const navigate = useNavigate();
@@ -217,15 +221,14 @@ export function TopBar() {
 				type="button"
 				onClick={() => navigate("/dashboard")}
 				className="logo-button"
-				title="Go to dashboard"
-				aria-label="Go to dashboard"
+				title={t("TB_go_dashboard", "Go to dashboard")}
+				aria-label={t("TB_go_dashboard", "Go to dashboard")}
 			>
 				<div className="logo">
 					<div className="logo-mark">W</div>
-					whiteboard
+					{t("TB_whiteboard", "whiteboard")}
 				</div>
 			</button>
-
 			<div className="topbar-right">
 				<div
 					className="user-chip"
@@ -239,7 +242,7 @@ export function TopBar() {
 						}
 					}}
 					title="Open profile"
-					aria-label="Open profile"
+					aria-label={t("TB_open_profile", "Open profile")}
 				>
 					<Avatar avatar={user?.avatar} name={user?.name ?? "?"} size={24} />
 					{user?.name}
@@ -265,9 +268,9 @@ export function TopBar() {
 					{showRequestsPanel ? (
 						<div className="absolute right-0 z-30 mt-2 w-[320px] max-w-[90vw] rounded-xl border border-border bg-surface p-3 shadow-lg">
 							<div className="mb-3 flex items-center justify-between gap-3">
-								<h3 className="text-base font-semibold">Friend Requests</h3>
+								<h3 className="text-base font-semibold">{t("TB_friend_requests", "Friend Requests")}</h3>
 								<Button variant="ghost" size="sm" onClick={fetchRequests} disabled={requestsLoading}>
-									{requestsLoading ? "..." : "Refresh"}
+									{requestsLoading ? t("TB_loading", "...") : t("TB_refresh", "Refresh")}
 								</Button>
 							</div>
 
@@ -278,7 +281,7 @@ export function TopBar() {
 							) : null}
 
 							{!requestsLoading && requests.length === 0 ? (
-								<p className="text-sm text-muted">No pending requests.</p>
+								<p className="text-sm text-muted">{t("TB_no_pending_requests", "No pending requests.")}</p>
 							) : null}
 
 							{requests.length > 0 ? (
@@ -290,19 +293,18 @@ export function TopBar() {
 												<p className="truncate text-xs text-muted">{request.sender.email}</p>
 											</div>
 											<div className="flex gap-1.5">
-												<Button size="sm" onClick={() => void decideRequest(request.id, "accept")}>Accept</Button>
-												<Button size="sm" variant="outline" onClick={() => void decideRequest(request.id, "reject")}>Reject</Button>
+												<Button size="sm" onClick={() => void decideRequest(request.id, "accept")}>{t("TB_accept", "Accept")}</Button>
+												<Button size="sm" variant="outline" onClick={() => void decideRequest(request.id, "reject")}>{t("TB_reject", "Reject")}</Button>
 											</div>
 										</div>
 									))}
 								</div>
 							) : null}
-
 							<div className="mt-4 border-t border-border pt-3">
 								<div className="mb-3 flex items-center justify-between gap-3">
-									<h3 className="text-base font-semibold">Canvas Invites</h3>
+									<h3 className="text-base font-semibold">{t("TB_canvas_invites", "Canvas Invites")}</h3>
 									<Button variant="ghost" size="sm" onClick={fetchCanvasInvites} disabled={canvasInvitesLoading}>
-										{canvasInvitesLoading ? "..." : "Refresh"}
+										{canvasInvitesLoading ? t("TB_loading", "...") : t("TB_refresh", "Refresh")}
 									</Button>
 								</div>
 
@@ -313,7 +315,7 @@ export function TopBar() {
 								) : null}
 
 								{!canvasInvitesLoading && canvasInvites.length === 0 ? (
-									<p className="text-sm text-muted">No pending canvas invites.</p>
+									<p className="text-sm text-muted">{t("TB_no_pending_canvas_invites", "No pending canvas invites.")}</p>
 								) : null}
 
 								{canvasInvites.length > 0 ? (
@@ -321,10 +323,10 @@ export function TopBar() {
 										{canvasInvites.map((invite) => (
 											<div key={invite.canvas.id} className="rounded-md border border-border bg-surface2 p-2.5">
 												<p className="truncate text-sm font-semibold text-ink">{invite.canvas.name}</p>
-												<p className="truncate text-xs text-muted">Invited by {invite.canvas.owner.name}</p>
+												<p className="truncate text-xs text-muted">{t("TB_invited_by", { name: invite.canvas.owner.name, defaultValue: `Invited by ${invite.canvas.owner.name}` })}</p>
 												<div className="mt-2 flex gap-1.5">
-													<Button size="sm" onClick={() => void decideCanvasInvite(invite.canvas.id, "accept")}>Accept</Button>
-													<Button size="sm" variant="outline" onClick={() => void decideCanvasInvite(invite.canvas.id, "reject")}>Reject</Button>
+													<Button size="sm" onClick={() => void decideCanvasInvite(invite.canvas.id, "accept")}>{t("TB_accept", "Accept")}</Button>
+													<Button size="sm" variant="outline" onClick={() => void decideCanvasInvite(invite.canvas.id, "reject")}>{t("TB_reject", "Reject")}</Button>
 												</div>
 											</div>
 										))}
@@ -334,10 +336,11 @@ export function TopBar() {
 						</div>
 					) : null}
 				</div>
+				<LanguageSwitcher />
 				<button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
 					{theme === "dark" ? "☀" : "☾"}
 				</button>
-				<Button variant="outline" size="sm" onClick={logout}>Sign out</Button>
+				<Button variant="outline" size="sm" onClick={logout}>{t("TB_sign_out", "Sign out")}</Button>
 			</div>
 		</header>
 	);

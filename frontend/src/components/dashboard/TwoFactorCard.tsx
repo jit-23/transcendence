@@ -120,7 +120,7 @@ export function TwoFactorCard({
                   setError(null);
                 }}
               >
-                Cancel
+                {t("TFC_cancel_2fa")}
               </Button>
             </div>
             <p className="text-xs text-muted">{t("TFC_tip")}</p>

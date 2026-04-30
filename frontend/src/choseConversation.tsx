@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Avatar } from "./Avatar";
 import { TopBar } from "./components/ui/topbar";
 
@@ -12,6 +13,7 @@ type Friend = {
 };
 
 export function ChoseConversation() {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const [friends, setFriends] = useState<Friend[]>([]);
 	const [query, setQuery] = useState("");
@@ -34,12 +36,12 @@ export function ChoseConversation() {
 			const data = await res.json();
 
 			if (!res.ok) {
-				throw new Error(data.error || "Failed to load friends");
+				throw new Error(data.error || t("CCC_failed_load"));
 			}
 
 			setFriends(Array.isArray(data) ? data : []);
 		} catch (err: any) {
-			setError(err.message || "Failed to load friends");
+			setError(err.message || t("CCC_failed_load"));
 			setFriends([]);
 		} finally {
 			setLoading(false);
@@ -56,8 +58,7 @@ export function ChoseConversation() {
 
 		return friends.filter((friend) => {
 			const name = friend.name?.toLowerCase() ?? "";
-			const email = friend.email?.toLowerCase() ?? "";
-			return name.startsWith(cleanQuery) || email.startsWith(cleanQuery);
+			return name.startsWith(cleanQuery);
 		});
 	}, [friends, query]);
 
@@ -75,12 +76,12 @@ export function ChoseConversation() {
 			const data = await res.json();
 
 			if (!res.ok) {
-				throw new Error(data.error || "Failed to open conversation");
+				throw new Error(data.error || t("CCC_failed_open"));
 			}
 
 			navigate(`/chat?conversationId=${data.id}&name=${encodeURIComponent(friend.name)}`);
 		} catch (err: any) {
-			setError(err.message || "Failed to open conversation");
+			setError(err.message || t("CCC_failed_open"));
 		} finally {
 			setOpeningFriendId(null);
 		}
@@ -92,22 +93,22 @@ export function ChoseConversation() {
 
 			<main className="dashboard-body">
 				<div className="page-title fade-up">
-					<h1>Start Conversation</h1>
-					<p>Search your friends and open an existing chat or create one instantly.</p>
+					<h1>{t("CCC_title")}</h1>
+					<p>{t("CCC_desc")}</p>
 				</div>
 
 				<div className="section-card fade-up fade-up-1">
 					<div className="section-card-header" style={{ marginBottom: 10 }}>
-						<h3>Friends</h3>
+						<h3>{t("CCC_friends")}</h3>
 						<button className="btn btn-ghost btn-sm" onClick={loadFriends} disabled={loading || openingFriendId !== null}>
-							{loading ? "Loading..." : "Refresh"}
+							{loading ? t("FRC_loading") : t("GCS_refresh")}
 						</button>
 					</div>
 
 					<input
 						className="code-input"
 						type="text"
-						placeholder="Search by friend name or email"
+						placeholder={t("CCC_search_placeholder")}
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						autoFocus
@@ -117,11 +118,11 @@ export function ChoseConversation() {
 					{error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
 
 					{!loading && friends.length === 0 && (
-						<p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>You do not have friends yet.</p>
+						<p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("FRC_no_friends")}</p>
 					)}
 
 					{!loading && friends.length > 0 && filteredFriends.length === 0 && (
-						<p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>No friends match your search.</p>
+						<p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("CVS_no_friends_match")}</p>
 					)}
 
 					{filteredFriends.length > 0 && (
@@ -160,7 +161,7 @@ export function ChoseConversation() {
 										onClick={() => openDirectConversation(friend)}
 										disabled={openingFriendId !== null}
 									>
-										{openingFriendId === friend.id ? "Opening..." : "Chat"}
+										{openingFriendId === friend.id ? t("CCC_opening") : t("CCC_chat")}
 									</button>
 								</div>
 							))}

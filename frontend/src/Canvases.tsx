@@ -76,10 +76,10 @@ export function CanvasesPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setCanvasesError(data.error || t("CVS_failed_load_cvs"));
-                setCanvases([]);
+              setCanvasesError(data.error || t("CVS_failed_load_cvs", "Failed to load canvases"));
+              setCanvases([]);
             } else {
-                setCanvases(data);
+              setCanvases(data);
             }
         } catch {
             setCanvasesError(t("CVS_network_fail_load_cvs"));
@@ -99,7 +99,7 @@ export function CanvasesPage() {
           });
           const data = await res.json();
           if (!res.ok) {
-            setFriendsError(data.error || t("CVS_failed_load_friends"));
+            setFriendsError(data.error || t("CVS_failed_load_friends", "Failed to load friends"));
             setFriends([]);
           } else {
             setFriends(data);
@@ -171,7 +171,7 @@ export function CanvasesPage() {
           });
           const data = await res.json();
           if (!res.ok) {
-            throw new Error(data.error || t("CVS_failed_invite"));
+            throw new Error(data.error || t("CVS_failed_invite", "Failed to invite friend"));
           }
 
           setInviteCanvasId(canvasId);
@@ -192,14 +192,14 @@ export function CanvasesPage() {
           });
           const data = await res.json();
           if (!res.ok) {
-            setCanvasesError(data.error || "Failed to remove collaborator");
+            setCanvasesError(data.error || t("CVS_failed_remove_collaborator", "Failed to remove collaborator"));
             return;
           }
 
           // Refresh the collaborators for this canvas
           groupChat(canvasId);
         } catch (err: any) {
-          setCanvasesError(err.message || "Failed to remove collaborator");
+          setCanvasesError(err.message || t("CVS_failed_remove_collaborator", "Failed to remove collaborator"));
         }
       };
 
@@ -257,7 +257,7 @@ export function CanvasesPage() {
 		{groupIntegrators.length > 0 && (
 		  <div className="section-card fade-up fade-up-1">
 			<div className="section-card-header">
-			  <h3>Canvas Collaborators</h3>
+              <h3>{t("CVS_canvas_collaborators", "Canvas Collaborators")}</h3>
 			</div>
 			{canvasesError && <div className="msg msg-error" style={{ marginBottom: 12 }}>{canvasesError}</div>}
 
@@ -267,21 +267,21 @@ export function CanvasesPage() {
 				  <div>
 					<p style={{ fontSize: "0.85rem", fontWeight: 600 }}>{collaborator.name}</p>
 					<p style={{ fontSize: "0.75rem", color: "var(--ink3)" }}>
-					  {collaborator.role === "owner" ? "Owner" : "Collaborator"}
+                  {collaborator.role === "owner" ? t("CVS_owner", "Owner") : t("CVS_collaborator", "Collaborator")}
 					</p>
 				  </div>
 				  {collaborator.role === "owner" && groupIntegrators.some(c => c.id === user?.id && c.role === "owner") && collaborator.id !== user?.id && (
-					<button
-					  className="btn btn-ghost btn-sm"
-					  onClick={() => {
-						const canvasId = Number(new URLSearchParams(window.location.search).get("id"));
-						if (canvasId) handleRemoveCollaborator(canvasId, collaborator.id);
-					  }}
-					  disabled={canvasesLoading}
-					  style={{ color: "var(--error)" }}
-					>
-					  Remove
-					</button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    const canvasId = Number(new URLSearchParams(window.location.search).get("id"));
+                    if (canvasId) handleRemoveCollaborator(canvasId, collaborator.id);
+                  }}
+                  disabled={canvasesLoading}
+                  style={{ color: "var(--error)" }}
+                >
+                  {t("CVS_remove", "Remove")}
+                </button>
 				  )}
 				</div>
 			  ))}
@@ -296,7 +296,7 @@ export function CanvasesPage() {
      <div className="dashboard-layout" style={{ width: "100%", maxWidth: 1200, margin: "0 auto" }}>
           <section className="dashboard-main-column" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20, width: "100%", alignItems: "stretch" }}>
                         <CanvasesCard
-                            title="My Canvases"
+                            title={t("CVS_your_canvases")}
                             canCreateCanvas
                             canvases={myCanvases}
                             canvasesLoading={canvasesLoading}
@@ -314,7 +314,7 @@ export function CanvasesPage() {
                           onInviteFriend={handleInviteFriend}/>
 
             <CanvasesCard
-              title="Invited Canvases"
+              title={t("CVS_chat_rooms")}
               canCreateCanvas={false}
               canvases={invitedCanvases}
               canvasesLoading={canvasesLoading}

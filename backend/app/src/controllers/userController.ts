@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import winston from "winston";
 import 'dotenv/config';
 import QRCode from "qrcode";
 import speakeasy from "speakeasy";
@@ -8,6 +9,21 @@ import bcrypt from "bcrypt";
 import { isUserOnline } from "../presenceStore";
 
 const prisma = new PrismaClient();
+
+const fastify = require('fastify')({
+  logger: true // This must be true (or a config object)
+});
+// Configure Winston logger
+const logger = winston.createLogger({
+    level: "error",
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.File({ filename: "error.log" })
+    ],
+});
 
 type AvatarValidationResult =
     | { valid: true; avatar: string }
@@ -109,7 +125,6 @@ const hasWhitespace = (value: string) => /\s/.test(value);
 
 export const createUser = async (req: Request, res: Response) => {
     try {
-		console.log("Signup request body:", req.body); // Debug log
         const { username, email, password, avatar } = req.body;
 
         if (!username) return res.status(422).json({ error: "username required" });
@@ -158,24 +173,19 @@ export const createUser = async (req: Request, res: Response) => {
 };
 
 // Login 
+
+
 export const login = async (req: Request, res: Response) => {
-    try {
-        const { email, password } = req.body;
+  const { email, password } = req.body;
 
-        const user = await prisma.my_users.findUnique({ where: { email } });
-        if (!user || (!user.password && !user.googleId && !user.fortyTwoId)) 
-			return res.status(401).json({ error: "Username or password is incorrect" });
+  try {
+    const user = await prisma.my_users.findUnique({ where: { email } });
 
-        //if (!user.password)
-        //    return res.status(401).json({ error: "This account uses OAuth Sign-In (Google/42). Please sign in with your provider." });
-		if (!user.password)
-		{
-			return res.status(401).json({ error: "Username or password is incorrect" });
-		}
-
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return res.status(401).json({ error: "Invalid password" });
-
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+    const passwordMatch = await bcrypt.compare(password, user.password);
+     if (!passwordMatch) return res.status(401).json({ success: false, error: "Invalid credentials" });
         if (user.twoFactorEnabled) {
             const tempToken = jwt.sign(	
                 { userId: user.id, pending2FA: true },
@@ -187,10 +197,11 @@ export const login = async (req: Request, res: Response) => {
 
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
         return res.status(200).json({ token, user: { id: user.id, email: user.email, username: user.name } });
-    } catch (error: any) {
-        return res.status(500).json({ error: error.message });
-    }
-};
+  } catch (error) {
+    logger.error('Error logging in:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
 
 //  2FA Login 
 export const login2FA = async (req: Request, res: Response) => {
@@ -576,10 +587,7 @@ export const searchUsers = async (req: Request, res: Response) => {
 
         const users = await prisma.my_users.findMany({
             where: {
-                OR: [
-                    { name: { startsWith: query, mode: 'insensitive' } },
-                    { email: { startsWith: query, mode: 'insensitive' } },
-                ],
+                name: { startsWith: query, mode: 'insensitive' },
                 NOT: {
                     id: {
                         in: [auth.userId, ...blockedUserIds],
@@ -627,11 +635,11 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
 
         if (existing) {
             if (existing.status === "accepted") {
-                return res.status(400).json({ error: "You are already friends" });
+                return res.status(200).json({ error: "You are already friends" });
             }
 
             if (existing.status === "pending") {
-                return res.status(400).json({ error: "Request already pending" });
+                return; res.status(200).json({ error: "Request already pending" });
             }
 
             // If previous relation was rejected, allow a fresh invitation.
@@ -643,6 +651,28 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
         });
 
         return res.status(201).json({ message: "Friend request sent", request });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+// ─── SENT FRIEND REQUESTS ────────────────────────────────────────────────────
+export const getSentFriendRequests = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const requests = await prisma.friend_request.findMany({
+            where: { senderId: auth.userId, status: "pending" },
+            include: {
+                receiver: {
+                    select: { id: true, name: true, email: true },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return res.json(requests);
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }
@@ -805,3 +835,9 @@ export const updateUser = async (req: Request, res: Response) => {
     });
     res.json(updated);
 };
+
+
+
+fastify.post('/login', login);
+
+export { fastify };

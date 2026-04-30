@@ -18,6 +18,7 @@ import {
     updateAvatar,
     searchUsers,
     sendFriendRequest,
+    getSentFriendRequests,
     getReceivedFriendRequests,
     acceptFriendRequest,
     rejectFriendRequest,
@@ -72,6 +73,7 @@ router.get('/search', searchUsers);
 
 // Friend requests
 router.post('/friend-request/send', sendFriendRequest);
+router.get('/friend-request/sent', getSentFriendRequests);
 router.get('/friend-request/received', getReceivedFriendRequests);
 router.post('/friend-request/:id/accept', acceptFriendRequest);
 router.post('/friend-request/:id/reject', rejectFriendRequest);
