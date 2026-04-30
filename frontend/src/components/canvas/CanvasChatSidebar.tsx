@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 export type CanvasMember = {
 	id: number;
@@ -42,6 +43,7 @@ export default function CanvasChatSidebar({
 	onChatInputChange,
 	onSend,
 }: CanvasChatSidebarProps) {
+	const { t } = useTranslation();
 	const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
 	useEffect(() => {
@@ -67,16 +69,16 @@ export default function CanvasChatSidebar({
 			}}
 		>
 			<div>
-				<h3 style={{ margin: 0, fontSize: "1rem" }}>Canvas Chat</h3>
-				<p style={{ margin: "4px 0 0", color: "var(--ink3)", fontSize: "0.78rem" }}>{canvasName || "Shared Canvas"}</p>
+				<h3 style={{ margin: 0, fontSize: "1rem" }}>{t("CV_canvas_chat", "Canvas Chat")}</h3>
+				<p style={{ margin: "4px 0 0", color: "var(--ink3)", fontSize: "0.78rem" }}>{canvasName || t("CV_shared_canvas", "Shared Canvas")}</p>
 			</div>
 
 			<div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
 				<p style={{ margin: "0 0 6px", fontSize: "0.8rem", fontWeight: 600 }}>
-					Members ({members.length}) · Active ({activeMemberIds.length})
+					{t("CV_members_active", { members: members.length, active: activeMemberIds.length, defaultValue: "Members ({{members}}) · Active ({{active}})" })}
 				</p>
 				<div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto" }}>
-					{members.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>No members found.</p>}
+					{members.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>{t("CV_no_members_found", "No members found.")}</p>}
 					{members.map((member) => {
 						const isActive = activeMemberIds.includes(member.id);
 						return (
@@ -93,7 +95,7 @@ export default function CanvasChatSidebar({
 				<p style={{ margin: "0 0 6px", fontSize: "0.8rem", fontWeight: 600 }}>Messages</p>
 				{chatStatus && <p style={{ margin: "0 0 8px", color: "var(--ink3)", fontSize: "0.75rem" }}>{chatStatus}</p>}
 				<div ref={messagesContainerRef} style={{ flex: 1, minHeight: 0, border: "1px solid var(--border)", borderRadius: 6, padding: 8, overflowY: "auto", background: "var(--surface2)" }}>
-					{messages.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>No messages yet.</p>}
+					{messages.length === 0 && <p style={{ margin: 0, color: "var(--ink3)", fontSize: "0.78rem" }}>{t("CH_no_messages_chat")}</p>}
 					{messages.map((message, index) => (
 						<div key={`${message.from}-${index}`} style={{ marginBottom: 8, textAlign: message.self ? "right" : "left" }}>
 							<p style={{ margin: 0, fontSize: "0.68rem", color: "var(--ink3)" }}>{message.from}</p>
@@ -101,7 +103,7 @@ export default function CanvasChatSidebar({
 						</div>
 					))}
 				</div>
-				{peerTyping && <p style={{ margin: "6px 0 0", color: "var(--ink3)", fontSize: "0.75rem" }}>{peerTyping} is typing...</p>}
+				{peerTyping && <p style={{ margin: "6px 0 0", color: "var(--ink3)", fontSize: "0.75rem" }}>{peerTyping} {t("CH_is_typing_chat")}</p>}
 				<div style={{ display: "flex", gap: 6, marginTop: 8 }}>
 					<input
 						value={chatInput}
@@ -112,12 +114,12 @@ export default function CanvasChatSidebar({
 							if (!conversationLinked || sendingMessage || !chatInput.trim()) return;
 							onSend();
 						}}
-						placeholder={conversationLinked ? "Type a message" : "Group chat not linked"}
+						placeholder={conversationLinked ? t("CV_type_message") : t("CV_group_not_linked")}
 						disabled={!conversationLinked}
 						style={{ flex: 1 }}
 					/>
 					<button type="button" onClick={onSend} disabled={!conversationLinked || sendingMessage || !chatInput.trim()}>
-						Send
+						{t("CH_send_chat")}
 					</button>
 				</div>
 			</div>

@@ -23,3 +23,9 @@ command: >
 
 
 -> 
+
+
+ip muda com nova setup.
+o  cors procura os default definidos no index.html
+
+-> 

@@ -1204,7 +1204,7 @@ function ColorPickerControl({
 								className="color-picker__swatch-button"
 								style={{ background: swatch }}
 								onClick={() => setDraftColor(swatch)}
-								aria-label={`Select ${swatch}`}
+								aria-label={t("CV_select_color", { color: swatch })}
 							/>
 						))}
 					</div>
@@ -1851,7 +1851,10 @@ export default function Canvas() {
 
 	//nando
 		useEffect(() => {
-		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) return;
+		if (!canvasId || !Number.isInteger(canvasId) || canvasId <= 0) {
+			navigate("/404");
+			return;
+		}
 		setActiveMemberIds([]);
 
 		let cancelled = false;
@@ -1865,7 +1868,13 @@ export default function Canvas() {
 				});
 				const data = await res.json();
 				if (!res.ok) {
-					if (!cancelled) setSaveStatus(data.error || "Failed to load canvas");
+					if (!cancelled) {
+						if (res.status === 404 || res.status === 403) {
+							navigate("/404");
+						} else {
+							setSaveStatus(data.error || "Failed to load canvas");
+						}
+					}
 					return;
 				}
 

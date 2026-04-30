@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./components/i18n";
 
 export function PrivacyPolicyPage() {
+	const {t} = useTranslation();
     return (
         <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
             <main className="space-y-5">

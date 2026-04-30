@@ -87,7 +87,6 @@ export async function createCanvas(req: Request, res: Response) {
 		
         res.status(201).json(canvas);
     } catch (error) {
-        console.error("Error creating canvas:", error);
         res.status(500).json({ error: "Failed to create canvas" });
     }
 }
@@ -119,7 +118,6 @@ export async function getUserCanvases(req: Request, res: Response) {
             }))
         );
     } catch (error) {
-        console.error("Error fetching canvases:", error);
         res.status(500).json({ error: "Failed to fetch canvases" });
     }
 }
@@ -164,7 +162,6 @@ export async function getCanvasById(req: Request, res: Response) {
             isOwner: canvas.userId === auth.userId,
         });
     } catch (error) {
-        console.error("Error fetching canvas:", error);
         res.status(500).json({ error: "Failed to fetch canvas" });
     }
 }
@@ -195,7 +192,6 @@ export async function saveCanvasContent(req: Request, res: Response) {
 
         res.json(updatedCanvas);
     } catch (error) {
-        console.error("Error saving canvas content:", error);
         res.status(500).json({ error: "Failed to save canvas content" });
     }
 }
@@ -231,7 +227,6 @@ export async function updateCanvas(req: Request, res: Response) {
 
         res.json(updatedCanvas);
     } catch (error) {
-        console.error("Error updating canvas:", error);
         res.status(500).json({ error: "Failed to update canvas" });
     }
 }
@@ -249,6 +244,7 @@ export async function deleteCanvas(req: Request, res: Response) {
                 id: canvasId,
                 userId: auth.userId,
             },
+            select: { id: true, conversationId: true },
         });
 
         if (!canvas) {
@@ -259,9 +255,14 @@ export async function deleteCanvas(req: Request, res: Response) {
             where: { id: canvasId },
         });
 
+        if (canvas.conversationId) {
+            await prisma.conversation.delete({
+                where: { id: canvas.conversationId },
+            });
+        }
+
         res.json({ message: "Canvas deleted successfully" });
     } catch (error) {
-        console.error("Error deleting canvas:", error);
         res.status(500).json({ error: "Failed to delete canvas" });
     }
 }
@@ -312,7 +313,6 @@ export async function getCanvasCollaborators(req: Request, res: Response) {
             isOwner: canvas.userId === auth.userId,
         });
     } catch (error) {
-        console.error("Error fetching collaborators:", error);
         return res.status(500).json({ error: "Failed to fetch collaborators" });
     }
 }
@@ -381,7 +381,6 @@ export async function addCanvasCollaborator(req: Request, res: Response) {
             },
         });
     } catch (error) {
-        console.error("Error adding collaborator:", error);
         return res.status(500).json({ error: "Failed to add collaborator" });
     }
 }
@@ -424,7 +423,6 @@ export async function removeCanvasCollaborator(req: Request, res: Response) {
 
         return res.json({ message: "Collaborator removed" });
     } catch (error) {
-        console.error("Error removing collaborator:", error);
         return res.status(500).json({ error: "Failed to remove collaborator" });
     }
 }
@@ -460,7 +458,6 @@ export async function getReceivedCanvasInvites(req: Request, res: Response) {
             }))
         );
     } catch (error) {
-        console.error("Error fetching canvas invites:", error);
         return res.status(500).json({ error: "Failed to fetch canvas invites" });
     }
 }
@@ -504,7 +501,6 @@ export async function acceptCanvasInvite(req: Request, res: Response) {
 
         return res.json({ message: "Canvas invite accepted", invite: updated });
     } catch (error) {
-        console.error("Error accepting canvas invite:", error);
         return res.status(500).json({ error: "Failed to accept canvas invite" });
     }
 }
@@ -527,7 +523,6 @@ export async function rejectCanvasInvite(req: Request, res: Response) {
 
         return res.json({ message: "Canvas invite rejected" });
     } catch (error) {
-        console.error("Error rejecting canvas invite:", error);
         return res.status(500).json({ error: "Failed to reject canvas invite" });
     }
 }

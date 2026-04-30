@@ -1,3 +1,4 @@
+
 import i18n from "i18next";
 import I18nextBrowserLanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
@@ -20,6 +21,11 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 	resources: {
 		en: {
 			translation: {
+
+				//Errors
+				 ERR_1: "Enter a username or email to search",
+				//Topbar
+					TB_logOut: "log out",
 				//Home
 					HO_slogan_1: "Think together,",
 					HO_slogan_2: "in real time.",
@@ -102,7 +108,6 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					LI_oauth_opens: "OAuth opens a secure provider page and returns you automatically.",
 					LI_tip_code: "Tip: you can paste the full 6-digit code.",
 
-				//Dashboard
 					DB_profile: "Profile",
 					DB_add_friend: "Add friend",
 					DB_friend_req: "Friend Requests",
@@ -125,12 +130,14 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					DB_security: "Security",
 					DB_social: "Social",
 					DB_close: "Close",
-					DB_search: "Search by username or email",
+					DB_search: "Search by username",
 					DB_load_pend: "Loading pending requests...",
-					DB_invite: "Invite someone by username or email. They’ll receive a friend request.",
+					DB_invite: "Invite someone by username",
 					DB_no_users: "No users found.",
 					DB_request: "Requested",
 					DB_invitebutton: "Invite",
+
+					DASH_error_2fa_generate: "Failed to generate 2FA.",
 
 				//TwoFactorCard
 					TFC_two_fac_auth: "Two-Factor Authentication",
@@ -155,6 +162,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					TFC_step1: "Step 1 — Start setup",
 					TFC_step2: "Step 2 — Scan and verify",
 
+					SEARCH_FRIENDS: "Search for Friends",
 				//FriendsCard
 					FRC_my_friends: "My Friends",
 					FRC_no_friends: "You do not have friends yet.",
@@ -195,6 +203,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_invite: "Invite",
 					CVS_no_friends: "No friends available to invite.",
 					CVS_inviting: "Inviting...",
+					CVS_failed_remove_collaborator: "Failed to remove collaborator.",
 
 				//Canvas
 					CV_apply: "Apply",
@@ -276,8 +285,16 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CO_pick_how: "Pick how you want to chat.",
 					CO_one_to_one: "1 to 1 Conversation",
 					CO_group_chat: "Group Chats",
+					CO_no_conversations: "No conversations yet.",
+					CO_your_conversations: "Your Conversations",
+					CO_all_chats: "All your chats in alphabetical order.",
+					CO_group_members: "Group • {{count}} members",
+					CO_direct_conversation: "Direct conversation",
+					CO_group: "Group",
+					CO_1to1: "1:1",
+					CO_start_1to1: "Start 1 to 1 Conversation",
+					CO_manage_groups: "Manage Group Chats",
 
-				//GroupChats
 					GCS_group_chats: "Group Chats",
 					GCS_create_groups: "Create groups and chat with multiple friends.",
 					GCS_create_group: "Create Group",
@@ -291,13 +308,16 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					GCS_my_groups: "My groups",
 					GCS_delete: "Delete",
 					GCS_leave: "Leave",
+					GCS_failed_load_friends: "Failed to load friends.",
+					GCS_failed_load_conversations: "Failed to load conversations.",
+					GCS_failed_load_data: "Failed to load data.",
 				
 				//SearchFriends
 					FRS_dashboard: "Dashboard",
 					FRS_profile: "Profile",
 					FRS_search: "Search for Friends",
-					FRS_find: "Find users by username or email",
-					FRS_search_user: "Search by username or email...",
+					FRS_find: "Find users by username",
+					FRS_search_user: "Search by username...",
 					FRS_searching: "Searching...",
 					FRS_search_button: "Search",
 					FRS_no_results: "No results found",
@@ -456,10 +476,138 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 				terms_13: "13. Entire Agreement\n\
 					These Terms of Service, together with our Privacy Policy, constitute the entire agreement between you and us regarding the Service.\n\n",
 				terms_14: "BY USING THE SERVICE, YOU ACKNOWLEDGE THAT YOU HAVE READ THESE TERMS OF SERVICE, UNDERSTAND THEM, AND AGREE TO BE BOUND BY THEM.`;\n\n",
-				},
+		
+				TB_go_dashboard: "Go to dashboard",
+				TB_whiteboard: "whiteboard",
+				TB_open_profile: "Open profile",
+				TB_friend_requests: "Friend Requests",
+				TB_loading: "...",
+				TB_refresh: "Refresh",
+				TB_no_pending_requests: "No pending requests.",
+				TB_accept: "Accept",
+				TB_reject: "Reject",
+				TB_canvas_invites: "Canvas Invites",
+				TB_no_pending_canvas_invites: "No pending canvas invites.",
+				TB_invited_by: "Invited by {{name}}",
+				TB_sign_out: "Sign out",
+				CH_invalid_friend_id: "Invalid friendId in URL",
+				CH_opening_conversation: "Opening conversation...",
+				CH_failed_open_conversation: "Failed to open conversation.",
+				CH_network_error_opening: "Network error while opening conversation.",
+				CH_invalid_conversation_id: "Invalid conversationId in URL",
+				CH_chatting_in: "Chatting in {{name}}",
+				CH_failed_load_messages: "Failed to load messages.",
+				CH_network_error_loading: "Network error while loading messages.",
+				CH_disconnected: "disconnected",
+				CH_participants: "Participants",
+				CH_loading: "Loading...",
+				CH_no_participants: "No participants",
+				CH_online: "● Online",
+				CH_offline: "○ Offline",
+				CH_remove: "Remove",
+				CH_add_friend: "Add Friend",
+
+				CVS_invite_friends: "Invite Friends",
+		CVS_canvas_collaborators: "Canvas Collaborators",
+		CVS_owner: "Owner",
+		CVS_collaborator: "Collaborator",
+		CVS_remove: "Remove",
+		CVS_loading_friends: "Loading friends...",
+		CVS_canvas_label: "Canvas: {{name}}",
+		CVS_search_friends: "Search friends by name",
+		CVS_no_friends_match: "No friends match your search.",
+
+	CV_canvas_chat: "Canvas Chat",
+			CV_select_color: "Select {{color}}",
+			CV_shared_canvas: "Shared Canvas",
+			CV_members_active: "Members ({{members}}) · Active ({{active}})",
+			CV_no_members_found: "No members found.",
+
+				//Profile errors
+				PF_avatar_updated: "Avatar updated!",
+				PF_no_changes: "No changes to save",
+				PF_pass_no_match: "New passwords don't match",
+				PF_pass_not_supported: "Password changes are not supported for this account.",
+				PF_curr_pass_req: "Current password is required to change your password.",
+				PF_change_one_field: "Change at least one field",
+				PF_not_authenticated: "Not authenticated. Please login again.",
+				PF_update_failed: "Update failed",
+				PF_updated_success: "Profile updated successfully!",
+				PF_network_error: "Network error. Please try again.",
+
+				//Group Chats errors
+				GCS_group_updated: "Group updated",
+				GCS_failed_delete: "Failed to delete group",
+				GCS_name_required: "Group name",
+				GCS_failed_create: "Failed to create group",
+				GCS_select_friend: "Select at least one friend to add",
+				GCS_failed_add: "Failed to add members",
+				GCS_failed_remove: "Failed to remove member",
+
+				//Blocked Users errors
+				BLU_not_authenticated: "Not authenticated",
+				BLU_failed_load: "Failed to load blocked users",
+				BLU_failed_unblock: "Failed to unblock user",
+				BLU_network_unblock: "Network error while unblocking user",
+
+				//Choose Conversation
+				CCC_title: "Start Conversation",
+				CCC_desc: "Search your friends and open an existing chat or create one instantly.",
+				CCC_friends: "Friends",
+				CCC_search_placeholder: "Search by friend name",
+				CCC_failed_load: "Failed to load friends",
+				CCC_failed_open: "Failed to open conversation",
+				CCC_opening: "Opening...",
+				CCC_chat: "Chat",
+
+				//Dashboard errors
+				DASH_enter_6_code: "Enter the 6-digit code",
+				DASH_enter_curr_2fa: "Enter your current 2FA code",
+				DASH_network_error: "Network error",
+				DASH_failed_update_req: "Failed to update request",
+				DASH_network_update_req: "Network error while updating request",
+				DASH_failed_load_friends: "Failed to load friends",
+				DASH_network_load_friends: "Network error while loading friends",
+				DASH_failed_remove_friend: "Failed to remove friend",
+				DASH_network_remove_friend: "Network error while removing friend",
+				DASH_network_search: "Network error during search",
+				DASH_failed_send_req: "Failed to send request",
+
+				//User Public Profile errors
+				UPF_invalid_id: "Invalid profile id",
+				UPF_not_auth: "Not authenticated",
+				UPF_failed_load: "Failed to load profile",
+				UPF_network_load: "Network error while loading profile",
+				UPF_failed_send_req: "Failed to send friend request",
+				UPF_network_send_req: "Network error while sending request",
+				UPF_failed_remove: "Failed to remove friend",
+				UPF_network_remove: "Network error while removing friend",
+				UPF_failed_block: "Failed to block user",
+				UPF_network_block: "Network error while blocking user",
+				UPF_failed_unblock: "Failed to unblock user",
+				UPF_network_unblock: "Network error while unblocking user",
+
+				//Canvas Sidebar
+				CV_type_message: "Type a message",
+				CV_group_not_linked: "Group chat not linked",
+
+				//Friends online status
+				FRC_online: "Online",
+				FRC_offline: "Offline",
+
+				//Already a friend label
+				DB_is_friend: "(Friend)",
+
+			},
 		},
 		pt: {
-			translation: {				
+			translation: {	
+				//Error
+				ERR_1: "Introduz um nome de utilizador ou email para pesquisar",
+				ERR_2: "Falha na pesquisa",
+		 		
+				//topbar	
+				TB_logOut: "terminar sessão",
 				//Home
 					HO_slogan_1: "Pensa em conjunto,",
 					HO_slogan_2: "em tempo real.",
@@ -515,6 +663,8 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					SU_OAuth: "O OAuth abre uma página segura do fornecedor e volta automaticamente.",
 					SU_signin: "Iniciar sessão",
 
+
+					SEARCH_FRIENDS: "Pesquisar por amigos",
 				//UserLogin
 					LI_sign_in_workspace: "Inicia sessão no teu workspace",
 					LI_signing_in: "A iniciar sessão...",
@@ -543,7 +693,6 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					LI_oauth_opens: "O OAuth abre uma página segura do fornecedor e volta automaticamente.",
 					LI_tip_code: "Dica: podes colar o código completo de 6 dígitos.",
 
-				//Dashboard
 					DB_profile: "Perfil",
 					DB_add_friend: "Adicionar amigo",
 					DB_friend_req: "Pedidos de amizade",
@@ -566,12 +715,14 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					DB_security: "Segurança",
 					DB_social: "Social",
 					DB_close: "Fechar",
-					DB_search: "Pesquisar por nome de utilizador ou email",
+					DB_search: "Pesquisar por nome de utilizador",
 					DB_load_pend: "A carregar pedidos pendentes...",
 					DB_invite: "Convida alguém pelo nome de utilizador ou email. Eles vão receber um pedido de amizade.",
 					DB_no_users: "Nenhum utilizador encontrado.",
 					DB_request: "Pedido enviado",
 					DB_invitebutton: "Convidar",
+
+					DASH_error_2fa_generate: "Falha ao gerar 2FA.",
 
 				//TwoFactorCard
 					TFC_two_fac_auth: "Autenticação de dois fatores",
@@ -603,6 +754,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					FRC_no_friends: "Ainda não tens amigos.",
 					FRC_chat: "Conversas",
 					FRC_remove: "A remover...",
+					FRC_profile: "Perfil",
 					FRC_unfriend: "Remover amigo",
 
 				//Canvases
@@ -635,6 +787,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_invite: "Convidar",
 					CVS_no_friends: "Sem amigos disponíveis para convidar.",
 					CVS_inviting: "A convidar...",
+					CVS_failed_remove_collaborator: "Falha ao remover colaborador.",
 
 				//Canvas
 					CV_apply: "Aplicar",
@@ -716,8 +869,16 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CO_pick_how: "Escolhe como queres conversar.",
 					CO_one_to_one: "Conversa 1 para 1",
 					CO_group_chat: "Conversa de grupo",
+					CO_no_conversations: "Ainda não tens conversas.",
+					CO_your_conversations: "As tuas conversas",
+					CO_all_chats: "Todas as tuas conversas por ordem alfabética.",
+					CO_group_members: "Grupo • {{count}} membros",
+					CO_direct_conversation: "Conversa direta",
+					CO_group: "Grupo",
+					CO_1to1: "1:1",
+					CO_start_1to1: "Começar conversa 1 para 1",
+					CO_manage_groups: "Gerir conversas de grupo",
 
-				//GroupChats
 					GCS_group_chats: "Conversas de grupo",
 					GCS_create_groups: "Cria grupos e conversa com múltiplos amigos",
 					GCS_create_group: "Cria um grupo",
@@ -731,13 +892,16 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					GCS_my_groups: "Os meus grupos",
 					GCS_delete: "Eliminar",
 					GCS_leave: "Sair",
+					GCS_failed_load_friends: "Falha ao carregar amigos.",
+					GCS_failed_load_conversations: "Falha ao carregar conversas.",
+					GCS_failed_load_data: "Falha ao carregar dados.",
 
 				//SearchFriends
 					FRS_dashboard: "Dashboard",
 					FRS_profile: "Perfil",
 					FRS_search: "Pesquisar por amigos",
-					FRS_find: "Pesquisar utilizadores por nome ou email",
-					FRS_search_user: "Procurar por nome ou email...",
+					FRS_find: "Pesquisar utilizadores por nome de utilizador",
+					FRS_search_user: "Procurar por nome de utilizador...",
 					FRS_searching: "A procurar...",
 					FRS_search_button: "Procurar",
 					FRS_no_results: "Nenhum resultado",
@@ -895,10 +1059,157 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					terms_13: "13. Acordo Integral\n\
 						Estes Termos, juntamente com a Política de Privacidade, constituem o acordo completo entre si e nós relativamente ao Serviço.\n\n",
 					terms_14: "AO UTILIZAR O SERVIÇO, DECLARA QUE LEU, COMPREENDEU E ACEITA ESTES TERMOS DE SERVIÇO.\n\n",
+						
+					
+					CH_invalid_friend_id: "ID de amigo inválido na URL",
+					CH_opening_conversation: "A abrir conversa...",
+					CH_failed_open_conversation: "Falha ao abrir conversa.",
+					CH_network_error_opening: "Erro de rede ao abrir conversa.",
+					CH_invalid_conversation_id: "ID de conversa inválido na URL",
+					CH_chatting_in: "A conversar em {{name}}",
+					CH_failed_load_messages: "Falha ao carregar mensagens.",
+					CH_network_error_loading: "Erro de rede ao carregar mensagens.",
+					CH_disconnected: "desligado",
+					CH_participants: "Participantes",
+					CH_loading: "A carregar...",
+					CH_no_participants: "Sem participantes",
+					CH_online: "● Online",
+					CH_offline: "○ Offline",
+					CH_remove: "Remover",
+					CH_add_friend: "Adicionar amigo",
+
+						CVS_invite_friends: "Convidar amigos",
+		CVS_canvas_collaborators: "Colaboradores do Canvas",
+		CVS_owner: "Proprietário",
+		CVS_collaborator: "Colaborador",
+		CVS_remove: "Remover",
+		CVS_loading_friends: "A carregar amigos...",
+		CVS_canvas_label: "Canvas: {{name}}",
+		CVS_search_friends: "Pesquisar amigos por nome",
+		CVS_no_friends_match: "Nenhum amigo corresponde à pesquisa.",
+			CV_canvas_chat: "Chat do Canvas",
+			CV_select_color: "Selecionar {{color}}",
+			CV_shared_canvas: "Canvas partilhado",
+			CV_members_active: "Membros ({{members}}) · Ativos ({{active}})",
+			CV_no_members_found: "Nenhum membro encontrado.",
+			TB_go_dashboard: "Ir para o dashboard",
+				TB_whiteboard: "whiteboard",
+				TB_open_profile: "Abrir perfil",
+				TB_friend_requests: "Pedidos de amizade",
+				TB_loading: "...",
+				TB_refresh: "Atualizar",
+				TB_no_pending_requests: "Sem pedidos pendentes.",
+				TB_accept: "Aceitar",
+				TB_reject: "Rejeitar",
+				TB_canvas_invites: "Convites de canvas",
+				TB_no_pending_canvas_invites: "Sem convites de canvas pendentes.",
+				TB_invited_by: "Convidado por {{name}}",
+				TB_sign_out: "Terminar sessão",
+
+				//Profile errors
+				PF_avatar_updated: "Avatar atualizado!",
+				PF_no_changes: "Sem alterações para guardar",
+				PF_pass_no_match: "As novas palavras-passe não coincidem",
+				PF_pass_not_supported: "Alterações de palavra-passe não são suportadas nesta conta.",
+				PF_curr_pass_req: "A palavra-passe atual é necessária para alterar a palavra-passe.",
+				PF_change_one_field: "Altera pelo menos um campo",
+				PF_not_authenticated: "Não autenticado. Inicia sessão novamente.",
+				PF_update_failed: "Falha na atualização",
+				PF_updated_success: "Perfil atualizado com sucesso!",
+				PF_network_error: "Erro de rede. Tenta novamente.",
+
+				//Group Chats errors
+				GCS_group_updated: "Grupo atualizado",
+				GCS_failed_delete: "Falha ao eliminar grupo",
+				GCS_name_required: "Nome do grupo",
+				GCS_failed_create: "Falha ao criar grupo",
+				GCS_select_friend: "Seleciona pelo menos um amigo para adicionar",
+				GCS_failed_add: "Falha ao adicionar membros",
+				GCS_failed_remove: "Falha ao remover membro",
+
+				//Blocked Users errors
+				ndauthenticated: "Não autenticado",
+				BLU_failed_load: "Falha ao carregar utilizadores bloqueados",
+				BLU_failed_unblock: "Falha ao desbloquear utilizador",
+				BLU_network_unblock: "Erro de rede ao desbloquear utilizador",
+
+				//Choose Conversation
+				CCC_title: "Iniciar conversa",
+				CCC_desc: "Pesquisa os teus amigos e abre uma conversa existente ou cria uma instantaneamente.",
+				CCC_friends: "Amigos",
+				CCC_search_placeholder: "Pesquisar amigo por nome",
+				CCC_failed_load: "Falha ao carregar amigos",
+				CCC_failed_open: "Falha ao abrir conversa",
+				CCC_opening: "A abrir...",
+				CCC_chat: "Conversar",
+
+				//Dashboard errors
+				DASH_enter_6_code: "Insere o código de 6 dígitos",
+				DASH_enter_curr_2fa: "Insere o teu código 2FA atual",
+				DASH_network_error: "Erro de rede",
+				DASH_failed_update_req: "Falha ao atualizar pedido",
+				DASH_network_update_req: "Erro de rede ao atualizar pedido",
+				DASH_failed_load_friends: "Falha ao carregar amigos",
+				DASH_network_load_friends: "Erro de rede ao carregar amigos",
+				DASH_failed_remove_friend: "Falha ao remover amigo",
+				DASH_network_remove_friend: "Erro de rede ao remover amigo",
+				DASH_network_search: "Erro de rede durante a pesquisa",
+				DASH_failed_send_req: "Falha ao enviar pedido",
+
+				//User Public Profile errors
+				UPF_invalid_id: "ID de perfil inválido",
+				UPF_not_auth: "Não autenticado",
+				UPF_failed_load: "Falha ao carregar perfil",
+				UPF_network_load: "Erro de rede ao carregar perfil",
+				UPF_failed_send_req: "Falha ao enviar pedido de amizade",
+				UPF_network_send_req: "Erro de rede ao enviar pedido",
+				UPF_failed_remove: "Falha ao remover amigo",
+				UPF_network_remove: "Erro de rede ao remover amigo",
+				UPF_failed_block: "Falha ao bloquear utilizador",
+				UPF_network_block: "Erro de rede ao bloquear utilizador",
+				UPF_failed_unblock: "Falha ao desbloquear utilizador",
+				UPF_network_unblock: "Erro de rede ao desbloquear utilizador",
+
+				//Canvas Sidebar
+				CV_type_message: "Escreve uma mensagem",
+				CV_group_not_linked: "Chat de grupo não ligado",
+
+				//Friends online status
+				FRC_online: "Online",
+				FRC_offline: "Offline",
+
+				//Already a friend label
+				DB_is_friend: "(Amigo)",
+
 			},
 		},
 		es: {
-			translation: {
+			translation:
+			
+			{
+				//Error
+				ERR_1: "Introduce un nombre de usuario o correo electrónico para buscar"	,
+				ERR_2: "Error en la búsqueda",
+				
+				//topbar
+					TB_logOut: "cerrar sesion",
+
+					CH_invalid_friend_id: "ID de amigo inválido en la URL",
+					CH_opening_conversation: "Abriendo conversación...",
+					CH_failed_open_conversation: "Error al abrir la conversación.",
+					CH_network_error_opening: "Error de red al abrir la conversación.",
+					CH_invalid_conversation_id: "ID de conversación inválido en la URL",
+					CH_chatting_in: "Chateando en {{name}}",
+					CH_failed_load_messages: "Error al cargar mensajes.",
+					CH_network_error_loading: "Error de red al cargar mensajes.",
+					CH_disconnected: "desconectado",
+					CH_participants: "Participantes",
+					CH_loading: "Cargando...",
+					CH_no_participants: "Sin participantes",
+					CH_online: "● En línea",
+					CH_offline: "○ Desconectado",
+					CH_remove: "Eliminar",
+					CH_add_friend: "Añadir amigo",
 				//Home
 					HO_slogan_1: "Piensa juntos,",
 					HO_slogan_2: "en tiempo real.",
@@ -906,6 +1217,9 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					HO_description_2: "y colabora sin ruido.",
 					HO_sign_up: "Comenzar",
 					HO_log_in: "Iniciar sesión",
+
+
+					SEARCH_FRIENDS: "Buscar por amigos",
 
 				//UserSignup
 					SU_create_account: "Crea tu cuenta de espacio de trabajo",
@@ -981,7 +1295,6 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					LI_oauth_opens: "OAuth abre una página segura del proveedor y te devuelve automáticamente.",
 					LI_tip_code: "Consejo: puedes pegar el código completo de 6 dígitos.",
 
-				//Dashboard
 					DB_profile: "Perfil",
 					DB_add_friend: "Añadir amigo",
 					DB_friend_req: "Solicitudes de amistad",
@@ -1004,12 +1317,14 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					DB_security: "Seguridad",
 					DB_social: "Social",
 					DB_close: "Cerrar",
-					DB_search: "Buscar por nombre de usuario o correo electrónico",
+					DB_search: "Buscar por nombre de usuario",
 					DB_load_pend: "Cargando solicitudes pendientes...",
 					DB_invite: "Invita a alguien por nombre de usuario o correo. Recibirá una solicitud de amistad.",
 					DB_no_users: "No se encontraron usuarios.",
 					DB_request: "Solicitado",
 					DB_invitebutton: "Invitar",
+
+					DASH_error_2fa_generate: "Error al generar 2FA.",
 
 				//TwoFactorCard
 					TFC_two_fac_auth: "Autenticación de dos factores",
@@ -1040,6 +1355,8 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					FRC_refresh: "Actualizar",
 					FRC_no_friends: "Aún no tienes amigos.",
 					FRC_chat: "Chat",
+					FRC_profile: "Perfil",
+
 					FRC_remove: "Eliminando...",
 					FRC_unfriend: "Eliminar amistad",
 
@@ -1073,6 +1390,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_invite: "Invitar",
 					CVS_no_friends: "No hay amigos disponibles para invitar.",
 					CVS_inviting: "Invitando...",
+					CVS_failed_remove_collaborator: "Error al eliminar colaborador.",
 
 				//Canvas
 					CV_apply: "Aplicar",
@@ -1150,8 +1468,16 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CO_pick_how: "Elige cómo quieres chatear.",
 					CO_one_to_one: "Conversación 1 a 1",
 					CO_group_chat: "Chats grupales",
+					CO_no_conversations: "Aún no hay conversaciones.",
+					CO_your_conversations: "Tus conversaciones",
+					CO_all_chats: "Todos tus chats en orden alfabético.",
+					CO_group_members: "Grupo • {{count}} miembros",
+					CO_direct_conversation: "Conversación directa",
+					CO_group: "Grupo",
+					CO_1to1: "1:1",
+					CO_start_1to1: "Iniciar conversación 1 a 1",
+					CO_manage_groups: "Gestionar chats grupales",
 
-				//GroupChats
 					GCS_group_chats: "Chats grupales",
 					GCS_create_groups: "Crea grupos y chatea con varios amigos.",
 					GCS_create_group: "Crear grupo",
@@ -1165,13 +1491,16 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					GCS_my_groups: "Mis grupos",
 					GCS_delete: "Eliminar",
 					GCS_leave: "Salir",
+					GCS_failed_load_friends: "Error al cargar amigos.",
+					GCS_failed_load_conversations: "Error al cargar conversaciones.",
+					GCS_failed_load_data: "Error al cargar datos.",
 
 				//SearchFriends
 					FRS_dashboard: "Panel",
 					FRS_profile: "Perfil",
 					FRS_search: "Buscar amigos",
-					FRS_find: "Encuentra usuarios por nombre de usuario o email",
-					FRS_search_user: "Buscar por nombre de usuario o email...",
+					FRS_find: "Encuentra usuarios por nombre de usuario",
+					FRS_search_user: "Buscar por nombre de usuario...",
 					FRS_searching: "Buscando...",
 					FRS_search_button: "Buscar",
 					FRS_no_results: "No se encontraron resultados",
@@ -1329,23 +1658,226 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					terms_13: "13. Acuerdo completo\n\
 						Estos Términos de Servicio, junto con nuestra Política de Privacidad, constituyen el acuerdo completo entre tú y nosotros en relación con el Servicio.\n\n",
 					terms_14: "AL UTILIZAR EL SERVICIO, RECONOCES QUE HAS LEÍDO ESTOS TÉRMINOS DE SERVICIO, LOS ENTIENDES Y ACEPTAS QUEDAR VINCULADO POR ELLOS.\n\n",
-			},
+
+					TB_go_dashboard: "Ir al panel",
+
+						CVS_invite_friends: "Invitar amigos",
+		CVS_canvas_collaborators: "Colaboradores del Lienzo",
+		CVS_owner: "Propietario",
+		CVS_collaborator: "Colaborador",
+		CVS_remove: "Eliminar",
+		CVS_loading_friends: "Cargando amigos...",
+		CVS_canvas_label: "Lienzo: {{name}}",
+		CVS_search_friends: "Buscar amigos por nombre",
+		CVS_no_friends_match: "Ningún amigo coincide con tu búsqueda.",
+
+		
+			CV_canvas_chat: "Chat de Lienzo",
+			CV_select_color: "Seleccionar {{color}}",
+			CV_shared_canvas: "Lienzo compartido",
+			CV_members_active: "Miembros ({{members}}) · Activos ({{active}})",
+			CV_no_members_found: "No se encontraron miembros.",
+		
+
+				TB_whiteboard: "whiteboard",
+				TB_open_profile: "Abrir perfil",
+				TB_friend_requests: "Solicitudes de amistad",
+				TB_loading: "...",
+				TB_refresh: "Actualizar",
+				TB_no_pending_requests: "Sin solicitudes pendientes.",
+				TB_accept: "Aceptar",
+				TB_reject: "Rechazar",
+				TB_canvas_invites: "Invitaciones de lienzo",
+				TB_no_pending_canvas_invites: "Sin invitaciones de lienzo pendientes.",
+				TB_invited_by: "Invitado por {{name}}",
+				TB_sign_out: "Cerrar sesión",
+
+				//Profile errors
+				PF_avatar_updated: "¡Avatar actualizado!",
+				PF_no_changes: "Sin cambios para guardar",
+				PF_pass_no_match: "Las nuevas contraseñas no coinciden",
+				PF_pass_not_supported: "Los cambios de contraseña no son compatibles con esta cuenta.",
+				PF_curr_pass_req: "Se requiere la contraseña actual para cambiarla.",
+				PF_change_one_field: "Cambia al menos un campo",
+				PF_not_authenticated: "No autenticado. Inicia sesión de nuevo.",
+				PF_update_failed: "Error al actualizar",
+				PF_updated_success: "¡Perfil actualizado correctamente!",
+				PF_network_error: "Error de red. Inténtalo de nuevo.",
+
+				//Group Chats errors
+				GCS_group_updated: "Grupo actualizado",
+				GCS_failed_delete: "Error al eliminar el grupo",
+				GCS_name_required: "nombre del grupo",
+				GCS_failed_create: "Error al crear el grupo",
+				GCS_select_friend: "Selecciona al menos un amigo para añadir",
+				GCS_failed_add: "Error al añadir miembros",
+				GCS_failed_remove: "Error al eliminar miembro",
+
+				//Blocked Users errors
+				BLU_not_authenticated: "No autenticado",
+				BLU_failed_load: "Error al cargar usuarios bloqueados",
+				BLU_failed_unblock: "Error al desbloquear usuario",
+				BLU_network_unblock: "Error de red al desbloquear usuario",
+
+				//Choose Conversation
+				CCC_title: "Iniciar conversación",
+				CCC_desc: "Busca a tus amigos y abre un chat existente o crea uno al instante.",
+				CCC_friends: "Amigos",
+				CCC_search_placeholder: "Buscar amigo por nombre",
+				CCC_failed_load: "Error al cargar amigos",
+				CCC_failed_open: "Error al abrir conversación",
+				CCC_opening: "Abriendo...",
+				CCC_chat: "Chat",
+
+				//Dashboard errors
+				DASH_enter_6_code: "Introduce el código de 6 dígitos",
+				DASH_enter_curr_2fa: "Introduce tu código 2FA actual",
+				DASH_network_error: "Error de red",
+				DASH_failed_update_req: "Error al actualizar solicitud",
+				DASH_network_update_req: "Error de red al actualizar solicitud",
+				DASH_failed_load_friends: "Error al cargar amigos",
+				DASH_network_load_friends: "Error de red al cargar amigos",
+				DASH_failed_remove_friend: "Error al eliminar amigo",
+				DASH_network_remove_friend: "Error de red al eliminar amigo",
+				DASH_network_search: "Error de red durante la búsqueda",
+				DASH_failed_send_req: "Error al enviar solicitud",
+
+				//User Public Profile errors
+				UPF_invalid_id: "ID de perfil inválido",
+				UPF_not_auth: "No autenticado",
+				UPF_failed_load: "Error al cargar perfil",
+				UPF_network_load: "Error de red al cargar perfil",
+				UPF_failed_send_req: "Error al enviar solicitud de amistad",
+				UPF_network_send_req: "Error de red al enviar solicitud",
+				UPF_failed_remove: "Error al eliminar amigo",
+				UPF_network_remove: "Error de red al eliminar amigo",
+				UPF_failed_block: "Error al bloquear usuario",
+				UPF_network_block: "Error de red al bloquear usuario",
+				UPF_failed_unblock: "Error al desbloquear usuario",
+				UPF_network_unblock: "Error de red al desbloquear usuario",
+
+				//Canvas Sidebar
+				CV_type_message: "Escribe un mensaje",
+				CV_group_not_linked: "Chat de grupo no vinculado",
+
+				//Friends online status
+				FRC_online: "En línea",
+				FRC_offline: "Desconectado",
+
+				//Already a friend label
+				DB_is_friend: "(Amigo)",
+
+				},
 		},
 	}
 })
+import { useState, useRef, useEffect } from 'react';
 
-const LanguageSwitcher: React.FC = ({
-}) => {
-	return (
-		<Button
-			variant="ghost"
-			size="icon"
-			onClick={changeLanguage}
-			title="Language Switcher"
-		>
-		{i18n.language === "pt" ? "🇵🇹" : i18n.language == "en" ? "🇬🇧" : "🇪🇸"}
-		</Button>
-	);
+const LanguageSwitcher: React.FC = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    // 1. Create a ref to attach to the container
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const languages = [
+        { code: 'en', label: 'English', flag: '🇬🇧' },
+        { code: 'es', label: 'Español', flag: '🇪🇸' },
+        { code: 'pt', label: 'Português', flag: '🇵🇹' },
+    ];
+
+    // 2. Add the "Click Outside" logic
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            // Check if the click was outside the containerRef
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        // Bind the event listener
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            // Unbind the event listener on clean up
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const handleLanguageChange = (code: string) => {
+        i18n.changeLanguage(code);
+        setIsOpen(false);
+    };
+
+    return (
+        /* 3. Attach the ref to your wrapper div */
+        <div 
+            ref={containerRef} 
+            style={{ position: 'relative', display: 'inline-block' }}
+        >
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsOpen(!isOpen)}
+                title="Language Switcher"
+            >
+                {languages.find(lang => lang.code === i18n.language)?.flag || "🌐"}
+            </Button>
+
+            {isOpen && (
+                <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '8px',
+                    backgroundColor: 'white',
+                    border: '1px solid #777777',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px rgba(122, 120, 120, 0.1)',
+                    zIndex: 10,
+                    minWidth: '120px',
+                    overflow: 'hidden' // Ensures border-radius clips children
+                }}>
+                    {languages.map((lang) => (
+                        <button
+                            key={lang.code}
+                            onClick={() => handleLanguageChange(lang.code)}
+                            style={{
+                                display: 'flex',
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: 'none',
+                                background: i18n.language === lang.code ? '#f0f0f0' : 'transparent',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                alignItems: 'center',
+                                gap: '8px',
+                                color: 'black' // Ensure text is visible on white bg
+                            }}
+                        >
+                            <span>{lang.flag}</span>
+                            <span>{lang.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
-
 export default LanguageSwitcher;
+
+
+
+
+/*// Terms of Service
+					
+					
+				
+				
+				
+
+
+
+	
+
+		
+
+
+	*/

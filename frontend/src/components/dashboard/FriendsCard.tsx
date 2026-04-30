@@ -55,7 +55,7 @@ export function FriendsCard({
                       className={`h-2 w-2 rounded-full ${friend.online ? "bg-emerald-500" : "bg-zinc-400"}`}
                       aria-hidden="true"
                     />
-                    {friend.online ? "Online" : "Offline"}
+                    {friend.online ? t("FRC_online") : t("FRC_offline")}
                   </div>
                 </div>
 

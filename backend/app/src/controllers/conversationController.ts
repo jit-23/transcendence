@@ -319,6 +319,45 @@ export const deleteGroupConversation = async (req: Request, res: Response) => {
     }
 };
 
+export const getConversationMembers = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const conversationId = Number(req.params.id);
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({ error: "Invalid conversation id" });
+        }
+
+        const myMembership = await prisma.conversation_participants.findFirst({
+            where: { conversation_id: conversationId, user_id: auth.userId },
+            select: { role: true },
+        });
+
+        if (!myMembership) {
+            return res.status(403).json({ error: "Not a participant of this conversation" });
+        }
+
+        const participants = await prisma.conversation_participants.findMany({
+            where: { conversation_id: conversationId },
+            include: {
+                user: { select: { id: true, name: true, avatar: true } },
+            },
+        });
+
+        const members = participants.map((p) => ({
+            id: p.user.id,
+            name: p.user.name,
+            avatar: p.user.avatar ?? null,
+            role: p.role,
+        }));
+
+        return res.json({ members, role: myMembership.role });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 export const getConversationMessages = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);

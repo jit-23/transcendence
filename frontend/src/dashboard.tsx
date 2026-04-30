@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./components/i18n";
 import { TopBar } from "./components/ui/topbar";
 import { useTheme } from "./ThemeContext";
+import {t} from "i18next";
 
 type EnableStep = "idle" | "scanning";
 
@@ -77,14 +78,14 @@ export function Dashboard() {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
             const res  = await fetch(`${apiUrl}/users/2fa/generate`, { method: "POST", headers: authHeader() });
             const data = await res.json();
-            if (!res.ok) return setError(data.error);
+            if (!res.ok) return setError(t("DASH_error_2fa_generate", data.error || "Failed to generate 2FA"));
             setQr(data.qr); setEnableStep("scanning");
-        } catch { setError("Network error"); }
+        } catch { setError(t("DASH_network_error")); }
         finally { setLoading(false); }
     };
 
     const handleConfirm = async () => {
-        if (!confirmCode) return setError("Enter the 6-digit code");
+        if (!confirmCode) return setError(t("DASH_enter_6_code"));
         setLoading(true); setError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
@@ -94,12 +95,12 @@ export function Dashboard() {
             const data = await res.json();
             if (!res.ok) return setError(data.error);
             setTwoFAEnabled(true); setEnableStep("idle"); setQr(null); setConfirmCode("");
-        } catch { setError("Network error"); }
+        } catch { setError(t("DASH_network_error")); }
         finally { setLoading(false); }
     };
 
     const handleDisable = async () => {
-        if (!disableCode) return setError("Enter your current 2FA code");
+        if (!disableCode) return setError(t("DASH_enter_curr_2fa"));
         setLoading(true); setError(null);
         try {
             const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
@@ -109,7 +110,7 @@ export function Dashboard() {
             const data = await res.json();
             if (!res.ok) return setError(data.error);
             setTwoFAEnabled(false); setShowDisable(false); setDisableCode("");
-        } catch { setError("Network error"); }
+        } catch { setError(t("DASH_network_error")); }
         finally { setLoading(false); }
     };
 
@@ -137,7 +138,7 @@ export function Dashboard() {
             });
             const data = await res.json();
             if (!res.ok) {
-                setRequestsError(data.error || "Failed to update request");
+                setRequestsError(data.error || t("DASH_failed_update_req"));
                 return;
             }
             setRequests(prev => prev.filter(request => request.id !== requestId));
@@ -145,7 +146,7 @@ export function Dashboard() {
                 fetchFriends();
             }
         } catch {
-            setRequestsError("Network error while updating request");
+            setRequestsError(t("DASH_network_update_req"));
         }
     };
 
@@ -162,7 +163,7 @@ export function Dashboard() {
             const data = await res.json();
             if (!res.ok) {
                 if (!silent) {
-                    setFriendsError(data.error || "Failed to load friends");
+                    setFriendsError(data.error || t("DASH_failed_load_friends"));
                     setFriends([]);
                 }
             } else {
@@ -170,7 +171,7 @@ export function Dashboard() {
             }
         } catch {
             if (!silent) {
-                setFriendsError("Network error while loading friends");
+                setFriendsError(t("DASH_network_load_friends"));
                 setFriends([]);
             }
         } finally {
@@ -190,20 +191,18 @@ export function Dashboard() {
                 headers: authHeader(),
             });
             const data = await res.json();
-            if (!res.ok) {
-                setFriendsError(data.error || "Failed to remove friend");
+            if (!res.ok)
+			{
+                setFriendsError(data.error || t("DASH_failed_remove_friend"));
                 return;
             }
-
             setFriends(prev => prev.filter(friend => friend.id !== friendId));
         } catch {
-            setFriendsError("Network error while removing friend");
+            setFriendsError(t("DASH_network_remove_friend"));
         } finally {
             setUnfriendingId(null);
         }
     };
-
-
     const openAddFriendModal = () => {
         setShowAddFriendModal(true);
         setSearchQuery("");
@@ -220,7 +219,7 @@ export function Dashboard() {
     const handleSearchUsers = async (event: React.FormEvent) => {
         event.preventDefault();
         if (!searchQuery.trim()) {
-            setSearchError("Enter a username or email to search");
+            setSearchError(t("ERR_1")); // "Enter a username or email to search"
             return;
         }
 
@@ -236,7 +235,7 @@ export function Dashboard() {
             const data = await res.json();
 
             if (!res.ok) {
-                setSearchError(data.error || "Search failed");
+                setSearchError(data.error || t("ERR_2"));
                 setSearchResults([]);
                 return;
             }
@@ -244,7 +243,7 @@ export function Dashboard() {
             const filtered = data.filter((result: SearchResult) => result.id !== user?.id);
             setSearchResults(filtered);
         } catch {
-            setSearchError("Network error during search");
+            setSearchError(t("DASH_network_search"));
             setSearchResults([]);
         } finally {
             setSearchLoading(false);
@@ -265,7 +264,7 @@ export function Dashboard() {
             const data = await res.json();
 
             if (!res.ok) {
-                const msg = (data && data.error) || "Failed to send request";
+                const msg = (data && data.error) || t("DASH_failed_send_req");
                 // If backend reports user is already a friend, refresh the friends list
                 if (res.status === 400 && /friend/i.test(msg)) {
                     fetchFriends();
@@ -279,7 +278,7 @@ export function Dashboard() {
                 });
             }
         } catch {
-            setSearchError("Network error");
+            setSearchError(t("DASH_network_error"));
             setPendingRequests(prev => {
                 const updated = new Set(prev);
                 updated.delete(receiverId);
@@ -287,9 +286,26 @@ export function Dashboard() {
             });
         }
     };
+    const fetchSentRequests = async () => {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/users/friend-request/sent`, {
+                headers: authHeader(),
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setPendingRequests(new Set(data.map((r: { receiver: { id: number } }) => r.receiver.id)));
+            }
+        } catch {
+            // silently ignore — pending state just won't be pre-populated
+        }
+    };
+
     useEffect(() => {
         fetchRequests();
         fetchFriends();
+        fetchSentRequests();
     }, []);
 
     useEffect(() => {
@@ -444,14 +460,14 @@ export function Dashboard() {
                                     autoFocus
                                     className="flex h-9 w-full rounded-md border border-border bg-surface2 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
                                 />
-                                <Button size="sm" type="submit" disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</Button>
+                                <Button size="sm" type="submit" disabled={searchLoading}>{searchLoading ? t("FRS_searching") : t("FRS_search_button")}</Button>
                             </form>
                             {requestsLoading && <p className="text-sm text-muted">{t("DB_load_pend")}</p>}
                             <p className="text-xs text-muted">{t("DB_invite")}</p>
 
                             {searchError && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{searchError}</div>}
 
-                            {searched && !searchLoading && searchResults.length === 0 && <p className="text-sm text-muted">{("DB_no_users")}</p>}
+                            {searched && !searchLoading && searchResults.length === 0 && <p className="text-sm text-muted">{t("DB_no_users")}</p>}
 
                             {searchResults.length > 0 && (
                                 <div className="space-y-2">
@@ -462,9 +478,9 @@ export function Dashboard() {
                                                 <p className="text-xs text-muted">{result.email}</p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button size="sm" variant="outline" onClick={() => navigate(`/users/${result.id}`)}>Profile</Button>
+                                                <Button size="sm" variant="outline" onClick={() => navigate(`/users/${result.id}`)}>{t("DB_profile")}</Button>
                                                 {friends.some(f => f.id === result.id) ? (
-                                                    <Button size="sm" variant="ghost" disabled>(Friend)</Button>
+                                                    <Button size="sm" variant="ghost" disabled>{t("DB_is_friend")}</Button>
                                                 ) : (
                                                     <Button size="sm" onClick={() => handleSendRequest(result.id)} disabled={pendingRequests.has(result.id)}>
                                                         {pendingRequests.has(result.id) ? t("DB_request") : t("DB_invitebutton")}

@@ -43,7 +43,6 @@ export function AuthProvider({ children }) {
 			const userData = await response.json();
 			setUser(userData);
 		} catch (error) {
-			console.error("Error fetching user data:", error);
 			sessionStorage.removeItem("token");
 			setUser(null);
 	} finally {

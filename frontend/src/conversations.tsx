@@ -104,22 +104,22 @@ export function ConversationsPage() {
 
       <main className="dashboard-body">
         <div className="page-title fade-up">
-          <h1>Conversations</h1>
-          <p>All your chats in alphabetical order.</p>
+          <h1>{t("CO_dashboard", "Conversations")}</h1>
+          <p>{t("CO_all_chats", "All your chats in alphabetical order.")}</p>
         </div>
 
         <div className="section-card fade-up fade-up-1">
           <div className="section-card-header" style={{ marginBottom: 12 }}>
-            <h3>Your Conversations</h3>
+            <h3>{t("CO_your_conversations", "Your Conversations")}</h3>
             <button className="btn btn-ghost btn-sm" onClick={loadConversations} disabled={loading}>
-              {loading ? "Loading..." : "Refresh"}
+              {loading ? t("FRC_loading", "Loading...") : t("FRC_refresh", "Refresh")}
             </button>
           </div>
 
           {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
 
           {!loading && sortedConversations.length === 0 && (
-            <p style={{ color: "var(--ink3)", fontSize: "0.85rem" }}>No conversations yet.</p>
+            <p style={{ color: "var(--ink3)", fontSize: "0.85rem" }}>{t("CO_no_conversations", "No conversations yet.")}</p>
           )}
 
           {sortedConversations.length > 0 && (
@@ -153,13 +153,13 @@ export function ConversationsPage() {
                       <p style={{ fontWeight: 600 }}>{conversation.displayName}</p>
                       <p style={{ color: "var(--ink3)", fontSize: "0.78rem" }}>
                         {conversation.type === "GROUP"
-                          ? `Group • ${conversation.members.length} members`
-                          : "Direct conversation"}
+                          ? t("CO_group_members", { count: conversation.members.length, defaultValue: `Group • ${conversation.members.length} members` })
+                          : t("CO_direct_conversation", "Direct conversation")}
                       </p>
                     </div>
                   </div>
                   <span style={{ color: "var(--ink3)", fontSize: "0.8rem" }}>
-                    {conversation.type === "GROUP" ? "Group" : "1:1"}
+                    {conversation.type === "GROUP" ? t("CO_group", "Group") : t("CO_1to1", "1:1")}
                   </span>
                 </button>
               ))}
@@ -167,8 +167,8 @@ export function ConversationsPage() {
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginTop: 14 }}>
-            <button className="btn btn-primary" onClick={() => navigate("/choose-conversation")}>Start 1 to 1 Conversation</button>
-            <button className="btn btn-ghost" onClick={() => navigate("/groups")}>Manage Group Chats</button>
+            <button className="btn btn-primary" onClick={() => navigate("/choose-conversation")}>{t("CO_start_1to1", "Start 1 to 1 Conversation")}</button>
+            <button className="btn btn-ghost" onClick={() => navigate("/groups")}>{t("CO_manage_groups", "Manage Group Chats")}</button>
           </div>
         </div>
       </main>

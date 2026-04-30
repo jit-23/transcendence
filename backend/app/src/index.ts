@@ -12,6 +12,8 @@ import conversationRoute from "./Routes/conversationRoute"
 import canvasRoute from "./Routes/CanvasRoute"
 import { metricsMiddleware, register } from "./monitoring/metrics"
 
+import { errorMiddleware, corsMiddleware } from './errorMiddleware';
+
 import { PrismaClient } from "@prisma/client"
 import { setupChatSocket } from "./sockets/chatSocket"
 
@@ -26,21 +28,8 @@ const allowedOrigins = new Set([
   'https://localhost:5173',
   'https://127.0.0.1:5173',
 ]);
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) {
-      return callback(null, true);
-    }
-    if (allowedOrigins.has(origin)) return callback(null, true);
-    console.error(`CORS blocked for origin: ${origin}`);
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200
-}));
+app.use(corsMiddleware);
+app.use(compression());
 
 app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
@@ -55,7 +44,7 @@ app.get("/metrics", async (_req, res) => {
 app.use(`/users`, userRoute)
 app.use(`/conversations`, conversationRoute)
 app.use(`/canvases`, canvasRoute)
-
+app.use(errorMiddleware);
 const PORT = 8081;
 
 const keyPath = process.env.SSL_KEY_PATH || '/etc/ssl/certs/server.key';
@@ -69,9 +58,7 @@ try {
   };
   server = https.createServer(options, app);
 } catch (err: any) {
-  console.error("✗ Failed to load SSL certificates:", err.message);
-  console.error("Cert path:", certPath);
-  console.error("Key path:", keyPath);
+  console.error("Failed to load SSL certificates:", err.message);
   process.exit(1);
 }
 

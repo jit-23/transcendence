@@ -36,7 +36,7 @@ export function UserPublicProfilePage() {
         const profileId = Number(id);
         if (!profileId) {
             setLoading(false);
-            setError('Invalid profile id');
+            setError(t('UPF_invalid_id'));
             return;
         }
 
@@ -48,7 +48,7 @@ export function UserPublicProfilePage() {
         const token = sessionStorage.getItem('token');
         if (!token) {
             setLoading(false);
-            setError('Not authenticated');
+            setError(t('UPF_not_auth'));
             return;
         }
 
@@ -73,7 +73,7 @@ export function UserPublicProfilePage() {
 
                 const profileData = await profileRes.json();
                 if (!profileRes.ok) {
-                    setError(profileData.error || 'Failed to load profile');
+                    setError(profileData.error || t('UPF_failed_load'));
                     setProfile(null);
                 } else {
                     setProfile(profileData);
@@ -89,7 +89,7 @@ export function UserPublicProfilePage() {
                 }
 
             } catch {
-                setError('Network error while loading profile');
+                setError(t('UPF_network_load'));
                 setProfile(null);
                 setIsFriend(false);
             } finally {
@@ -104,7 +104,7 @@ export function UserPublicProfilePage() {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
         if (!token) {
-            setActionError('Not authenticated');
+            setActionError(t('UPF_not_auth'));
             return;
         }
 
@@ -124,7 +124,7 @@ export function UserPublicProfilePage() {
             const data = await res.json();
 
             if (!res.ok) {
-                const message = data.error || 'Failed to send friend request';
+                const message = data.error || t('UPF_failed_send_req');
                 if (message.toLowerCase().includes('already friends')) {
                     setIsFriend(true);
                     setRequestPending(false);
@@ -140,7 +140,7 @@ export function UserPublicProfilePage() {
 
             setRequestPending(true);
         } catch {
-            setActionError('Network error while sending request');
+            setActionError(t('UPF_network_send_req'));
         } finally {
             setActionLoading(false);
         }
@@ -150,7 +150,7 @@ export function UserPublicProfilePage() {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
         if (!token) {
-            setActionError('Not authenticated');
+            setActionError(t('UPF_not_auth'));
             return;
         }
 
@@ -168,14 +168,14 @@ export function UserPublicProfilePage() {
 
             const data = await res.json();
             if (!res.ok) {
-                setActionError(data.error || 'Failed to remove friend');
+                setActionError(data.error || t('UPF_failed_remove'));
                 return;
             }
 
             setIsFriend(false);
             setRequestPending(false);
         } catch {
-            setActionError('Network error while removing friend');
+            setActionError(t('UPF_network_remove'));
         } finally {
             setActionLoading(false);
         }
@@ -190,7 +190,7 @@ export function UserPublicProfilePage() {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
         if (!token) {
-            setActionError('Not authenticated');
+            setActionError(t('UPF_not_auth'));
             return;
         }
 
@@ -208,7 +208,7 @@ export function UserPublicProfilePage() {
 
             const data = await res.json();
             if (!res.ok) {
-                setActionError(data.error || 'Failed to block user');
+                setActionError(data.error || t('UPF_failed_block'));
                 return;
             }
 
@@ -216,7 +216,7 @@ export function UserPublicProfilePage() {
             setIsFriend(false);
             setRequestPending(false);
         } catch {
-            setActionError('Network error while blocking user');
+            setActionError(t('UPF_network_block'));
         } finally {
             setActionLoading(false);
         }
@@ -226,7 +226,7 @@ export function UserPublicProfilePage() {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
         if (!token) {
-            setActionError('Not authenticated');
+            setActionError(t('UPF_not_auth'));
             return;
         }
 
@@ -244,16 +244,15 @@ export function UserPublicProfilePage() {
 
             const data = await res.json();
             if (!res.ok) {
-                setActionError(data.error || 'Failed to unblock user');
+                setActionError(data.error || t('UPF_failed_unblock'));
                 return;
             }
 
             setProfile((prev: PublicProfile | null) => prev ? { ...prev, isBlocked: false } : prev);
-            // Reset friendship state after unblock
             setIsFriend(false);
             setRequestPending(false);
         } catch {
-            setActionError('Network error while unblocking user');
+            setActionError(t('UPF_network_unblock'));
         } finally {
             setActionLoading(false);
         }

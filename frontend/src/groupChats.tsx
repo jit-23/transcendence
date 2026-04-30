@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
@@ -6,7 +6,6 @@ import { createSharedCanvas } from "./utils/sharedCanvas";
 import LanguageSwitcher from "./components/i18n";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "./components/ui/topbar";
-
 type Friend = {
   id: number;
   name: string;
@@ -55,13 +54,13 @@ export function GroupChatsPage() {
       const friendsData = await friendsRes.json();
       const convData = await conversationsRes.json();
 
-      if (!friendsRes.ok) throw new Error(friendsData.error || "Failed to load friends");
-      if (!conversationsRes.ok) throw new Error(convData.error || "Failed to load conversations");
+      if (!friendsRes.ok) throw new Error(friendsData.error || t("GCS_failed_load_friends"));
+      if (!conversationsRes.ok) throw new Error(convData.error || t("GCS_failed_load_conversations"));
 
       setFriends(friendsData);
       setConversations(convData.filter((conversation: Conversation) => conversation.type === "GROUP"));
     } catch (err: any) {
-      setError(err.message || "Failed to load data");
+      setError(err.message || t("GCS_failed_load_data"));
     } finally {
       setLoading(false);
     }
@@ -88,12 +87,12 @@ export function GroupChatsPage() {
         headers: authHeader(),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to delete group");
+      if (!res.ok) throw new Error(data.error || t("GCS_failed_delete"));
 
       await loadData();
-      setError(data.message || "Group updated");
+      setError(data.message || t("GCS_group_updated"));
     } catch (err: any) {
-      setError(err.message || "Failed to delete group");
+      setError(err.message || t("GCS_failed_delete"));
     } finally {
       setLoading(false);
     }
@@ -101,7 +100,7 @@ export function GroupChatsPage() {
 
   const createGroup = async () => {
     if (!groupName.trim())
-      return setError("Group name is required");
+      return setError(t("GCS_name_required"));
 
     setLoading(true);
     setError(null);
@@ -117,7 +116,7 @@ export function GroupChatsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create group");
+      if (!res.ok) throw new Error(data.error || t("GCS_failed_create"));
 
       setGroupName("");
       setSelected([]);
@@ -127,7 +126,7 @@ export function GroupChatsPage() {
       const title = data.name || groupName.trim();
       navigate(`/chat?conversationId=${data.id}&name=${encodeURIComponent(title)}`);
     } catch (err: any) {
-      setError(err.message || "Failed to create group");
+      setError(err.message || t("GCS_failed_create"));
     } finally {
       setLoading(false);
     }
@@ -149,10 +148,7 @@ export function GroupChatsPage() {
   const filteredFriendsForCreate = friends.filter((friend) => {
     const query = friendSearchQuery.trim().toLowerCase();
     if (!query) return true;
-    return (
-      friend.name.toLowerCase().includes(query) ||
-      friend.email.toLowerCase().includes(query)
-    );
+    return friend.name.toLowerCase().includes(query);
   });
   const shouldScrollFriendsList = filteredFriendsForCreate.length > 3;
 
@@ -173,7 +169,7 @@ export function GroupChatsPage() {
   const addMembersToGroup = async (conversationId: number) => {
     const memberIds = selectedByGroup[conversationId] ?? [];
     if (memberIds.length === 0) {
-      setError("Select at least one friend to add");
+      setError(t("GCS_select_friend"));
       return;
     }
 
@@ -189,12 +185,12 @@ export function GroupChatsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add members");
+      if (!res.ok) throw new Error(data.error || t("GCS_failed_add"));
 
       setSelectedByGroup((prev) => ({ ...prev, [conversationId]: [] }));
       await loadData();
     } catch (err: any) {
-      setError(err.message || "Failed to add members");
+      setError(err.message || t("GCS_failed_add"));
     } finally {
       setLoading(false);
     }
@@ -212,11 +208,11 @@ export function GroupChatsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to remove member");
+      if (!res.ok) throw new Error(data.error || t("GCS_failed_remove"));
 
       await loadData();
     } catch (err: any) {
-      setError(err.message || "Failed to remove member");
+      setError(err.message || t("GCS_failed_remove"));
     } finally {
       setLoading(false);
     }
@@ -228,8 +224,8 @@ export function GroupChatsPage() {
 
       <main className="dashboard-body">
         <div className="page-title fade-up">
-          <h1>Group Chats</h1>
-          <p>Create chat-only groups and add friends anytime.</p>
+          <h1>{t("GCS_group_chats")}</h1>
+          <p>{t("GCS_create_groups")}</p>
         </div>
 
         <div className="section-card fade-up fade-up-1">
@@ -240,11 +236,11 @@ export function GroupChatsPage() {
             Open a popup, search your friends, select who to add, and create the group.
           </p>
           <button className="btn btn-primary" onClick={openCreateGroupModal} disabled={loading || friends.length === 0}>
-            New Group
+            {t("GCS_create_group")}
           </button>
           {friends.length === 0 && (
             <p style={{ color: "var(--ink3)", fontSize: "0.82rem", marginTop: 8 }}>
-              You need friends to create a group.
+              {t("GCS_you_need_friends")}
             </p>
           )}
         </div>
@@ -305,7 +301,7 @@ export function GroupChatsPage() {
                     {conversation.role === "owner" && conversation.members.length > 0 && (
                       <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
                         <p style={{ marginBottom: 8, fontSize: "0.78rem", color: "var(--ink3)", fontWeight: 600 }}>
-                          Members
+                          {t("GCS_members")}
                         </p>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
@@ -318,7 +314,7 @@ export function GroupChatsPage() {
                                 disabled={loading}
                                 style={{ color: "var(--error)", padding: "2px 6px" }}
                               >
-                                Remove
+                                {t("CH_remove")}
                               </button>
                             </div>
                           ))}
@@ -328,7 +324,7 @@ export function GroupChatsPage() {
                     {conversation.role === "owner" && availableFriends.length > 0 && (
                       <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
                         <p style={{ marginBottom: 8, fontSize: "0.78rem", color: "var(--ink3)" }}>
-                          Add friends to this group
+                          {t("GCS_select_friend")}
                         </p>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
@@ -349,7 +345,7 @@ export function GroupChatsPage() {
                           onClick={() => addMembersToGroup(conversation.id)}
                           disabled={loading || selectedForGroup.length === 0}
                         >
-                          Add Selected Friends
+                          {t("DB_invitebutton")}
                         </button>
                       </div>
                     )}
@@ -365,27 +361,27 @@ export function GroupChatsPage() {
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4" onClick={closeCreateGroupModal}>
           <div className="section-card" style={{ width: "100%", maxWidth: 640 }} onClick={(event) => event.stopPropagation()}>
             <div className="section-card-header" style={{ marginBottom: 10 }}>
-              <h3>Create Group</h3>
-              <button className="btn btn-ghost btn-sm" onClick={closeCreateGroupModal} disabled={loading}>Close</button>
+              <h3>{t("GCS_create")}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={closeCreateGroupModal} disabled={loading}>{t("DB_close")}</button>
             </div>
 
             {error && <div className="msg msg-error" style={{ marginBottom: 12 }}>{error}</div>}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
-  
+
   <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-    <label style={{ color: "#8b8b8b", fontWeight: "600", minWidth: "100px" }}>Group Name:</label>
+    <label style={{ color: "#8b8b8b", fontWeight: "600", minWidth: "100px" }}>{t("GCS_name_required")}:</label>
     <input
       className="code-input"
       placeholder="..."
       value={groupName}
       onChange={(event) => setGroupName(event.target.value)}
-      style={{ flex: 1 }} 
+      style={{ flex: 1 }}
     />
   </div>
 
   	<div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-    <label style={{ color: "#818181", fontWeight: "600", minWidth: "100px" }}>friends:</label>
+    <label style={{ color: "#818181", fontWeight: "600", minWidth: "100px" }}>{t("SEARCH_FRIENDS")}:</label>
     <input
       className="code-input"
       placeholder="..."
@@ -409,7 +405,7 @@ export function GroupChatsPage() {
                 }}
               >
                 {filteredFriendsForCreate.length === 0 ? (
-                  <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>No friends match your search.</p>
+                  <p style={{ color: "var(--ink3)", fontSize: "0.82rem" }}>{t("CVS_no_friends_match")}</p>
                 ) : (
                   filteredFriendsForCreate.map((friend) => (
                     <div
@@ -440,7 +436,7 @@ export function GroupChatsPage() {
                 )}
               </div>
               <button className="btn btn-primary" onClick={createGroup} disabled={loading || !groupName.trim()}>
-                {loading ? "Creating..." : "Create Group"}
+                {loading ? t("GCS_creating") : t("GCS_create")}
               </button>
             </div>
           </div>

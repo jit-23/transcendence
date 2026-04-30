@@ -15,10 +15,9 @@ if (useHttps) {
         cert: fs.readFileSync(certPath),
         key: fs.readFileSync(keyPath),
       }
-      console.log('✓ HTTPS enabled for Vite dev server')
     }
   } catch (err) {
-    console.warn('⚠ Could not load HTTPS certificates, running on HTTP', err)
+    console.warn(' Could not load HTTPS certificates, running on HTTP', err)
   }
 }
 
