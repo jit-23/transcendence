@@ -179,14 +179,15 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_your_canvases: "Your Canvases ",
 					CVS_loading_canvases: "Loading...",
 					CVS_max_3_canvases: "Max 3 Canvases",
+					CVS_name_too_long: "Name limit: 18 characters",
 					CVS_add_canvas: "Add Canvas",
 					CVS_canvas_name_opt: "Canvas name (optional)",
 					CVS_creating_canvas: "Creating...",
 					CVS_create_canvas: "Create",
 					CVS_cancel_canvas: "Cancel",
 					CVS_delete_canvas: "Delete",
-					CVS_no_canvas: "No canvases yet. Create one to get started!",
-					CVS_chat_rooms: "Chat Rooms",
+					CVS_no_canvas: "No canvases yet!",
+					CVS_chat_rooms: "Canvas by Invitation",
 					CVS_use_canvas: "Use canvases to sketch, plan, and organize group work.",//seems like this text is wrong
 					CVS_chat_room: "Chat Room",
 					CVS_failed_load_cvs: "Failed to load canvases",
@@ -203,6 +204,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_invite: "Invite",
 					CVS_no_friends: "No friends available to invite.",
 					CVS_inviting: "Inviting...",
+					CVS_already_in_canvas: "In Canvas",
 					CVS_failed_remove_collaborator: "Failed to remove collaborator.",
 
 				//Canvas
@@ -298,7 +300,10 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					GCS_group_chats: "Group Chats",
 					GCS_create_groups: "Create groups and chat with multiple friends.",
 					GCS_create_group: "Create Group",
+					GCS_create_group_hint: "Open a popup, search your friends, select who to add, and create the group.",
 					GCS_you_need_friends: "You need friends to create a group",
+					GCS_participants: "Participants",
+					GCS_all_in_group: "All your friends are already in this group.",
 					GCS_creating: "Creating...",
 					GCS_create: "Create Group",
 					GCS_refresh: "Refresh",
@@ -541,6 +546,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 				GCS_name_required: "Group name",
 				GCS_failed_create: "Failed to create group",
 				GCS_select_friend: "Select at least one friend to add",
+				GCS_already_in_group: "In Group",
 				GCS_failed_add: "Failed to add members",
 				GCS_failed_remove: "Failed to remove member",
 
@@ -763,14 +769,15 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_your_canvases: "Os teus canvas",
 					CVS_loading_canvases: "A carregar...",
 					CVS_max_3_canvases: "Máximo: 3 canvas",
+					CVS_name_too_long: "Limite de nome: 18 caracteres",
 					CVS_add_canvas: "Adicionar canvas",
 					CVS_canvas_name_opt: "Nome do canvas (opcional)",
 					CVS_creating_canvas: "A criar...",
 					CVS_create_canvas: "Criar",
 					CVS_cancel_canvas: "Cancelar",
 					CVS_delete_canvas: "Eliminar",
-					CVS_no_canvas: "Não tens canvas. Cria um para começar!",
-					CVS_chat_rooms: "Salas de conversa",
+					CVS_no_canvas: "Não tens canvas!",
+					CVS_chat_rooms: "Canvas por Convite",
 					CVS_use_canvas: "Usa o canvas para desenhar, planear e organizar trabalho de grupo",
 					CVS_chat_room: "Salas de conversa",
 					CVS_failed_load_cvs: "Falha ao carregar canvases",
@@ -787,6 +794,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_invite: "Convidar",
 					CVS_no_friends: "Sem amigos disponíveis para convidar.",
 					CVS_inviting: "A convidar...",
+					CVS_already_in_canvas: "No Canvas",
 					CVS_failed_remove_collaborator: "Falha ao remover colaborador.",
 
 				//Canvas
@@ -882,7 +890,10 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					GCS_group_chats: "Conversas de grupo",
 					GCS_create_groups: "Cria grupos e conversa com múltiplos amigos",
 					GCS_create_group: "Cria um grupo",
+					GCS_create_group_hint: "Abre um popup, procura os teus amigos, seleciona quem adicionar e cria o grupo.",
 					GCS_you_need_friends: "Precisas de amigos para criar um grupo",
+					GCS_participants: "Participantes",
+					GCS_all_in_group: "Todos os teus amigos já estão neste grupo.",
 					GCS_creating: "A criar...",
 					GCS_create: "Criar grupo",
 					GCS_refresh: "Atualizar",
@@ -1124,6 +1135,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 				GCS_name_required: "Nome do grupo",
 				GCS_failed_create: "Falha ao criar grupo",
 				GCS_select_friend: "Seleciona pelo menos um amigo para adicionar",
+				GCS_already_in_group: "No Grupo",
 				GCS_failed_add: "Falha ao adicionar membros",
 				GCS_failed_remove: "Falha ao remover membro",
 
@@ -1366,14 +1378,15 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_your_canvases: "Tus lienzos ",
 					CVS_loading_canvases: "Cargando...",
 					CVS_max_3_canvases: "Máximo 3 lienzos",
+					CVS_name_too_long: "Límite de nombre: 18 caracteres",
 					CVS_add_canvas: "Añadir lienzo",
 					CVS_canvas_name_opt: "Nombre del lienzo (opcional)",
 					CVS_creating_canvas: "Creando...",
 					CVS_create_canvas: "Crear",
 					CVS_cancel_canvas: "Cancelar",
 					CVS_delete_canvas: "Eliminar",
-					CVS_no_canvas: "Aún no hay lienzos. ¡Crea uno para empezar!",
-					CVS_chat_rooms: "Salas de chat",
+					CVS_no_canvas: "Aún no hay lienzos!",
+					CVS_chat_rooms: "Lienzos por Invitación",
 					CVS_use_canvas: "Usa lienzos para dibujar, planificar y organizar trabajo en grupo.",
 					CVS_chat_room: "salas de chat",
 					CVS_failed_load_cvs: "Error al cargar lienzos",
@@ -1390,6 +1403,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					CVS_invite: "Invitar",
 					CVS_no_friends: "No hay amigos disponibles para invitar.",
 					CVS_inviting: "Invitando...",
+					CVS_already_in_canvas: "En Canvas",
 					CVS_failed_remove_collaborator: "Error al eliminar colaborador.",
 
 				//Canvas
@@ -1481,7 +1495,10 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 					GCS_group_chats: "Chats grupales",
 					GCS_create_groups: "Crea grupos y chatea con varios amigos.",
 					GCS_create_group: "Crear grupo",
+					GCS_create_group_hint: "Abre un popup, busca a tus amigos, selecciona quién añadir y crea el grupo.",
 					GCS_you_need_friends: "Necesitas amigos para crear un grupo",
+					GCS_participants: "Participantes",
+					GCS_all_in_group: "Todos tus amigos ya están en este grupo.",
 					GCS_creating: "Creando...",
 					GCS_create: "Crear grupo",
 					GCS_refresh: "Actualizar",
@@ -1710,6 +1727,7 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 				GCS_name_required: "nombre del grupo",
 				GCS_failed_create: "Error al crear el grupo",
 				GCS_select_friend: "Selecciona al menos un amigo para añadir",
+				GCS_already_in_group: "En el grupo",
 				GCS_failed_add: "Error al añadir miembros",
 				GCS_failed_remove: "Error al eliminar miembro",
 
@@ -1772,9 +1790,12 @@ i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
 	}
 })
 import { useState, useRef, useEffect } from 'react';
+import { useTheme } from '../ThemeContext';
 
 const LanguageSwitcher: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     // 1. Create a ref to attach to the container
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1827,13 +1848,13 @@ const LanguageSwitcher: React.FC = () => {
                     top: '100%',
                     right: 0,
                     marginTop: '8px',
-                    backgroundColor: 'white',
-                    border: '1px solid #777777',
+                    backgroundColor: isDark ? '#ffffff' : '#111111',
+                    border: `1px solid ${isDark ? '#cccccc' : '#444444'}`,
                     borderRadius: '8px',
-                    boxShadow: '0 4px 6px rgba(122, 120, 120, 0.1)',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
                     zIndex: 10,
                     minWidth: '120px',
-                    overflow: 'hidden' // Ensures border-radius clips children
+                    overflow: 'hidden',
                 }}>
                     {languages.map((lang) => (
                         <button
@@ -1844,12 +1865,14 @@ const LanguageSwitcher: React.FC = () => {
                                 width: '100%',
                                 padding: '8px 12px',
                                 border: 'none',
-                                background: i18n.language === lang.code ? '#f0f0f0' : 'transparent',
+                                background: i18n.language === lang.code
+                                    ? (isDark ? '#e0e0e0' : '#2a2a2a')
+                                    : 'transparent',
                                 cursor: 'pointer',
                                 textAlign: 'left',
                                 alignItems: 'center',
                                 gap: '8px',
-                                color: 'black' // Ensure text is visible on white bg
+                                color: isDark ? '#000000' : '#ffffff',
                             }}
                         >
                             <span>{lang.flag}</span>

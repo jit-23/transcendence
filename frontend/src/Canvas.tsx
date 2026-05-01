@@ -1969,6 +1969,7 @@ export default function Canvas() {
 		const socket = io(apiUrl, {
 			auth: { username: user.name },
 			withCredentials: true,
+			transports: ["polling"],
 		});
 
 		chatSocketRef.current = socket;
@@ -2276,10 +2277,12 @@ export default function Canvas() {
 				event.preventDefault();
 				pushUndoSnapshot();
 				const selectedIds = new Set(selectedShapeIdsRef.current);
+				const idsArray = Array.from(selectedIds);
 				shapesRef.current = shapesRef.current.filter((shape) => !selectedIds.has(shape.id));
 				applySelection([]);
 				hoveredShapeIdRef.current = null;
 				hoveredHandleRef.current = null;
+				emitCanvasEvent(chatSocketRef.current, canvasId, "canvas-shape-delete", { shapeIds: idsArray });
 				markDirty();
 				return;
 			}
@@ -3644,24 +3647,33 @@ export default function Canvas() {
 						return;
 					}
 
-					const minimumWidth = 140;
-					const minimumHeight = 56;
-					const width = shapeToCommit.x2 - shapeToCommit.x1;
-					const height = shapeToCommit.y2 - shapeToCommit.y1;
-					const widthDirection = Math.sign(width) || 1;
-					const heightDirection = Math.sign(height) || 1;
-					const nextWidth = Math.abs(width) < minimumWidth ? minimumWidth * widthDirection : width;
-					const nextHeight = Math.abs(height) < minimumHeight ? minimumHeight * heightDirection : height;
-					shapeToCommit.x2 = shapeToCommit.x1 + nextWidth;
-					shapeToCommit.y2 = shapeToCommit.y1 + nextHeight;
-
 					if (shapeToCommit.kind === "circle-text") {
+						// Square to actual drag size, then enforce a square minimum
 						const squareEndPoint = getEqualSizeEndPoint(
 							{ x: shapeToCommit.x1, y: shapeToCommit.y1 },
 							{ x: shapeToCommit.x2, y: shapeToCommit.y2 },
 						);
 						shapeToCommit.x2 = squareEndPoint.x;
 						shapeToCommit.y2 = squareEndPoint.y;
+						const circleSize = Math.abs(shapeToCommit.x2 - shapeToCommit.x1);
+						const minimumCircleSize = 80;
+						if (circleSize < minimumCircleSize) {
+							const signX = Math.sign(shapeToCommit.x2 - shapeToCommit.x1) || 1;
+							const signY = Math.sign(shapeToCommit.y2 - shapeToCommit.y1) || 1;
+							shapeToCommit.x2 = shapeToCommit.x1 + signX * minimumCircleSize;
+							shapeToCommit.y2 = shapeToCommit.y1 + signY * minimumCircleSize;
+						}
+					} else {
+						const minimumWidth = 140;
+						const minimumHeight = 56;
+						const width = shapeToCommit.x2 - shapeToCommit.x1;
+						const height = shapeToCommit.y2 - shapeToCommit.y1;
+						const widthDirection = Math.sign(width) || 1;
+						const heightDirection = Math.sign(height) || 1;
+						const nextWidth = Math.abs(width) < minimumWidth ? minimumWidth * widthDirection : width;
+						const nextHeight = Math.abs(height) < minimumHeight ? minimumHeight * heightDirection : height;
+						shapeToCommit.x2 = shapeToCommit.x1 + nextWidth;
+						shapeToCommit.y2 = shapeToCommit.y1 + nextHeight;
 					}
 				} else if (
 					shapeToCommit.kind !== "freehand" &&

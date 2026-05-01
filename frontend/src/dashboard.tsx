@@ -329,6 +329,7 @@ export function Dashboard() {
         const socket = io(apiUrl, {
             auth: { username: user.name },
             withCredentials: true,
+            transports: ["polling"],
         });
 
         presenceSocketRef.current = socket;

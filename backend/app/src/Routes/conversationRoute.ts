@@ -3,6 +3,7 @@ import {
     createOrGetDirectConversation,
     createGroupConversation,
     addMembersToGroupConversation,
+    removeMemberFromGroupConversation,
     deleteGroupConversation,
     getMyConversations,
     getConversationMessages,
@@ -15,6 +16,7 @@ router.post("/group", createGroupConversation);
 router.post("/direct", createOrGetDirectConversation);
 router.get("/my", getMyConversations);
 router.post("/:id/members", addMembersToGroupConversation);
+router.delete("/:id/members/:userId", removeMemberFromGroupConversation);
 router.get("/:id/members", getConversationMembers);
 router.get("/:id/messages", getConversationMessages);
 router.delete("/:id", deleteGroupConversation);

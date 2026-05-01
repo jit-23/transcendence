@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { isUserOnline } from "../presenceStore";
 
 const prisma = new PrismaClient();
 
@@ -245,7 +246,10 @@ export const getMyConversations = async (req: Request, res: Response) => {
         if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
         const memberships = await prisma.conversation_participants.findMany({
-            where: { user_id: auth.userId },
+            where: {
+                user_id: auth.userId,
+                conversation: { canvases: { none: {} } },
+            },
             include: {
                 conversation: {
                     include: {
@@ -277,6 +281,49 @@ export const getMyConversations = async (req: Request, res: Response) => {
     }
 };
 
+export const removeMemberFromGroupConversation = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) return res.status(401).json({ error: "Unauthorized" });
+
+        const conversationId = Number(req.params.id);
+        const targetUserId = Number(req.params.userId);
+        if (!Number.isInteger(conversationId) || conversationId <= 0 ||
+            !Number.isInteger(targetUserId) || targetUserId <= 0) {
+            return res.status(400).json({ error: "Invalid id" });
+        }
+
+        const myMembership = await prisma.conversation_participants.findFirst({
+            where: { conversation_id: conversationId, user_id: auth.userId },
+            select: { role: true },
+        });
+
+        if (!myMembership) return res.status(403).json({ error: "Not a participant of this conversation" });
+        if (myMembership.role !== "owner") return res.status(403).json({ error: "Only group owners can remove members" });
+        if (targetUserId === auth.userId) return res.status(400).json({ error: "Cannot remove yourself; delete or leave the group instead" });
+
+        const target = await prisma.conversation_participants.findFirst({
+            where: { conversation_id: conversationId, user_id: targetUserId },
+            select: { role: true },
+        });
+
+        if (!target) return res.status(404).json({ error: "Member not found in this group" });
+
+        await prisma.conversation_participants.delete({
+            where: {
+                conversation_id_user_id: {
+                    conversation_id: conversationId,
+                    user_id: targetUserId,
+                },
+            },
+        });
+
+        return res.json({ message: "Member removed" });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || "Failed to remove member" });
+    }
+};
+
 export const deleteGroupConversation = async (req: Request, res: Response) => {
     try {
         const auth = getAuthUser(req);
@@ -297,6 +344,9 @@ export const deleteGroupConversation = async (req: Request, res: Response) => {
         }
 
         if (membership.role === "owner") {
+            await prisma.conversation_participants.deleteMany({
+                where: { conversation_id: conversationId },
+            });
             await prisma.conversation.delete({
                 where: { id: conversationId },
             });
@@ -331,7 +381,7 @@ export const getConversationMembers = async (req: Request, res: Response) => {
 
         const myMembership = await prisma.conversation_participants.findFirst({
             where: { conversation_id: conversationId, user_id: auth.userId },
-            select: { role: true },
+            select: { role: true, conversation: { select: { type: true } } },
         });
 
         if (!myMembership) {
@@ -350,9 +400,10 @@ export const getConversationMembers = async (req: Request, res: Response) => {
             name: p.user.name,
             avatar: p.user.avatar ?? null,
             role: p.role,
+            online: isUserOnline(p.user.id),
         }));
 
-        return res.json({ members, role: myMembership.role });
+        return res.json({ members, role: myMembership.role, type: myMembership.conversation.type });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });
     }

@@ -28,6 +28,7 @@ type CanvasesCardProps = {
   inviteCanvasId: number | null;
   inviteError: string | null;
   invitingFriendId: number | null;
+  alreadyInvitedIds?: Set<number>;
   onAddCanvas: (name: string) => Promise<boolean>;
   onDeleteCanvas: (canvasId: number) => void;
   onOpenCanvas: (canvasId: number) => void;
@@ -53,6 +54,7 @@ export function CanvasesCard({
   inviteCanvasId,
   inviteError,
   invitingFriendId,
+  alreadyInvitedIds,
   onAddCanvas,
   onDeleteCanvas,
   onOpenCanvas,
@@ -63,10 +65,16 @@ export function CanvasesCard({
   const [newCanvasName, setNewCanvasName] = React.useState("");
   const [showNameInput, setShowNameInput] = React.useState(false);
   const [creatingCanvas, setCreatingCanvas] = React.useState(false);
+  const [nameError, setNameError] = React.useState<string | null>(null);
   const [friendSearchQuery, setFriendSearchQuery] = React.useState("");
 
-  const handleCreate = async ()   => {
+  const handleCreate = async () => {
     if (canvases.length >= 3) return;
+    if (newCanvasName.trim().length > 18) {
+      setNameError(t("CVS_name_too_long"));
+      return;
+    }
+    setNameError(null);
     setCreatingCanvas(true);
     const requestedName = newCanvasName.trim() || `Canvas ${canvases.length + 1}`;
     const created = await onAddCanvas(requestedName);
@@ -94,16 +102,18 @@ export function CanvasesCard({
   return (
     <div className="section-card fade-up fade-up-2" style={{ padding: "16px", height: "100%", minHeight: 360 }}>
       <div className="section-card-header">
-        <h3>{t("CVS_your_canvases")}</h3>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setShowNameInput(true)}
-            disabled={canvases.length >= 3 || canvasesLoading}
-          >
-            {canvasesLoading ? t("CVS_loading_canvases") : canvases.length >= 3 ? t("CVS_max_3_canvases") : t("CVS_add_canvas")}
-          </button>
-        </div>
+        <h3>{title}</h3>
+        {canCreateCanvas && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowNameInput(true)}
+              disabled={canvases.length >= 3 || canvasesLoading}
+            >
+              {canvasesLoading ? t("CVS_loading_canvases") : canvases.length >= 3 ? t("CVS_max_3_canvases") : t("CVS_add_canvas")}
+            </button>
+          </div>
+        )}
       </div>
 
       {canCreateCanvas && showNameInput && canvases.length < 3 && (
@@ -113,7 +123,7 @@ export function CanvasesCard({
               type="text"
               placeholder={t("CVS_canvas_name_opt")}
               value={newCanvasName}
-              onChange={(e) => setNewCanvasName(e.target.value)}
+              onChange={(e) => { setNewCanvasName(e.target.value); setNameError(null); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -149,6 +159,9 @@ export function CanvasesCard({
               {t("CVS_delete_canvas")}
             </button>
           </div>
+          {nameError && (
+            <p style={{ color: "var(--error)", fontSize: "0.8rem", marginTop: 6 }}>{nameError}</p>
+          )}
         </div>
       )}
 
@@ -226,18 +239,21 @@ export function CanvasesCard({
                     )}
                     {!friendsLoading && friends.length > 0 && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {friends.map((friend) => (
+                        {friends.map((friend) => {
+                          const isAlready = alreadyInvitedIds?.has(friend.id) ?? false;
+                          return (
                           <button
                             key={friend.id}
                             className="btn btn-ghost btn-xs"
                             onClick={() => onInviteFriend(canvas.id, friend.id)}
-                            disabled={invitingFriendId === friend.id}
+                            disabled={invitingFriendId === friend.id || isAlready}
                             style={{
                               justifyContent: "space-between",
                               fontSize: "0.72rem",
                               minWidth: 0,
                               width: "100%",
                               gap: 8,
+                              opacity: isAlready ? 0.6 : 1,
                             }}
                           >
                             <span
@@ -253,9 +269,12 @@ export function CanvasesCard({
                             >
                               {friend.name}
                             </span>
-                            <span style={{ flexShrink: 0 }}>{invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}</span>
+                            <span style={{ flexShrink: 0 }}>
+                              {isAlready ? t("CVS_already_in_canvas") : invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}
+                            </span>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -332,18 +351,23 @@ export function CanvasesCard({
 
             {!friendsLoading && friends.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {filteredFriends.map((friend) => (
+                {filteredFriends.map((friend) => {
+                  const isAlready = alreadyInvitedIds?.has(friend.id) ?? false;
+                  return (
                   <button
                     key={friend.id}
                     className="btn btn-ghost btn-sm"
                     onClick={() => onInviteFriend(activeCanvas.id, friend.id)}
-                    disabled={invitingFriendId === friend.id}
-                    style={{ justifyContent: "space-between" }}
+                    disabled={invitingFriendId === friend.id || isAlready}
+                    style={{ justifyContent: "space-between", opacity: isAlready ? 0.6 : 1 }}
                   >
                     <span>{friend.name}</span>
-                    <span style={{ fontSize: "0.72rem" }}>{invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}</span>
+                    <span style={{ fontSize: "0.72rem" }}>
+                      {isAlready ? t("CVS_already_in_canvas") : invitingFriendId === friend.id ? t("CVS_inviting") : t("CVS_invite")}
+                    </span>
                   </button>
-                ))}
+                  );
+                })}
                 {filteredFriends.length === 0 && (
                   <p style={{ fontSize: "0.78rem", color: "var(--ink3)" }}>{t("CVS_no_friends_match", "No friends match your search.")}</p>
                 )}
