@@ -43,10 +43,10 @@ services:
       - SSL_KEY_PATH=/etc/ssl/certs/server.key
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - GOOGLE_REDIRECT_URI=https://${HOST:-localhost}:8081/users/auth/google/callback
       - FORTYTWO_CLIENT_ID=${FORTYTWO_CLIENT_ID}
       - FORTYTWO_CLIENT_SECRET=${FORTYTWO_CLIENT_SECRET}
-      - FORTYTWO_REDIRECT_URI=${FORTYTWO_REDIRECT_URI}
+      - FORTYTWO_REDIRECT_URI=https://${HOST:-localhost}:8081/users/auth/42/callback
     volumes:
       - ./certs:/etc/ssl/certs
     depends_on:

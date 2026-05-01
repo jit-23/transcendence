@@ -1,10 +1,8 @@
 import cors from 'cors';
 import { Request, Response, NextFunction } from "express";
 
-// 1. Define your whitelist properly
 const allowedOrigins = new Set([
-    'https://localhost:8081', // Your frontend URL
-    'http://localhost:3000',
+  process.env.CORS_ORIGIN || 'https://localhost:5173',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://localhost:5173',

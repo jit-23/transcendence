@@ -20,14 +20,6 @@ import { setupChatSocket } from "./sockets/chatSocket"
 const prisma = new PrismaClient()
 const app = express()
 
-const configuredOrigin = process.env.CORS_ORIGIN || 'https://localhost:5173';
-const allowedOrigins = new Set([
-  configuredOrigin,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'https://localhost:5173',
-  'https://127.0.0.1:5173',
-]);
 app.use(corsMiddleware);
 app.use(compression());
 

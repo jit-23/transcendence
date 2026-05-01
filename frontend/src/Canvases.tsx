@@ -241,9 +241,7 @@ export function CanvasesPage() {
           handleInviteFriend(inviteCanvasId, friendId);
         }
       };
-
       useEffect(() => {
-        
         fetchCanvases();
         fetchFriends();
         const canvasId = Number(new URLSearchParams(window.location.search).get("id"));
@@ -251,9 +249,6 @@ export function CanvasesPage() {
           return;
         groupChat(canvasId);
       }, []);
-
-
-
   return (
 	<div className="dashboard-shell">
 	  <TopBar />
