@@ -40,6 +40,7 @@ export function ChatPage() {
     const [conversationId, setConversationId] = useState<number | null>(null);
 
     const socketRef = useRef<Socket | null>(null);
+    const conversationIdRef = useRef<number | null>(null);
     const typingTimeoutRef = useRef<number | null>(null);
     const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -53,9 +54,10 @@ export function ChatPage() {
 
 	const [participants, setParticipants] = useState<Participant[]>([]);
     const [isOwner, setIsOwner] = useState(false);
+    const [conversationType, setConversationType] = useState<"DIRECT" | "GROUP" | null>(null);
     const [participantsLoading, setParticipantsLoading] = useState(false);
     const [participantsError, setParticipantsError] = useState<string | null>(null);
-    // Fetch participants for group conversations
+
     useEffect(() => {
         if (!conversationId) return;
         const fetchParticipants = async () => {
@@ -74,6 +76,7 @@ export function ChatPage() {
                 }
                 setParticipants(data.members || []);
                 setIsOwner(data.role === "owner");
+                setConversationType(data.type ?? null);
             } catch {
                 setParticipantsError("Network error while loading participants");
                 setParticipants([]);
@@ -82,6 +85,10 @@ export function ChatPage() {
             }
         };
         fetchParticipants();
+    }, [conversationId]);
+
+    useEffect(() => {
+        conversationIdRef.current = conversationId;
     }, [conversationId]);
 
 	//
@@ -220,6 +227,7 @@ export function ChatPage() {
         const socket = io(apiUrl, {
             auth: { username: user.name },
             withCredentials: true,
+            transports: ["polling"],
         });
 
         socketRef.current = socket;
@@ -229,7 +237,7 @@ export function ChatPage() {
 
         socket.on("conversation-message", ({ conversationId: incomingConversationId, message }) => {
             const normalizedIncoming = Number(incomingConversationId);
-            if (!conversationId || normalizedIncoming !== conversationId) return;
+            if (!conversationIdRef.current || normalizedIncoming !== conversationIdRef.current) return;
 
             setMessages((prev) => [
                 ...prev,
@@ -243,8 +251,15 @@ export function ChatPage() {
 
         socket.on("conversation-typing", ({ conversationId: incomingConversationId, from, isTyping }) => {
             const normalizedIncoming = Number(incomingConversationId);
-            if (!conversationId || normalizedIncoming !== conversationId) return;
+            if (!conversationIdRef.current || normalizedIncoming !== conversationIdRef.current) return;
             setPeerTyping(isTyping ? from : null);
+        });
+
+        socket.on("friend-presence", ({ userId, online }) => {
+            const normalizedId = Number(userId);
+            setParticipants((prev) =>
+                prev.map((p) => p.id === normalizedId ? { ...p, online: Boolean(online) } : p)
+            );
         });
 
         return () => {
@@ -255,7 +270,7 @@ export function ChatPage() {
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [user?.name, conversationId, user?.id]);
+    }, [user?.name, user?.id]);
 
     const handleTextChange = (value: string) => {
         setText(value);
@@ -302,82 +317,78 @@ export function ChatPage() {
             <TopBar />
             <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", width: "100%", minHeight: "calc(100vh - 60px)", background: "var(--bg)" }}>
                 <div style={{ display: "flex", width: 900, minHeight: 540, maxHeight: 700, background: "var(--surface2)", borderRadius: 14, boxShadow: "0 2px 12px #0001", overflow: "hidden", marginTop: 32 }}>
-                    {/* Sidebar: Participants */}
-                    <div style={{ width: 220, background: "var(--surface1)", borderRight: "1px solid var(--border)", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-                        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 8 }}>{t("CH_participants", "Participants")}</h3>
-                        {participantsLoading ? (
-                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("CH_loading", "Loading...")}</p>
-                        ) : participantsError ? (
-                            <p style={{ color: "var(--error)", fontSize: "0.9rem" }}>{participantsError}</p>
-                        ) : participants.length === 0 ? (
-                            <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("CH_no_participants", "No participants")}</p>
-                        ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {participants.map((p) => (
-                                    <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px", background: "var(--surface2)", borderRadius: 8 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                                            <Avatar avatar={p.avatar} name={p.name} size={32} />
-                                            <div style={{ minWidth: 0 }}>
-                                                <p style={{ fontWeight: 600, fontSize: "0.85rem", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
-                                                <p style={{ fontSize: "0.72rem", color: p.online ? "#22c55e" : "var(--ink3)", lineHeight: 1 }}>
-                                                    {p.online ? t("FRC_online") : t("FRC_offline")}
-                                                </p>
+                    {/* Sidebar: Group participants only */}
+                    {conversationType === "GROUP" && (
+                        <div style={{ width: 250, background: "var(--surface1)", borderRight: "1px solid var(--border)", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 8 }}>{t("CH_participants", "Participants")}</h3>
+                            {participantsLoading ? (
+                                <p style={{ color: "var(--ink3)", fontSize: "0.9rem" }}>{t("CH_loading", "Loading...")}</p>
+                            ) : participantsError ? (
+                                <p style={{ color: "var(--error)", fontSize: "0.9rem" }}>{participantsError}</p>
+                            ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {participants.map((p) => (
+                                        <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px", background: "var(--surface2)", borderRadius: 8 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                                <Avatar avatar={p.avatar} name={p.name} size={32} />
+                                                <div style={{ minWidth: 0 }}>
+                                                    <p style={{ fontWeight: 600, fontSize: "0.85rem", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
+                                                    <p style={{ fontSize: "0.72rem", color: p.online ? "#22c55e" : "var(--ink3)", lineHeight: 1 }}>
+                                                        {p.online ? t("FRC_online") : t("FRC_offline")}
+                                                    </p>
+                                                </div>
                                             </div>
+                                            {isOwner && p.role !== "owner" && (
+                                                <button
+                                                    className="btn btn-ghost btn-xs"
+                                                    style={{ color: "var(--error)", fontSize: "0.75rem", flexShrink: 0 }}
+                                                    onClick={async () => {
+                                                        try {
+                                                            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+                                                            await fetch(`${apiUrl}/conversations/${conversationId}/members/${p.id}`, {
+                                                                method: "DELETE",
+                                                                headers: authHeader(),
+                                                            });
+                                                            const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, { headers: authHeader() });
+                                                            const data = await res.json();
+                                                            setParticipants(data.members || []);
+                                                        } catch {}
+                                                    }}
+                                                >{t("CH_remove", "Remove")}</button>
+                                            )}
                                         </div>
-                                        {isOwner && p.role !== "owner" && (
-                                            <button
-                                                className="btn btn-ghost btn-xs"
-                                                style={{ color: "var(--error)", fontSize: "0.75rem", flexShrink: 0 }}
-                                                onClick={async () => {
-                                                    try {
-                                                        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
-                                                        await fetch(`${apiUrl}/conversations/${conversationId}/members/${p.id}`, {
-                                                            method: "DELETE",
-                                                            headers: authHeader(),
-                                                        });
-                                                        const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, { headers: authHeader() });
-                                                        const data = await res.json();
-                                                        setParticipants(data.members || []);
-                                                    } catch {}
-                                                }}
-                                            >{t("CH_remove", "Remove")}</button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {isOwner && (
-                            <button
-                                className="btn btn-primary btn-xs"
-                                style={{ marginTop: 10 }}
-                                onClick={async () => {
-                                    // Add friend logic (simple prompt for demo)
-                                    const friendId = window.prompt("Enter friend ID to add:");
-                                    if (!friendId) return;
-                                    try {
-                                        const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
-                                        await fetch(`${apiUrl}/conversations/${conversationId}/members`, {
-                                            method: "POST",
-                                            headers: authHeader(),
-                                            body: JSON.stringify({ memberIds: [Number(friendId)] }),
-                                        });
-                                        // Refresh participants
-                                        const res = await fetch(`${apiUrl}/conversations/${conversationId}/members`, { headers: authHeader() });
-                                        const data = await res.json();
-                                        setParticipants(data.members || []);
-                                    } catch {}
-                                }}
-                            >{t("CH_add_friend", "Add Friend")}</button>
-                        )}
-                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {/* Main Chat Area */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, padding: 0, background: "var(--surface2)" }}>
+                        {/* 1:1 conversation header */}
+                        {conversationType === "DIRECT" && (() => {
+                            const other = participants.find((p) => p.id !== user?.id);
+                            if (!other) return null;
+                            return (
+                                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)", background: "var(--surface1)" }}>
+                                    <Avatar avatar={other.avatar} name={other.name} size={40} />
+                                    <div>
+                                        <p style={{ fontWeight: 700, fontSize: "1rem", lineHeight: 1.1 }}>{other.name}</p>
+                                        <p style={{ fontSize: "0.75rem", color: other.online ? "#22c55e" : "var(--ink3)", marginTop: 2 }}>
+                                            {other.online ? t("FRC_online") : t("FRC_offline")}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                        {/* Group conversation title */}
+                        {conversationType !== "DIRECT" && (
                         <div style={{ padding: "18px 18px 0 18px" }}>
                             <h2 style={{ marginBottom: 10 }}>{target}</h2>
                             {status && (
                                 <p style={{ color: "var(--ink2)", fontSize: "0.78rem", marginBottom: 12 }}>{status}</p>
                             )}
                         </div>
+                        )}
                         <div
                             ref={messagesContainerRef}
                             style={{

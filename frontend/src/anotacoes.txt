@@ -69,3 +69,11 @@ nando
 
 
 filipe->
+
+
+
+sed -i 's/transports: \["websocket", "polling"\]/transports: ["polling"]/' \
+  /home/filferna/transcendence/frontend/src/AuthContext.tsx \
+  /home/filferna/transcendence/frontend/src/chat.tsx \
+  /home/filferna/transcendence/frontend/src/dashboard.tsx \
+  /home/filferna/transcendence/frontend/src/Canvas.tsx

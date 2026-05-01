@@ -6,6 +6,19 @@ CERT_DIR=/etc/ssl/certs
 CERT_PATH="$CERT_DIR/server.cert"
 KEY_PATH="$CERT_DIR/server.key"
 
+# Build SAN list — always includes localhost; adds HOST if it differs
+HOST_VAR="${HOST:-localhost}"
+SAN="DNS:localhost,IP:127.0.0.1"
+if echo "$HOST_VAR" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+  # HOST is an IP address
+  if [ "$HOST_VAR" != "127.0.0.1" ]; then
+    SAN="$SAN,IP:$HOST_VAR"
+  fi
+elif [ "$HOST_VAR" != "localhost" ]; then
+  # HOST is a hostname
+  SAN="$SAN,DNS:$HOST_VAR"
+fi
+
 # Create SSL certificate directories
 echo "Creating SSL certificate directories..."
 mkdir -p "$CERT_DIR"
@@ -25,13 +38,19 @@ else
     needs_regen=1
   elif ! echo "$cert_san" | grep -q "DNS:localhost" || ! echo "$cert_san" | grep -q "IP Address:127.0.0.1"; then
     needs_regen=1
+  elif echo "$HOST_VAR" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    if [ "$HOST_VAR" != "127.0.0.1" ] && ! echo "$cert_san" | grep -q "IP Address:$HOST_VAR"; then
+      needs_regen=1
+    fi
+  elif [ "$HOST_VAR" != "localhost" ] && ! echo "$cert_san" | grep -q "DNS:$HOST_VAR"; then
+    needs_regen=1
   fi
 fi
 
 if [ "$needs_regen" -eq 1 ]; then
-  echo "Generating self-signed SSL certificates..."
+  echo "Generating self-signed SSL certificates for: $SAN"
   rm -f "$CERT_PATH" "$KEY_PATH"
-  openssl req -x509 -newkey rsa:2048 -keyout "$KEY_PATH" -out "$CERT_PATH" -days 365 -nodes -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" 2>&1 | head -20
+  openssl req -x509 -newkey rsa:2048 -keyout "$KEY_PATH" -out "$CERT_PATH" -days 365 -nodes -subj "/CN=$HOST_VAR" -addext "subjectAltName=$SAN" 2>&1 | head -20
   echo "SSL certificates generated"
   chmod 600 "$KEY_PATH"
   chmod 644 "$CERT_PATH"

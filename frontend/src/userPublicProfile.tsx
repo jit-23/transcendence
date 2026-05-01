@@ -6,7 +6,6 @@ import { TopBar } from './components/ui/topbar';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from './components/i18n';
 
 type PublicProfile = {
     id: number;
@@ -19,7 +18,7 @@ type PublicProfile = {
 };
 
 export function UserPublicProfilePage() {
-    const {t} = useTranslation();
+    const { t } = useTranslation();
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
     const { id } = useParams();
@@ -31,6 +30,8 @@ export function UserPublicProfilePage() {
     const [requestPending, setRequestPending] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:8081';
 
     useEffect(() => {
         const profileId = Number(id);
@@ -59,15 +60,11 @@ export function UserPublicProfilePage() {
 
             try {
                 const [profileRes, friendsRes] = await Promise.all([
-                    fetch(`https://localhost:8081/users/${profileId}/profile`, {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
+                    fetch(`${apiUrl}/users/${profileId}/profile`, {
+                        headers: { Authorization: `Bearer ${token}` },
                     }),
-                    fetch('https://localhost:8081/users/friends', {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
+                    fetch(`${apiUrl}/users/friends`, {
+                        headers: { Authorization: `Bearer ${token}` },
                     }),
                 ]);
 
@@ -82,12 +79,10 @@ export function UserPublicProfilePage() {
 
                 const friendsData = await friendsRes.json();
                 if (friendsRes.ok && Array.isArray(friendsData)) {
-                    const targetIsFriend = friendsData.some((friend: { id: number }) => friend.id === profileId);
-                    setIsFriend(targetIsFriend);
+                    setIsFriend(friendsData.some((friend: { id: number }) => friend.id === profileId));
                 } else {
                     setIsFriend(false);
                 }
-
             } catch {
                 setError(t('UPF_network_load'));
                 setProfile(null);
@@ -103,37 +98,23 @@ export function UserPublicProfilePage() {
     const handleAddFriend = async () => {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
-        if (!token) {
-            setActionError(t('UPF_not_auth'));
-            return;
-        }
+        if (!token) { setActionError(t('UPF_not_auth')); return; }
 
         setActionLoading(true);
         setActionError(null);
 
         try {
-            const res = await fetch('https://localhost:8081/users/friend-request/send', {
+            const res = await fetch(`${apiUrl}/users/friend-request/send`, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ receiverId: profile.id }),
             });
-
             const data = await res.json();
 
             if (!res.ok) {
                 const message = data.error || t('UPF_failed_send_req');
-                if (message.toLowerCase().includes('already friends')) {
-                    setIsFriend(true);
-                    setRequestPending(false);
-                    return;
-                }
-                if (message.toLowerCase().includes('pending')) {
-                    setRequestPending(true);
-                    return;
-                }
+                if (message.toLowerCase().includes('already friends')) { setIsFriend(true); setRequestPending(false); return; }
+                if (message.toLowerCase().includes('pending')) { setRequestPending(true); return; }
                 setActionError(message);
                 return;
             }
@@ -149,29 +130,18 @@ export function UserPublicProfilePage() {
     const handleUnfriend = async () => {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
-        if (!token) {
-            setActionError(t('UPF_not_auth'));
-            return;
-        }
+        if (!token) { setActionError(t('UPF_not_auth')); return; }
 
         setActionLoading(true);
         setActionError(null);
 
         try {
-            const res = await fetch(`https://localhost:8081/users/friends/${profile.id}/unfriend`, {
+            const res = await fetch(`${apiUrl}/users/friends/${profile.id}/unfriend`, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             });
-
             const data = await res.json();
-            if (!res.ok) {
-                setActionError(data.error || t('UPF_failed_remove'));
-                return;
-            }
-
+            if (!res.ok) { setActionError(data.error || t('UPF_failed_remove')); return; }
             setIsFriend(false);
             setRequestPending(false);
         } catch {
@@ -189,30 +159,19 @@ export function UserPublicProfilePage() {
     const handleBlock = async () => {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
-        if (!token) {
-            setActionError(t('UPF_not_auth'));
-            return;
-        }
+        if (!token) { setActionError(t('UPF_not_auth')); return; }
 
         setActionLoading(true);
         setActionError(null);
 
         try {
-            const res = await fetch(`https://localhost:8081/users/${profile.id}/block`, {
+            const res = await fetch(`${apiUrl}/users/${profile.id}/block`, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             });
-
             const data = await res.json();
-            if (!res.ok) {
-                setActionError(data.error || t('UPF_failed_block'));
-                return;
-            }
-
-            setProfile((prev: PublicProfile | null) => prev ? { ...prev, isBlocked: true } : prev);
+            if (!res.ok) { setActionError(data.error || t('UPF_failed_block')); return; }
+            setProfile((prev) => prev ? { ...prev, isBlocked: true } : prev);
             setIsFriend(false);
             setRequestPending(false);
         } catch {
@@ -225,30 +184,19 @@ export function UserPublicProfilePage() {
     const handleUnblock = async () => {
         if (!profile) return;
         const token = sessionStorage.getItem('token');
-        if (!token) {
-            setActionError(t('UPF_not_auth'));
-            return;
-        }
+        if (!token) { setActionError(t('UPF_not_auth')); return; }
 
         setActionLoading(true);
         setActionError(null);
 
         try {
-            const res = await fetch(`https://localhost:8081/users/${profile.id}/unblock`, {
+            const res = await fetch(`${apiUrl}/users/${profile.id}/unblock`, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             });
-
             const data = await res.json();
-            if (!res.ok) {
-                setActionError(data.error || t('UPF_failed_unblock'));
-                return;
-            }
-
-            setProfile((prev: PublicProfile | null) => prev ? { ...prev, isBlocked: false } : prev);
+            if (!res.ok) { setActionError(data.error || t('UPF_failed_unblock')); return; }
+            setProfile((prev) => prev ? { ...prev, isBlocked: false } : prev);
             setIsFriend(false);
             setRequestPending(false);
         } catch {
@@ -259,28 +207,27 @@ export function UserPublicProfilePage() {
     };
 
     return (
-        <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="dashboard-shell">
             <TopBar />
-
-            <main className="space-y-5">
-                <div>
-                    <h1 className="font-display text-3xl">{t("UPF_prof")}</h1>
-                    <p className="mt-1 text-sm text-muted">{t("UPF_view")}</p>
+            <main className="dashboard-body">
+                <div className="page-title fade-up">
+                    <h1>{t('UPF_prof')}</h1>
+                    <p>{t('UPF_view')}</p>
                 </div>
 
-                <Card>
+                <Card className="fade-up fade-up-1">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base">{t("UPF_public")}</CardTitle>
+                        <CardTitle className="text-base">{t('UPF_public')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {loading && <p className="text-sm text-muted">{t("UPF_loading")}</p>}
+                        {loading && <p className="text-sm text-muted">{t('UPF_loading')}</p>}
 
                         {!loading && error && (
-                            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>
+                            <div className="msg msg-error">{error}</div>
                         )}
 
                         {!loading && !error && actionError && (
-                            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{actionError}</div>
+                            <div className="msg msg-error">{actionError}</div>
                         )}
 
                         {!loading && !error && profile && (
@@ -288,65 +235,36 @@ export function UserPublicProfilePage() {
                                 <Avatar avatar={profile.avatar} name={profile.name} size={72} />
                                 <div className="min-w-[220px] flex-1">
                                     <p className="font-display text-xl font-semibold leading-tight text-ink">{profile.name}</p>
-                                    <p className="mt-1 text-sm text-muted">{profile.email}</p>
-                                    <p className="mt-1 text-xs text-muted">{t("UPF_joined")} {new Date(profile.createdAt).toLocaleDateString()}</p>
+                                    <p className="mt-1 text-xs text-muted">{t('UPF_joined')} {new Date(profile.createdAt).toLocaleDateString()}</p>
 
                                     {profile.blockedByUser && (
-                                        <p className="mt-3 text-sm text-red-400">{t("UPF_blocked")}</p>
+                                        <p className="mt-3 text-sm text-red-400">{t('UPF_blocked')}</p>
                                     )}
 
                                     <div className="mt-4 flex flex-wrap gap-2">
                                         {profile.isBlocked ? (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={handleUnblock}
-                                                disabled={actionLoading}
-                                            >
-                                                {actionLoading ? t("UPF_unblocking") : t("UPF_block")}
+                                            <Button variant="outline" size="sm" onClick={handleUnblock} disabled={actionLoading}>
+                                                {actionLoading ? t('UPF_unblocking') : t('UPF_unblock')}
                                             </Button>
                                         ) : profile.blockedByUser ? null : isFriend ? (
                                             <>
-                                                <Button
-                                                    size="sm"
-                                                    onClick={handleMessage}
-                                                    disabled={actionLoading}
-                                                >
-                                                    {t("UPF_message")}
+                                                <Button size="sm" onClick={handleMessage} disabled={actionLoading}>
+                                                    {t('UPF_message')}
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={handleUnfriend}
-                                                    disabled={actionLoading}
-                                                >
-                                                    {actionLoading ? t("UPF_removing") : t("UPF_remove")}
+                                                <Button variant="outline" size="sm" onClick={handleUnfriend} disabled={actionLoading}>
+                                                    {actionLoading ? t('UPF_removing') : t('UPF_remove')}
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={handleBlock}
-                                                    disabled={actionLoading}
-                                                >
-                                                    {t("UPF_block")}
+                                                <Button variant="outline" size="sm" onClick={handleBlock} disabled={actionLoading}>
+                                                    {t('UPF_block')}
                                                 </Button>
                                             </>
                                         ) : (
                                             <>
-                                                <Button
-                                                    size="sm"
-                                                    onClick={handleAddFriend}
-                                                    disabled={actionLoading || requestPending}
-                                                >
-                                                    {requestPending ? t("UPF_request") : (actionLoading ? t("UPF_sending") : t("UPF_add"))}
+                                                <Button size="sm" onClick={handleAddFriend} disabled={actionLoading || requestPending}>
+                                                    {requestPending ? t('UPF_request') : actionLoading ? t('UPF_sending') : t('UPF_add')}
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={handleBlock}
-                                                    disabled={actionLoading}
-                                                >
-                                                    {t("UPF_block2")}
+                                                <Button variant="outline" size="sm" onClick={handleBlock} disabled={actionLoading}>
+                                                    {t('UPF_block2')}
                                                 </Button>
                                             </>
                                         )}

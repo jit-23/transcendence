@@ -256,6 +256,9 @@ export async function deleteCanvas(req: Request, res: Response) {
         });
 
         if (canvas.conversationId) {
+            await prisma.conversation_participants.deleteMany({
+                where: { conversation_id: canvas.conversationId },
+            });
             await prisma.conversation.delete({
                 where: { id: canvas.conversationId },
             });

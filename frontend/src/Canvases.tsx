@@ -36,6 +36,8 @@ export function CanvasesPage() {
   const [inviteCanvasId, setInviteCanvasId] = useState<number | null>(null);
   const [invitingFriendId, setInvitingFriendId] = useState<number | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [canvasCollaboratorIds, setCanvasCollaboratorIds] = useState<Set<number>>(new Set());
+  const [sessionInvitedIds, setSessionInvitedIds] = useState<Set<number>>(new Set());
 
   const [groupIntegrators, setGroupIntegrators] = useState<Friend[]>([]);
 
@@ -174,6 +176,7 @@ export function CanvasesPage() {
             throw new Error(data.error || t("CVS_failed_invite", "Failed to invite friend"));
           }
 
+          setSessionInvitedIds((prev) => new Set([...prev, friendId]));
           setInviteCanvasId(canvasId);
         } catch (err: any) {
           setInviteError(err.message || t("CVS_network_fail_invite"));
@@ -210,6 +213,25 @@ export function CanvasesPage() {
       const handleOpenInviteCanvas = async (canvasId: number | null) => {
         if (canvasId !== null) {
           await fetchFriends();
+          setSessionInvitedIds(new Set());
+          try {
+            const apiUrl = import.meta.env.VITE_API_URL || "https://localhost:8081";
+            const res = await fetch(`${apiUrl}/canvases/${canvasId}/collaborators`, {
+              headers: authHeader(),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const ids = new Set<number>(
+                [data.owner?.id, ...(data.collaborators ?? []).map((c: any) => c.id)].filter(
+                  (id): id is number => typeof id === "number"
+                )
+              );
+              setCanvasCollaboratorIds(ids);
+            }
+          } catch {}
+        } else {
+          setCanvasCollaboratorIds(new Set());
+          setSessionInvitedIds(new Set());
         }
         setInviteCanvasId(canvasId);
       };
@@ -310,6 +332,7 @@ export function CanvasesPage() {
                           inviteCanvasId={inviteCanvasId}
                           inviteError={inviteError}
                           invitingFriendId={invitingFriendId}
+                          alreadyInvitedIds={new Set([...canvasCollaboratorIds, ...sessionInvitedIds])}
                           onOpenInviteCanvas={handleOpenInviteCanvas}
                           onInviteFriend={handleInviteFriend}/>
 
@@ -328,6 +351,7 @@ export function CanvasesPage() {
               inviteCanvasId={inviteCanvasId}
               inviteError={inviteError}
               invitingFriendId={invitingFriendId}
+              alreadyInvitedIds={new Set([...canvasCollaboratorIds, ...sessionInvitedIds])}
               onOpenInviteCanvas={handleOpenInviteCanvas}
               onInviteFriend={handleInviteFriend}
             />
