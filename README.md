@@ -224,7 +224,7 @@ Canvas events: clients join and leave named Socket.io rooms per canvas. canvas-d
 ### Developer of the Canvas
 
 Role: Frontend Developer
-Developer: ptorrao-
+# Dev: ptorrao-
 
 Description:
 As a Frontend Developer, I was responsible for designing and implementing the interactive canvas feature for a web application. This involved creating a robust and user-friendly drawing tool using React and TypeScript. Key contributions include:
