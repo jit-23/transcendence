@@ -332,16 +332,12 @@ Major: Allow users to interact with other users.                           |    
 Minor: Use an ORM for the database                                         | Prisma                   | 1
 Minor: Real-time collaborative features                                    | (Canvas)                 | 1
 Minor: Custom-made design system with reusable components                  | In the canvas/topbar     | 1
-																		   |                          |                          		
 result:                                    								   |						  | 9 points
-																		   |--------------------------|                          		
 # Accessibility and Internationalization:								   |--------------------------|
-																		   |                          |                          		
 Minor: Support for multiple languages (at least 3 languages).              | en/es/pt                 | 1
 Minor: Support for additional browsers                                     | Firefox, Edge,Chrome     | 1
-																		   |                          |                          		
 result:                                    								   |						  | 2 points
-																		   |--------------------------|                          		
+																		   |---------------------------|                          		
 # User Management                                                          |--------------------------|
 																		   |                          |                          		
 Major: Standard user management and authentication. (update profile/avatar/friends/onlinestatus)      | 2
@@ -349,12 +345,12 @@ Minor: Implement remote authentication with OAuth 2.0  					   | google/42				  
 Minor: Implement a complete 2FA  system for the users.                     |						  | 1 
 																		   |                          |                          		
 result:																	   |						  | 4 points
-																		   |--------------------------|                          		
+																		   |---------------------------|                          		
 # devops																   |--------------------------|
 Major: Monitoring system with Prometheus and Grafana                       | Promethues & Grafana     | 2
 																		   |                          |                          		
 result:																	   |						  |	2 points
-																		   |--------------------------|                          		
+																		   |---------------------------|                          		
 final result:                                                              |                          | 17 points.
 
 

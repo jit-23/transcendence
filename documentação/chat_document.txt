@@ -1,6 +1,0 @@
-quando temos amigos e clicamos no "chat" enviamos o id no target
-nisso entramos na funcao chatPage
-
-ai conectamos os sockets e emitimos as msg e os sinais de forma parecida de como esta escrito no doc Backend_websockets_documentacao.txt
-adicionanado group chats, ai confirmamos quem esta presente no group chat na DB e conectamos com quem estiver ativo. 
-
