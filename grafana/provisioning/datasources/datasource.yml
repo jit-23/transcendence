@@ -8,3 +8,5 @@ datasources:
     url: https://prometheus:9090
     isDefault: true
     editable: true
+    jsonData:
+      tlsSkipVerify: tr

@@ -16,7 +16,6 @@ export const changeLanguage = (): void => {
 };
 
 i18n.use(I18nextBrowserLanguageDetector).use(initReactI18next).init({
-	debug: true,
 	lng: "en",
 	resources: {
 		en: {

@@ -74,10 +74,13 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    user: root
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus-web.yml:/etc/prometheus/web.yml:ro
+      - ./certs:/etc/prometheus/ssl:ro
       - prometheus_data:/prometheus
     depends_on:
       - backend_server
@@ -85,24 +88,32 @@ services:
       - observability
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.config.file=/etc/prometheus/web.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--log.level=error'
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    user: root
     ports:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./certs:/etc/grafana/ssl:ro
     depends_on:
       - prometheus
     networks:
       - observability
     environment:
-      - GF_LOG_LEVEL=error  # Options: critical, error, warning, info, debug
+      - GF_LOG_LEVEL=error
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/etc/grafana/ssl/server.cert
+      - GF_SERVER_CERT_KEY=/etc/grafana/ssl/server.key
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false
 
 volumes:
   database:
