@@ -9,4 +9,4 @@ datasources:
     isDefault: true
     editable: true
     jsonData:
-      tlsSkipVerify: tr
+      tlsSkipVerify: true
